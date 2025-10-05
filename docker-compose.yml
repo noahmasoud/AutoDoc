@@ -57,10 +57,16 @@ services:
       - autodoc-data:/app/data
     environment:
       - PYTHONPATH=/app
-      - LOG_LEVEL=DEBUG
-      - DATABASE_URL=postgresql://autodoc:autodoc@postgres:5432/autodoc_dev
-      - REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - DATABASE_URL=sqlite:///./autodoc.db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=dev-secret-key-change-in-production-32-chars-min
+      - JWT_SECRET_KEY=dev-jwt-secret-key-change-in-production-32-chars
+      - CONFLUENCE_URL=${CONFLUENCE_URL:-}
+      - CONFLUENCE_USERNAME=${CONFLUENCE_USERNAME:-}
+      - CONFLUENCE_TOKEN=${CONFLUENCE_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -136,11 +142,14 @@ services:
       - autodoc-logs:/app/logs
     environment:
       - PYTHONPATH=/app
+      - ENVIRONMENT=testing
+      - DEBUG=false
       - LOG_LEVEL=INFO
       - CI=true
-      - DATABASE_URL=postgresql://autodoc:autodoc@postgres:5432/autodoc_test
+      - DATABASE_URL=sqlite:///./test_autodoc.db
       - REDIS_URL=redis://redis:6379/2
-      - ENVIRONMENT=test
+      - SECRET_KEY=test-secret-key-for-ci-testing-32-chars-min
+      - JWT_SECRET_KEY=test-jwt-secret-key-for-ci-testing-32-chars
     depends_on:
       postgres:
         condition: service_healthy
@@ -166,10 +175,13 @@ services:
       - autodoc-data:/app/data
     environment:
       - PYTHONPATH=/app
-      - LOG_LEVEL=INFO
-      - DATABASE_URL=postgresql://autodoc:autodoc@postgres:5432/autodoc_dev
-      - REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - DATABASE_URL=sqlite:///./autodoc.db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=dev-secret-key-change-in-production-32-chars-min
+      - JWT_SECRET_KEY=dev-jwt-secret-key-change-in-production-32-chars
     depends_on:
       postgres:
         condition: service_healthy
