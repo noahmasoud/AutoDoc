@@ -1,9 +1,9 @@
 """Unit tests for code analyzers."""
 
-import pytest
 import ast
-from typing import List, Dict, Any
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
+
+import pytest
 
 
 class TestPythonCodeAnalyzer:
@@ -15,10 +15,10 @@ class TestPythonCodeAnalyzer:
         """Test that functions are correctly extracted from Python code."""
         # This test will be implemented when the analyzer is created
         # For now, it serves as a placeholder to ensure test structure
-        
+
         # Expected: Should extract 'calculate_sum' function
         # Expected: Should extract '__init__' and 'add' methods from Calculator class
-        
+
         # Mock the analyzer (to be replaced with actual implementation)
         analyzer = Mock()
         analyzer.extract_functions.return_value = [
@@ -28,7 +28,7 @@ class TestPythonCodeAnalyzer:
                 "line_end": 12,
                 "docstring": "Calculate the sum of two integers.",
                 "parameters": ["a", "b"],
-                "return_type": "int"
+                "return_type": "int",
             },
             {
                 "name": "__init__",
@@ -36,7 +36,7 @@ class TestPythonCodeAnalyzer:
                 "line_end": 24,
                 "docstring": "Initialize calculator with initial value.",
                 "parameters": ["self", "initial_value"],
-                "return_type": None
+                "return_type": None,
             },
             {
                 "name": "add",
@@ -44,12 +44,12 @@ class TestPythonCodeAnalyzer:
                 "line_end": 36,
                 "docstring": "Add a number to the current value.",
                 "parameters": ["self", "number"],
-                "return_type": "int"
-            }
+                "return_type": "int",
+            },
         ]
-        
+
         result = analyzer.extract_functions(sample_python_code)
-        
+
         assert len(result) == 3
         assert result[0]["name"] == "calculate_sum"
         assert result[1]["name"] == "__init__"
@@ -68,12 +68,12 @@ class TestPythonCodeAnalyzer:
                 "line_end": 37,
                 "docstring": "A simple calculator class.",
                 "methods": ["__init__", "add"],
-                "base_classes": []
-            }
+                "base_classes": [],
+            },
         ]
-        
+
         result = analyzer.extract_classes(sample_python_code)
-        
+
         assert len(result) == 1
         assert result[0]["name"] == "Calculator"
         assert "add" in result[0]["methods"]
@@ -89,18 +89,18 @@ class TestPythonCodeAnalyzer:
                 "type": "function",
                 "name": "calculate_sum",
                 "docstring": "Calculate the sum of two integers.",
-                "line_number": 4
+                "line_number": 4,
             },
             {
                 "type": "class",
                 "name": "Calculator",
                 "docstring": "A simple calculator class.",
-                "line_number": 17
-            }
+                "line_number": 17,
+            },
         ]
-        
+
         result = analyzer.extract_docstrings(sample_python_code)
-        
+
         assert len(result) == 2
         assert any(doc["name"] == "calculate_sum" for doc in result)
         assert any(doc["name"] == "Calculator" for doc in result)
@@ -115,11 +115,11 @@ class TestPythonCodeAnalyzer:
             "calculate_sum": 1,  # Simple function
             "Calculator.__init__": 1,  # Simple method
             "Calculator.add": 1,  # Simple method
-            "overall": 1  # Overall file complexity
+            "overall": 1,  # Overall file complexity
         }
-        
+
         result = analyzer.calculate_complexity(sample_python_code)
-        
+
         assert result["calculate_sum"] == 1
         assert result["overall"] == 1
 
@@ -130,20 +130,12 @@ class TestPythonCodeAnalyzer:
         # Mock the analyzer (to be replaced with actual implementation)
         analyzer = Mock()
         analyzer.extract_imports.return_value = [
-            {
-                "type": "standard",
-                "module": "os",
-                "line_number": 1
-            },
-            {
-                "type": "third_party",
-                "module": "requests",
-                "line_number": 2
-            }
+            {"type": "standard", "module": "os", "line_number": 1},
+            {"type": "third_party", "module": "requests", "line_number": 2},
         ]
-        
+
         result = analyzer.extract_imports(sample_python_code)
-        
+
         # For the sample code, there should be no imports
         assert isinstance(result, list)
 
@@ -154,7 +146,7 @@ class TestPythonCodeAnalyzer:
         # Mock the analyzer (to be replaced with actual implementation)
         analyzer = Mock()
         analyzer.analyze.side_effect = SyntaxError("Invalid syntax")
-        
+
         with pytest.raises(SyntaxError):
             analyzer.analyze("def invalid_syntax(")
 
@@ -168,11 +160,11 @@ class TestPythonCodeAnalyzer:
             "functions": [],
             "classes": [],
             "imports": [],
-            "docstrings": []
+            "docstrings": [],
         }
-        
+
         result = analyzer.analyze("")
-        
+
         assert result["functions"] == []
         assert result["classes"] == []
 
@@ -187,9 +179,9 @@ class TestASTAnalyzer:
         # Mock the AST analyzer (to be replaced with actual implementation)
         analyzer = Mock()
         analyzer.parse_ast.return_value = sample_ast_tree
-        
+
         result = analyzer.parse_ast("def hello(): pass")
-        
+
         assert isinstance(result, ast.AST)
 
     @pytest.mark.unit
@@ -200,11 +192,11 @@ class TestASTAnalyzer:
         analyzer = Mock()
         analyzer.visit_nodes.return_value = [
             {"type": "FunctionDef", "name": "hello_world"},
-            {"type": "ClassDef", "name": "MyClass"}
+            {"type": "ClassDef", "name": "MyClass"},
         ]
-        
+
         result = analyzer.visit_nodes(sample_ast_tree)
-        
+
         assert len(result) == 2
         assert any(node["name"] == "hello_world" for node in result)
 
@@ -222,11 +214,11 @@ class TestCodeMetricsAnalyzer:
             "total_lines": 40,
             "code_lines": 35,
             "comment_lines": 3,
-            "blank_lines": 2
+            "blank_lines": 2,
         }
-        
+
         result = analyzer.count_lines(sample_python_code)
-        
+
         assert result["total_lines"] == 40
         assert result["code_lines"] == 35
 
@@ -237,9 +229,9 @@ class TestCodeMetricsAnalyzer:
         # Mock the metrics analyzer (to be replaced with actual implementation)
         analyzer = Mock()
         analyzer.count_functions.return_value = 3
-        
+
         result = analyzer.count_functions(sample_python_code)
-        
+
         assert result == 3
 
     @pytest.mark.unit
@@ -249,7 +241,7 @@ class TestCodeMetricsAnalyzer:
         # Mock the metrics analyzer (to be replaced with actual implementation)
         analyzer = Mock()
         analyzer.count_classes.return_value = 1
-        
+
         result = analyzer.count_classes(sample_python_code)
-        
+
         assert result == 1

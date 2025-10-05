@@ -3,33 +3,31 @@
 Provides convenient context managers for common logging scenarios.
 """
 
-from typing import Any, Dict, Optional, Union
 from contextlib import contextmanager
+from typing import Any
 
 from .correlation import (
     CorrelationContextManager,
-    set_run_context,
-    set_request_context,
-    generate_run_id,
     generate_request_id,
+    generate_run_id,
 )
 from .logger import get_logger
 
 
 class LoggingContext:
     """Base logging context manager."""
-    
+
     def __init__(self, logger_name: str):
         """Initialize the logging context.
-        
+
         Args:
             logger_name: Name of the logger to use
         """
         self.logger = get_logger(logger_name)
-    
+
     def log_event(self, event_type: str, message: str, **kwargs) -> None:
         """Log an event with structured data.
-        
+
         Args:
             event_type: Type of event
             message: Log message
@@ -42,31 +40,28 @@ class LoggingContext:
 @contextmanager
 def log_context(
     logger_name: str,
-    correlation_id: Optional[str] = None,
-    **context_kwargs
+    correlation_id: str | None = None,
+    **context_kwargs,
 ):
     """Context manager for logging with correlation ID.
-    
+
     Args:
         logger_name: Name of the logger to use
         correlation_id: Optional correlation ID
         **context_kwargs: Additional context parameters
-        
+
     Yields:
         LoggingContext instance
     """
-    with CorrelationContextManager(
-        correlation_id=correlation_id,
-        **context_kwargs
-    ):
+    with CorrelationContextManager(correlation_id=correlation_id, **context_kwargs):
         context = LoggingContext(logger_name)
         try:
             yield context
         except Exception as e:
             context.logger.exception(
-                f"Error in logging context: {e}",
-                event_type="context_error",
-                error=str(e)
+                "Error in logging context: %s",
+                str(e),
+                extra={"event_type": "context_error", "error": str(e)},
             )
             raise
 
@@ -74,15 +69,15 @@ def log_context(
 @contextmanager
 def log_run_context(
     logger_name: str,
-    run_id: Optional[str] = None,
-    commit_sha: Optional[str] = None,
-    repo: Optional[str] = None,
-    branch: Optional[str] = None,
-    pr_id: Optional[str] = None,
-    metadata: Optional[Dict[str, Any]] = None,
+    run_id: str | None = None,
+    commit_sha: str | None = None,
+    repo: str | None = None,
+    branch: str | None = None,
+    pr_id: str | None = None,
+    metadata: dict[str, Any] | None = None,
 ):
     """Context manager for CI/CD run logging.
-    
+
     Args:
         logger_name: Name of the logger to use
         run_id: Optional run ID (generated if not provided)
@@ -91,13 +86,13 @@ def log_run_context(
         branch: Git branch name
         pr_id: Pull/Merge request ID
         metadata: Additional metadata
-        
+
     Yields:
         LoggingContext instance
     """
     if run_id is None:
         run_id = generate_run_id()
-    
+
     with CorrelationContextManager(
         run_id=run_id,
         commit_sha=commit_sha,
@@ -107,7 +102,7 @@ def log_run_context(
         metadata=metadata,
     ):
         context = LoggingContext(logger_name)
-        
+
         # Log run start
         context.log_event(
             "run_start",
@@ -116,9 +111,9 @@ def log_run_context(
             commit_sha=commit_sha,
             repo=repo,
             branch=branch,
-            pr_id=pr_id
+            pr_id=pr_id,
         )
-        
+
         try:
             yield context
             # Log run completion
@@ -126,16 +121,16 @@ def log_run_context(
                 "run_complete",
                 f"Run completed successfully: {run_id}",
                 run_id=run_id,
-                status="success"
+                status="success",
             )
         except Exception as e:
             # Log run error
             context.log_event(
                 "run_error",
-                f"Run failed: {run_id} - {str(e)}",
+                f"Run failed: {run_id} - {e!s}",
                 run_id=run_id,
                 status="error",
-                error=str(e)
+                error=str(e),
             )
             raise
 
@@ -143,39 +138,39 @@ def log_run_context(
 @contextmanager
 def log_request_context(
     logger_name: str,
-    request_id: Optional[str] = None,
-    user_id: Optional[str] = None,
-    metadata: Optional[Dict[str, Any]] = None,
+    request_id: str | None = None,
+    user_id: str | None = None,
+    metadata: dict[str, Any] | None = None,
 ):
     """Context manager for API request logging.
-    
+
     Args:
         logger_name: Name of the logger to use
         request_id: Optional request ID (generated if not provided)
         user_id: User ID
         metadata: Additional metadata
-        
+
     Yields:
         LoggingContext instance
     """
     if request_id is None:
         request_id = generate_request_id()
-    
+
     with CorrelationContextManager(
         request_id=request_id,
         user_id=user_id,
         metadata=metadata,
     ):
         context = LoggingContext(logger_name)
-        
+
         # Log request start
         context.log_event(
             "request_start",
             f"Request started: {request_id}",
             request_id=request_id,
-            user_id=user_id
+            user_id=user_id,
         )
-        
+
         try:
             yield context
             # Log request completion
@@ -183,52 +178,57 @@ def log_request_context(
                 "request_complete",
                 f"Request completed successfully: {request_id}",
                 request_id=request_id,
-                status="success"
+                status="success",
             )
         except Exception as e:
             # Log request error
             context.log_event(
                 "request_error",
-                f"Request failed: {request_id} - {str(e)}",
+                f"Request failed: {request_id} - {e!s}",
                 request_id=request_id,
                 status="error",
-                error=str(e)
+                error=str(e),
             )
             raise
 
 
 class RunLoggingContext(LoggingContext):
     """Specialized logging context for CI/CD runs."""
-    
+
     def __init__(self, logger_name: str, run_id: str):
         """Initialize the run logging context.
-        
+
         Args:
             logger_name: Name of the logger to use
             run_id: Run ID
         """
         super().__init__(logger_name)
         self.run_id = run_id
-    
+
     def log_analyzer_start(self, file_count: int) -> None:
         """Log analyzer start."""
         self.log_event(
             "analyzer_start",
             f"Starting analysis for {file_count} files",
             run_id=self.run_id,
-            file_count=file_count
+            file_count=file_count,
         )
-    
+
     def log_analyzer_complete(self, findings_count: int) -> None:
         """Log analyzer completion."""
         self.log_event(
             "analyzer_complete",
             f"Analysis complete with {findings_count} findings",
             run_id=self.run_id,
-            findings_count=findings_count
+            findings_count=findings_count,
         )
-    
-    def log_patch_generated(self, patch_id: str, page_id: str, template_id: str) -> None:
+
+    def log_patch_generated(
+        self,
+        patch_id: str,
+        page_id: str,
+        template_id: str,
+    ) -> None:
         """Log patch generation."""
         self.log_event(
             "patch_generated",
@@ -236,9 +236,9 @@ class RunLoggingContext(LoggingContext):
             run_id=self.run_id,
             patch_id=patch_id,
             page_id=page_id,
-            template_id=template_id
+            template_id=template_id,
         )
-    
+
     def log_confluence_update(self, page_id: str, version: int, success: bool) -> None:
         """Log Confluence update."""
         status = "success" if success else "failed"
@@ -248,23 +248,23 @@ class RunLoggingContext(LoggingContext):
             run_id=self.run_id,
             page_id=page_id,
             version=version,
-            success=success
+            success=success,
         )
 
 
 class RequestLoggingContext(LoggingContext):
     """Specialized logging context for API requests."""
-    
+
     def __init__(self, logger_name: str, request_id: str):
         """Initialize the request logging context.
-        
+
         Args:
             logger_name: Name of the logger to use
             request_id: Request ID
         """
         super().__init__(logger_name)
         self.request_id = request_id
-    
+
     def log_authentication(self, user_id: str, success: bool) -> None:
         """Log authentication attempt."""
         status = "success" if success else "failed"
@@ -273,9 +273,9 @@ class RequestLoggingContext(LoggingContext):
             f"Authentication {status} for user {user_id}",
             request_id=self.request_id,
             user_id=user_id,
-            success=success
+            success=success,
         )
-    
+
     def log_authorization(self, resource: str, action: str, success: bool) -> None:
         """Log authorization check."""
         status = "granted" if success else "denied"
@@ -285,9 +285,9 @@ class RequestLoggingContext(LoggingContext):
             request_id=self.request_id,
             resource=resource,
             action=action,
-            success=success
+            success=success,
         )
-    
+
     def log_validation_error(self, field: str, error: str) -> None:
         """Log validation error."""
         self.log_event(
@@ -295,5 +295,5 @@ class RequestLoggingContext(LoggingContext):
             f"Validation error in {field}: {error}",
             request_id=self.request_id,
             field=field,
-            error=error
+            error=error,
         )

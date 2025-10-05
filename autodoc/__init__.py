@@ -11,8 +11,8 @@ __description__ = "Automated Documentation Generation and Management System"
 # from .api.main import app
 
 __all__ = [
-    "__version__",
-    "__author__", 
-    "__email__",
+    "__author__",
     "__description__",
+    "__email__",
+    "__version__",
 ]

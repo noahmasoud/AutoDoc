@@ -1,8 +1,8 @@
 """Unit tests for external connectors."""
 
+from unittest.mock import Mock
+
 import pytest
-from typing import Dict, List, Any
-from unittest.mock import Mock, patch, MagicMock
 
 
 class TestConfluenceConnector:
@@ -16,11 +16,14 @@ class TestConfluenceConnector:
         connector = Mock()
         connector.connect.return_value = True
         connector.is_connected.return_value = True
-        
+
         result = connector.connect("https://example.atlassian.net", "token")
-        
+
         assert result is True
-        connector.connect.assert_called_once_with("https://example.atlassian.net", "token")
+        connector.connect.assert_called_once_with(
+            "https://example.atlassian.net",
+            "token",
+        )
 
     @pytest.mark.unit
     @pytest.mark.connector
@@ -32,11 +35,11 @@ class TestConfluenceConnector:
             "id": "123",
             "title": "Test Page",
             "content": "Page content",
-            "space": "TEST"
+            "space": "TEST",
         }
-        
+
         result = connector.get_page("123")
-        
+
         assert result["id"] == "123"
         assert result["title"] == "Test Page"
         connector.get_page.assert_called_once_with("123")
@@ -48,7 +51,7 @@ class TestConfluenceConnector:
         # Mock the connector (to be replaced with actual implementation)
         connector = Mock()
         connector.get_page.side_effect = Exception("Page not found")
-        
+
         with pytest.raises(Exception, match="Page not found"):
             connector.get_page("nonexistent")
 
@@ -61,17 +64,17 @@ class TestConfluenceConnector:
         connector.create_page.return_value = {
             "id": "456",
             "title": "New Page",
-            "url": "https://example.atlassian.net/wiki/spaces/TEST/pages/456"
+            "url": "https://example.atlassian.net/wiki/spaces/TEST/pages/456",
         }
-        
+
         page_data = {
             "title": "New Page",
             "content": "New page content",
-            "space": "TEST"
+            "space": "TEST",
         }
-        
+
         result = connector.create_page(page_data)
-        
+
         assert result["id"] == "456"
         assert result["title"] == "New Page"
         connector.create_page.assert_called_once_with(page_data)
@@ -85,17 +88,13 @@ class TestConfluenceConnector:
         connector.update_page.return_value = {
             "id": "123",
             "title": "Updated Page",
-            "version": 2
+            "version": 2,
         }
-        
-        update_data = {
-            "id": "123",
-            "content": "Updated content",
-            "version": 1
-        }
-        
+
+        update_data = {"id": "123", "content": "Updated content", "version": 1}
+
         result = connector.update_page(update_data)
-        
+
         assert result["id"] == "123"
         assert result["version"] == 2
         connector.update_page.assert_called_once_with(update_data)
@@ -107,9 +106,9 @@ class TestConfluenceConnector:
         # Mock the connector (to be replaced with actual implementation)
         connector = Mock()
         connector.delete_page.return_value = True
-        
+
         result = connector.delete_page("123")
-        
+
         assert result is True
         connector.delete_page.assert_called_once_with("123")
 
@@ -121,11 +120,11 @@ class TestConfluenceConnector:
         connector = Mock()
         connector.search_pages.return_value = [
             {"id": "123", "title": "Test Page 1"},
-            {"id": "456", "title": "Test Page 2"}
+            {"id": "456", "title": "Test Page 2"},
         ]
-        
+
         result = connector.search_pages("test query")
-        
+
         assert len(result) == 2
         assert result[0]["title"] == "Test Page 1"
         connector.search_pages.assert_called_once_with("test query")
@@ -137,7 +136,7 @@ class TestConfluenceConnector:
         # Mock the connector (to be replaced with actual implementation)
         connector = Mock()
         connector.connect.side_effect = Exception("Authentication failed")
-        
+
         with pytest.raises(Exception, match="Authentication failed"):
             connector.connect("https://example.atlassian.net", "invalid_token")
 
@@ -148,7 +147,7 @@ class TestConfluenceConnector:
         # Mock the connector (to be replaced with actual implementation)
         connector = Mock()
         connector.get_page.side_effect = Exception("Rate limit exceeded")
-        
+
         with pytest.raises(Exception, match="Rate limit exceeded"):
             connector.get_page("123")
 
@@ -159,7 +158,7 @@ class TestConfluenceConnector:
         # Mock the connector (to be replaced with actual implementation)
         connector = Mock()
         connector.get_page.side_effect = Exception("Network error")
-        
+
         with pytest.raises(Exception, match="Network error"):
             connector.get_page("123")
 
@@ -176,9 +175,9 @@ class TestDatabaseConnector:
         connector = Mock()
         connector.connect.return_value = True
         connector.is_connected.return_value = True
-        
+
         result = connector.connect("sqlite:///:memory:")
-        
+
         assert result is True
         connector.connect.assert_called_once_with("sqlite:///:memory:")
 
@@ -190,15 +189,15 @@ class TestDatabaseConnector:
         # Mock the database connector (to be replaced with actual implementation)
         connector = Mock()
         connector.save_result.return_value = "result_id_123"
-        
+
         analysis_result = {
             "file_path": "/path/to/file.py",
             "functions": [{"name": "test_func", "complexity": 1}],
-            "classes": [{"name": "TestClass", "methods": ["method1"]}]
+            "classes": [{"name": "TestClass", "methods": ["method1"]}],
         }
-        
+
         result = connector.save_result(analysis_result)
-        
+
         assert result == "result_id_123"
         connector.save_result.assert_called_once_with(analysis_result)
 
@@ -213,11 +212,11 @@ class TestDatabaseConnector:
             "id": "result_id_123",
             "file_path": "/path/to/file.py",
             "created_at": "2024-01-01T00:00:00Z",
-            "analysis_data": {"functions": [], "classes": []}
+            "analysis_data": {"functions": [], "classes": []},
         }
-        
+
         result = connector.get_result("result_id_123")
-        
+
         assert result["id"] == "result_id_123"
         connector.get_result.assert_called_once_with("result_id_123")
 
@@ -230,7 +229,7 @@ class TestDatabaseConnector:
         connector = Mock()
         connector.save_result.side_effect = Exception("Database error")
         connector.rollback.return_value = True
-        
+
         # Simulate error handling with rollback
         try:
             connector.save_result({"invalid": "data"})
@@ -238,7 +237,7 @@ class TestDatabaseConnector:
             connector.rollback()
             # Verify the expected exception was raised
             assert str(e) == "Database error"
-        
+
         # Verify rollback was called
         connector.rollback.assert_called_once()
 
@@ -253,9 +252,9 @@ class TestFileSystemConnector:
         # Mock the file system connector (to be replaced with actual implementation)
         connector = Mock()
         connector.read_file.return_value = "file content"
-        
+
         result = connector.read_file("/path/to/file.py")
-        
+
         assert result == "file content"
         connector.read_file.assert_called_once_with("/path/to/file.py")
 
@@ -266,7 +265,7 @@ class TestFileSystemConnector:
         # Mock the file system connector (to be replaced with actual implementation)
         connector = Mock()
         connector.read_file.side_effect = FileNotFoundError("File not found")
-        
+
         with pytest.raises(FileNotFoundError, match="File not found"):
             connector.read_file("/nonexistent/file.py")
 
@@ -277,9 +276,9 @@ class TestFileSystemConnector:
         # Mock the file system connector (to be replaced with actual implementation)
         connector = Mock()
         connector.write_file.return_value = True
-        
+
         result = connector.write_file("/path/to/file.py", "content")
-        
+
         assert result is True
         connector.write_file.assert_called_once_with("/path/to/file.py", "content")
 
@@ -292,11 +291,11 @@ class TestFileSystemConnector:
         connector.list_files.return_value = [
             "/project/file1.py",
             "/project/subdir/file2.py",
-            "/project/subdir/file3.py"
+            "/project/subdir/file3.py",
         ]
-        
+
         result = connector.list_files("/project", recursive=True)
-        
+
         assert len(result) == 3
         assert "/project/file1.py" in result
         connector.list_files.assert_called_once_with("/project", recursive=True)
@@ -308,7 +307,7 @@ class TestFileSystemConnector:
         # Mock the file system connector (to be replaced with actual implementation)
         connector = Mock()
         connector.write_file.side_effect = PermissionError("Permission denied")
-        
+
         with pytest.raises(PermissionError, match="Permission denied"):
             connector.write_file("/protected/file.py", "content")
 
@@ -323,9 +322,9 @@ class TestHTTPConnector:
         # Mock the HTTP connector (to be replaced with actual implementation)
         connector = Mock()
         connector.get.return_value = mock_http_response
-        
+
         result = connector.get("https://api.example.com/data")
-        
+
         assert result.status_code == 200
         connector.get.assert_called_once_with("https://api.example.com/data")
 
@@ -336,10 +335,10 @@ class TestHTTPConnector:
         # Mock the HTTP connector (to be replaced with actual implementation)
         connector = Mock()
         connector.post.return_value = mock_http_response
-        
+
         data = {"key": "value"}
         result = connector.post("https://api.example.com/data", data)
-        
+
         assert result.status_code == 200
         connector.post.assert_called_once_with("https://api.example.com/data", data)
 
@@ -350,7 +349,7 @@ class TestHTTPConnector:
         # Mock the HTTP connector (to be replaced with actual implementation)
         connector = Mock()
         connector.get.side_effect = Exception("HTTP 404 Not Found")
-        
+
         with pytest.raises(Exception, match="HTTP 404 Not Found"):
             connector.get("https://api.example.com/nonexistent")
 
@@ -361,6 +360,6 @@ class TestHTTPConnector:
         # Mock the HTTP connector (to be replaced with actual implementation)
         connector = Mock()
         connector.get.side_effect = Exception("Request timeout")
-        
+
         with pytest.raises(Exception, match="Request timeout"):
             connector.get("https://slow-api.example.com/data")

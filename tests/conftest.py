@@ -1,11 +1,12 @@
 """Pytest configuration and shared fixtures."""
 
-import pytest
-from typing import Generator, Any
-from unittest.mock import Mock, MagicMock
 import tempfile
-import os
+from collections.abc import Generator
 from pathlib import Path
+from typing import Any
+from unittest.mock import Mock
+
+import pytest
 
 
 @pytest.fixture
@@ -59,11 +60,11 @@ def sample_python_code() -> str:
     return '''
 def calculate_sum(a: int, b: int) -> int:
     """Calculate the sum of two integers.
-    
+
     Args:
         a: First integer
         b: Second integer
-        
+
     Returns:
         Sum of a and b
     """
@@ -72,21 +73,21 @@ def calculate_sum(a: int, b: int) -> int:
 
 class Calculator:
     """A simple calculator class."""
-    
+
     def __init__(self, initial_value: int = 0):
         """Initialize calculator with initial value.
-        
+
         Args:
             initial_value: Starting value for calculations
         """
         self.value = initial_value
-    
+
     def add(self, number: int) -> int:
         """Add a number to the current value.
-        
+
         Args:
             number: Number to add
-            
+
         Returns:
             New value after addition
         """
@@ -105,7 +106,7 @@ if __name__ == "__main__":
 def sample_ast_tree() -> Any:
     """Sample AST tree for testing."""
     import ast
-    
+
     # Parse the sample code into an AST
     code = '''
 def hello_world():
@@ -115,12 +116,12 @@ def hello_world():
 
 class MyClass:
     """A simple class."""
-    
+
     def method(self):
         """A simple method."""
         return "Hello from method"
 '''
-    
+
     return ast.parse(code)
 
 
