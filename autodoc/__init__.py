@@ -1,8 +1,8 @@
 """AutoDoc - Automated Documentation Generation and Management System."""
 
 __version__ = "0.1.0"
-__author__ = "AutoDoc Team"
-__email__ = "team@autodoc.dev"
+__author__ = "Group 6"
+__email__ = "eua9@txstate.edu"
 __description__ = "Automated Documentation Generation and Management System"
 
 # Core functionality will be imported here as modules are implemented
