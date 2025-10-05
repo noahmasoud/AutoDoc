@@ -1,0 +1,173 @@
+# Coverage configuration for AutoDoc project
+# Code coverage measurement and reporting
+
+[run]
+# Source code to measure
+source = 
+    autodoc
+    api
+    cli
+    core
+    db
+    schemas
+    services
+
+# Files to omit from coverage
+omit = 
+    */tests/*
+    */test_*
+    */__pycache__/*
+    */migrations/*
+    */alembic/versions/*
+    */build/*
+    */dist/*
+    */.venv/*
+    */venv/*
+    */env/*
+    */ENV/*
+    */.pytest_cache/*
+    */.ruff_cache/*
+    */.mypy_cache/*
+    */site-packages/*
+    */lib/python*/site-packages/*
+    */lib64/python*/site-packages/*
+    */lib32/python*/site-packages/*
+    */libx32/python*/site-packages/*
+    */local/lib/python*/dist-packages/*
+    */local/lib64/python*/dist-packages/*
+    */local/lib32/python*/dist-packages/*
+    */local/libx32/python*/dist-packages/*
+
+# Branch coverage
+branch = True
+
+# Parallel execution
+parallel = True
+
+# Data file location
+data_file = .coverage
+
+# Concurrency settings
+concurrency = 
+    thread
+    multiprocessing
+
+[report]
+# Minimum coverage percentage
+fail_under = 70
+
+# Exclude lines from coverage
+exclude_lines =
+    # Have to re-enable the standard pragma
+    pragma: no cover
+
+    # Don't complain about missing debug-only code:
+    def __repr__
+    if self\.debug
+
+    # Don't complain if tests don't hit defensive assertion code:
+    raise AssertionError
+    raise NotImplementedError
+
+    # Don't complain if non-runnable code isn't run:
+    if 0:
+    if __name__ == .__main__.:
+
+    # Don't complain about abstract methods, they aren't run:
+    @(abc\.)?abstractmethod
+
+    # Don't complain about protocol definitions
+    class .*\bProtocol\):
+    
+    # Don't complain about type checking imports
+    if TYPE_CHECKING:
+    
+    # Don't complain about development-only code
+    if settings\.DEBUG:
+    
+    # Don't complain about error handling that's hard to test
+    except Exception:
+        pass
+
+# Show missing lines
+show_missing = True
+
+# Skip covered files in report
+skip_covered = False
+
+# Skip empty files
+skip_empty = True
+
+# Precision for percentages
+precision = 2
+
+# Sort order for report
+sort = Cover
+
+[html]
+# HTML report directory
+directory = htmlcov
+
+# Title for HTML report
+title = AutoDoc Coverage Report
+
+# Show contexts in HTML report
+show_contexts = True
+
+# Extra CSS for HTML report
+extra_css = 
+
+# Extra JavaScript for HTML report
+extra_js = 
+
+[xml]
+# XML report file
+output = coverage.xml
+
+# XML report title
+title = AutoDoc Coverage Report
+
+# Include source code in XML report
+include_source = True
+
+[json]
+# JSON report file
+output = coverage.json
+
+# Pretty print JSON
+pretty_print = True
+
+# Include source code in JSON report
+include_source = True
+
+[lcov]
+# LCOV report file
+output = coverage.lcov
+
+# Include source code in LCOV report
+include_source = True
+
+[term]
+# Show missing lines in terminal report
+show_missing = True
+
+# Skip covered files in terminal report
+skip_covered = False
+
+# Skip empty files in terminal report
+skip_empty = True
+
+# Precision for terminal percentages
+precision = 2
+
+# Color output for terminal
+color = True
+
+# Markers for terminal output
+marker = 
+
+# Show branches in terminal report
+show_branches = True
+
+# Show partial branches in terminal report
+show_partial_branches = True
