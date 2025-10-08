@@ -18,7 +18,7 @@ jobs:
 
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
               with:
                   fetch-depth: 0 # full history for better diffs later
 
@@ -62,7 +62,7 @@ jobs:
 
             # upload the report as an artifact
             - name: Upload Change Report Artifact
-              uses: actions/upload-artifact@v3
+              uses: actions/upload-artifact@v4
               with:
                   name: change-report
                   path: change_report.json
