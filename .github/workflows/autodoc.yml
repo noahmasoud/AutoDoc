@@ -1,0 +1,76 @@
+name: AutoDoc CI
+
+# when the workflow should run
+on:
+    push:
+        branches:
+            - main
+            - dev
+    pull_request:
+        branches:
+            - dev
+
+# what it does
+jobs:
+    autodoc-test:
+        name: AutoDoc Pipeline Test
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0 # full history for better diffs later
+
+            - name: Display CI Environment
+              run: |
+                  echo "=================================="
+                  echo "AutoDoc CI Environment"
+                  echo "=================================="
+                  echo "Commit SHA: ${{ github.sha }}"
+                  echo "Repository: ${{ github.repository }}"
+                  echo "Branch: ${{ github.ref_name }}"
+                  echo "Event: ${{ github.event_name }}"
+                  echo "Actor: ${{ github.actor }}"
+                  echo "=================================="
+
+            # placeholder change report
+            - name: Generate Change Report (Placeholder)
+              run: |
+                  echo "Generating change report..."
+                  cat > change_report.json << EOF
+                  {
+                    "metadata": {
+                      "commit_sha": "${{ github.sha }}",
+                      "repository": "${{ github.repository }}",
+                      "branch": "${{ github.ref_name }}",
+                      "event": "${{ github.event_name }}",
+                      "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+                      "runner_os": "${{ runner.os }}"
+                    },
+                    "status": "success",
+                    "message": "Sprint 0 - Pipeline structure test completed successfully",
+                    "sprint": "Sprint 0",
+                    "ticket": "SCRUM-6"
+                  }
+                  EOF
+
+                  echo "✓ Change report generated"
+                  echo ""
+                  echo "Report contents:"
+                  cat change_report.json
+
+            # upload the report as an artifact
+            - name: Upload Change Report Artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: change-report
+                  path: change_report.json
+                  retention-days: 30
+
+            - name: Workflow Complete
+              run: |
+                  echo "=================================="
+                  echo "✓ AutoDoc CI workflow completed!"
+                  echo "✓ Change report artifact uploaded"
+                  echo "=================================="

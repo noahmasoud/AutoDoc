@@ -1,0 +1,45 @@
+# GitLab CI Configuration for AutoDoc
+
+stages:
+  - test
+
+autodoc-test:
+  stage: test
+  image: ubuntu:latest
+
+  script:
+    - echo "=================================="
+    - echo "AutoDoc CI Environment (GitLab)"
+    - echo "=================================="
+    - echo "Commit SHA: $CI_COMMIT_SHA"
+    - echo "Repository: $CI_PROJECT_PATH"
+    - echo "Branch: $CI_COMMIT_BRANCH"
+    - echo "Pipeline ID: $CI_PIPELINE_ID"
+    - echo "=================================="
+    - |
+      cat > change_report.json << 'EOF'
+      {
+        "metadata": {
+          "commit_sha": "$CI_COMMIT_SHA",
+          "repository": "$CI_PROJECT_PATH",
+          "branch": "$CI_COMMIT_BRANCH",
+          "pipeline_id": "$CI_PIPELINE_ID",
+          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        },
+        "status": "success",
+        "message": "Sprint 0 - GitLab CI pipeline structure test",
+        "sprint": "Sprint 0",
+        "ticket": "SCRUM-6"
+      }
+      EOF
+    - echo "✓ Change report generated"
+    - cat change_report.json
+
+  artifacts:
+    paths:
+      - change_report.json
+    expire_in: 30 days
+
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "dev"
