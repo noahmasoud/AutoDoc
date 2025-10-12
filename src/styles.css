@@ -1,1 +1,7 @@
-/* You can add global styles to this file, and also import other style files */
+body { margin:0; font-family: Roboto, system-ui, Arial, sans-serif; background:#fafafa; color:#111; }
+nav { background:#fff; border-bottom:1px solid #e0e0e0; padding:8px 16px; display:flex; align-items:center; justify-content:space-between; }
+.container { padding:16px; }
+.brand { font-weight:700; font-size:1.1rem; }
+
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
