@@ -41,9 +41,8 @@ class TestSettings:
             assert settings.app_name == "AutoDoc"
             assert settings.app_version == "0.1.0"
             assert settings.environment == "development"
-            # Note: debug will be True if .env file exists with DEBUG=true
-            # This is expected behavior in development environment
-            assert settings.debug is True  # Changed to True since .env has DEBUG=true
+            # When DEBUG is not set in environment, default should be False
+            assert settings.debug is False
 
             # Test database defaults
             assert settings.database.url == "sqlite:///./autodoc.db"
