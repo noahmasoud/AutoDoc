@@ -1,22 +1,47 @@
-from sqlalchemy import create_engine
+"""
+SQLAlchemy session and engine configuration.
+
+Configures SQLite with foreign keys enabled per SRS requirements.
+"""
+
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
-from core.config import settings
+from autodoc.config import get_settings
 
 
 class Base(DeclarativeBase):
+    """Base class for all SQLAlchemy models."""
     pass
 
 
-connect_args = (
-    {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
-)
+# Get settings
+settings = get_settings()
+
+# Configure SQLite to enable foreign keys (per SRS 7.1)
+connect_args = {}
+if settings.database.url.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+
 engine = create_engine(
-    settings.DATABASE_URL,
-    future=True,
-    pool_pre_ping=True,
+    settings.database.url,
     connect_args=connect_args,
+    pool_pre_ping=True,
 )
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+
+# Enable foreign keys for SQLite
+if settings.database.url.startswith("sqlite"):
+    @event.listens_for(engine, "connect")
+    def enable_sqlite_fks(dbapi_con, connection_record):
+        """Enable foreign key constraints in SQLite."""
+        cursor = dbapi_con.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+)
 
 
 # FastAPI dependency for per-request session
