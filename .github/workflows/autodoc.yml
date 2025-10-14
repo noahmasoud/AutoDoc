@@ -23,18 +23,26 @@ jobs:
                   fetch-depth: 0 # full history for better diffs later
 
             - name: Make Script Executable
-            - run: chmod -x autodoc.should
+              run: chmod +x autodoc.sh
 
             - name: Run AutoDoc Entrypoint Script
               run: |
+                  ./autodoc.sh \
+                    --commit ${{ github.sha }} \
+                    --repo ${{ github.repository }} \
+                    --branch ${{ github.ref_name }} \
+                    --verbose
+      
+            - name: Verify Output
+              run: |
                 if [ ! -f change_report.json ]; then
-                  echo "Error: change_report.json not created"
-                  exit 1
-                fi
-                echo "✓ change_report.json created successfully"
-                echo ""
-                echo "Report contents:"
-                cat change_report.json
+                    echo "Error: change_report.json not created"
+                    exit 1
+                  fi
+                  echo "✓ change_report.json created successfully"
+                  echo ""
+                  echo "Report contents:"
+                  cat change_report.json
       
             - name: Upload Change Report Artifact
               uses: actions/upload-artifact@v4
