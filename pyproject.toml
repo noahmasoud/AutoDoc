@@ -1,0 +1,337 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "autodoc"
+dynamic = ["version"]
+description = "AutoDoc - Automated Documentation Generation and Management System"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "AutoDoc Team", email = "team@autodoc.dev"},
+]
+maintainers = [
+    {name = "AutoDoc Team", email = "team@autodoc.dev"},
+]
+keywords = [
+    "documentation",
+    "automation",
+    "api",
+    "code-analysis",
+    "confluence",
+    "fastapi",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Documentation",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Text Processing :: Markup",
+    "Framework :: FastAPI",
+    "Framework :: Pydantic",
+]
+dependencies = [
+    # Core FastAPI and ASGI server
+    "fastapi>=0.104.0,<1.0.0",
+    "uvicorn[standard]>=0.24.0,<1.0.0",
+    
+    # Data validation and settings
+    "pydantic>=2.5.0,<3.0.0",
+    "pydantic-settings>=2.1.0,<3.0.0",
+    
+    # Database ORM and migrations
+    "sqlalchemy>=2.0.23,<3.0.0",
+    "alembic>=1.13.0,<2.0.0",
+    
+    # HTTP client for external API calls
+    "httpx>=0.25.0,<1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=7.4.0,<8.0.0",
+    "pytest-asyncio>=0.21.0,<1.0.0",
+    "pytest-cov>=4.1.0,<5.0.0",
+    "httpx>=0.25.0,<1.0.0",  # For test client
+    
+    # Code quality
+    "ruff>=0.1.0,<1.0.0",
+    "mypy>=1.7.0,<2.0.0",
+    "pre-commit>=3.5.0,<4.0.0",
+    
+    # Development tools
+    "ipython>=8.17.0,<9.0.0",
+    "black>=23.0.0,<24.0.0",
+]
+test = [
+    "pytest>=7.4.0,<8.0.0",
+    "pytest-asyncio>=0.21.0,<1.0.0",
+    "pytest-cov>=4.1.0,<5.0.0",
+    "httpx>=0.25.0,<1.0.0",
+]
+lint = [
+    "ruff>=0.1.0,<1.0.0",
+    "mypy>=1.7.0,<2.0.0",
+    "pre-commit>=3.5.0,<4.0.0",
+]
+docs = [
+    "mkdocs>=1.5.0,<2.0.0",
+    "mkdocs-material>=9.4.0,<10.0.0",
+    "mkdocstrings[python]>=0.24.0,<1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/autodoc-team/autodoc"
+Documentation = "https://autodoc.readthedocs.io"
+Repository = "https://github.com/autodoc-team/autodoc.git"
+Issues = "https://github.com/autodoc-team/autodoc/issues"
+Changelog = "https://github.com/autodoc-team/autodoc/blob/main/CHANGELOG.md"
+
+[project.scripts]
+autodoc = "cli.main:main"
+
+[tool.hatch.version]
+path = "autodoc/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["autodoc", "api", "cli", "core", "db", "schemas", "services", "tests"]
+
+[tool.hatch.envs.default]
+dependencies = [
+    "coverage[toml]>=6.5",
+    "pytest",
+]
+
+[tool.hatch.envs.default.scripts]
+test = "pytest {args:tests}"
+test-cov = "coverage run -m pytest {args:tests}"
+cov-report = [
+    "- coverage combine",
+    "coverage report",
+]
+cov = [
+    "test-cov",
+    "cov-report",
+]
+
+[tool.hatch.envs.lint]
+detached = true
+dependencies = [
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+]
+
+[tool.hatch.envs.lint.scripts]
+typing = "mypy --install-types --non-interactive {args:autodoc api cli core db schemas services tests}"
+style = [
+    "ruff {args:.}",
+    "ruff format --check {args:.}",
+]
+fmt = [
+    "ruff --fix {args:.}",
+    "ruff format {args:.}",
+]
+all = [
+    "style",
+    "typing",
+]
+
+[tool.hatch.envs.docs]
+dependencies = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.4.0",
+    "mkdocstrings[python]>=0.24.0",
+]
+
+[tool.hatch.envs.docs.scripts]
+build = "mkdocs build"
+serve = "mkdocs serve"
+deploy = "mkdocs gh-deploy"
+
+# Ruff configuration
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+    "ARG001", # unused-function-args
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+    "TID", # flake8-tidy-imports
+    "Q",  # flake8-quotes
+    "RSE", # flake8-raise
+    "RET", # flake8-return
+    "SLF", # flake8-self
+    "SLOT", # flake8-slots
+    "SIM", # flake8-simplify
+    "T20", # flake8-print
+    "PT",  # flake8-pytest-style
+    "PIE", # flake8-pie
+    "A",   # flake8-builtins
+    "COM", # flake8-commas
+    "C90", # mccabe
+    "ICN", # flake8-import-conventions
+    "G",   # flake8-logging-format
+    "INP", # flake8-no-pep420
+    "PIE", # flake8-pie
+    "TCH", # flake8-type-checking
+    "INT", # flake8-gettext
+    "ARG", # flake8-unused-arguments
+    "PTH", # flake8-use-pathlib
+    "ERA", # eradicate
+    "PD",  # pandas-vet
+    "PGH", # pygrep-hooks
+    "PL",  # pylint
+    "TRY", # tryceratops
+    "FLY", # flynt
+    "NPY", # numpy
+    "AIR", # airflow
+    "PERF", # perflint
+    "FURB", # refurb
+    "RUF", # ruff-specific rules
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+    "W191",  # indentation contains tabs
+    "D100",  # Missing docstring in public module
+    "D101",  # Missing docstring in public class
+    "D102",  # Missing docstring in public method
+    "D103",  # Missing docstring in public function
+    "D104",  # Missing docstring in public package
+    "D105",  # Missing docstring in magic method
+    "ARG002",  # unused-method-argument (common in test fixtures)
+    "T201",  # print statements (common in examples and debug code)
+    "TRY003",  # raise-vanilla-args (long error messages)
+    "W293",  # blank-line-with-whitespace
+    "PLC0415",  # import-outside-top-level (conditional imports)
+    "PLR0913",  # too-many-arguments (some functions legitimately need many args)
+    "F841",  # unused-variable (common in examples)
+    "ERA001",  # commented-out-code (placeholder code)
+    "TRY300",  # try-consider-else
+    "ARG001",  # unused-function-argument (common in test fixtures)
+    "PLR2004",  # magic-value-comparison (32 for key length is acceptable)
+    "PT017",  # pytest-assert-in-except (test pattern)
+    "SIM102",  # collapsible-if
+    "B017",  # assert-raises-exception (test pattern)
+    "G004",  # logging-f-string (acceptable in some contexts)
+    "I001",  # unsorted-imports
+    "PERF403",  # manual-dict-comprehension
+    "PLW2901",  # redefined-loop-name
+    "PT011",  # pytest-raises-too-broad (test pattern)
+    "RUF022",  # unsorted-dunder-all
+    "TRY301",  # raise-within-try
+    "TRY401",  # verbose-log-message
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**/*.py" = ["S101", "PLR2004", "S106", "S108", "TID252"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["autodoc", "api", "cli", "core", "db", "schemas", "services"]
+
+# MyPy configuration
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = false
+disallow_any_generics = false
+disallow_incomplete_defs = false
+disallow_untyped_defs = false
+no_implicit_optional = false
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = false
+strict_equality = false
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "alembic.*",
+    "sqlalchemy.*",
+    "uvicorn.*",
+    "flask.*",
+]
+ignore_missing_imports = true
+
+# Pytest configuration
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["autodoc", "api", "cli", "core", "db", "schemas", "services"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/migrations/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# Black configuration (for reference, though we use ruff format)
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
