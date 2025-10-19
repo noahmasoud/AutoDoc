@@ -17,7 +17,7 @@ jobs:
         runs-on: ubuntu-latest
 
         container:
-          image: autodoc-ci:sprint0
+          image: ghcr.io/noahmasoud/autodoc-ci:dev
           
         steps:
             - name: Checkout repository
