@@ -319,9 +319,7 @@ class Settings(BaseSettings):
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
     api: APISettings = Field(default_factory=APISettings)
-    security: SecuritySettings = Field(
-        default_factory=lambda: SecuritySettings.model_validate({}),
-    )
+    security: SecuritySettings = Field(default_factory=SecuritySettings)
     confluence: ConfluenceSettings = Field(default_factory=ConfluenceSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     file: FileSettings = Field(default_factory=FileSettings)
