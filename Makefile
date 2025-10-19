@@ -19,8 +19,8 @@ setup: ## One-command local development setup
 	@echo ""
 	
 	@echo "📦 Installing dependencies..."
-	pip install -e .
-	pip install -e ".[dev]"
+	pip3 install -e .
+	pip3 install -e ".[dev]"
 	
 	@echo ""
 	@echo "🔧 Setting up pre-commit hooks..."
@@ -52,8 +52,8 @@ setup: ## One-command local development setup
 	@echo "  make docker.run   # Run with Docker"
 
 install: ## Install dependencies
-	pip install -e .
-	pip install -e ".[dev]"
+	pip3 install -e .
+	pip3 install -e ".[dev]"
 
 # =============================================================================
 # Code Quality
@@ -84,15 +84,30 @@ typecheck: ## Run type checking with mypy
 
 test: ## Run all tests
 	@echo "🧪 Running all tests..."
-	pytest -q --maxfail=1 --disable-warnings
+	@if [ -f .env ]; then \
+		set -a && source .env && set +a && pytest -q --maxfail=1 --disable-warnings; \
+	else \
+		echo "❌ .env file not found. Run 'make setup' first."; \
+		exit 1; \
+	fi
 
 test-unit: ## Run unit tests only
 	@echo "🧪 Running unit tests..."
-	pytest tests/unit/ -q --maxfail=1 --disable-warnings
+	@if [ -f .env ]; then \
+		set -a && source .env && set +a && pytest tests/unit/ -q --maxfail=1 --disable-warnings; \
+	else \
+		echo "❌ .env file not found. Run 'make setup' first."; \
+		exit 1; \
+	fi
 
 test-integration: ## Run integration tests only
 	@echo "🧪 Running integration tests..."
-	pytest tests/integration/ -q --maxfail=1 --disable-warnings
+	@if [ -f .env ]; then \
+		set -a && source .env && set +a && pytest tests/integration/ -q --maxfail=1 --disable-warnings; \
+	else \
+		echo "❌ .env file not found. Run 'make setup' first."; \
+		exit 1; \
+	fi
 
 test-coverage: ## Run tests with coverage report
 	@echo "🧪 Running tests with coverage..."
@@ -308,7 +323,7 @@ logs-clean: ## Clean log files
 # =============================================================================
 
 version: ## Show current version
-	@python -c "import autodoc; print(autodoc.__version__)"
+	@python3 -c "import autodoc; print(autodoc.__version__)"
 
 release-check: ## Check if ready for release
 	@echo "🔍 Checking release readiness..."
@@ -323,7 +338,7 @@ env-check: ## Check environment setup
 	@echo "🔍 Checking environment setup..."
 	@echo ""
 	@echo "Python version:"
-	@python --version
+	@python3 --version
 	@echo ""
 	@echo "Docker version:"
 	@if command -v docker >/dev/null 2>&1; then docker --version; else echo "❌ Docker not installed (optional)"; fi
@@ -342,15 +357,15 @@ env-check: ## Check environment setup
 
 .PHONY: install-dev
 install-dev: ## Install development dependencies
-	pip install -e ".[dev]"
+	pip3 install -e ".[dev]"
 
 .PHONY: update-deps
 update-deps: ## Update dependencies
-	pip install --upgrade -e ".[dev]"
+	pip3 install --upgrade -e ".[dev]"
 
 .PHONY: shell
 shell: ## Start Python shell with AutoDoc loaded
-	python -c "import autodoc; print('AutoDoc loaded successfully')"
+	python3 -c "import autodoc; print('AutoDoc loaded successfully')"
 
 # =============================================================================
 # Shortcuts
