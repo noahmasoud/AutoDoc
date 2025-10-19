@@ -4,7 +4,7 @@ import { Component } from '@angular/core';
   selector: 'app-settings',
   template: `
     <h1>Settings</h1>
-    <p>Placeholder page for Settings (Dev 3).</p>
+    <p>Placeholder page for Settings .</p>
   `
 })
 export class SettingsComponent {}

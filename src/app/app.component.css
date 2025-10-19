@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+/*import { Component } from '@angular/core';
 
 @Component({
   selector: 'app-root',
@@ -9,4 +9,24 @@ import { Component } from '@angular/core';
     </div>
   `
 })
-export class AppComponent {}
+export class AppComponent {}*/
+nav {
+  display: flex;
+  gap: 12px;
+  padding: 10px;
+  background-color: #20232a;
+}
+
+button {
+  background-color: #61dafb;
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: bold;
+  border-radius: 4px;
+}
+
+button:hover {
+  background-color: #21a1f1;
+  color: white;
+}

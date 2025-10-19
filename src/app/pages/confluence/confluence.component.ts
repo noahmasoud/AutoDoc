@@ -4,7 +4,7 @@ import { Component } from '@angular/core';
   selector: 'app-confluence',
   template: `
     <h1>Confluence Integration</h1>
-    <p>Placeholder page for Confluence Integration (Dev 3).</p>
+    <p>Placeholder page for Confluence Integration .</p>
   `
 })
 export class ConfluenceComponent {}

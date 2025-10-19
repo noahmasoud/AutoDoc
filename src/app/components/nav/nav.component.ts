@@ -26,3 +26,10 @@ import { AuthService } from '../../services/auth.service';
 export class NavComponent {
   constructor(public auth: AuthService) {}
 }
+
+export const routes: Routes = [
+  { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
+  { path: 'dashboard', component: DashboardComponent },
+  { path: 'connections', component: ConnectionsComponent },
+  { path: 'rules', component: RulesComponent },
+

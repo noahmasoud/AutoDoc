@@ -4,7 +4,7 @@ import { Component } from '@angular/core';
   selector: 'app-rules',
   template: `
     <h1>Rules</h1>
-    <p>Placeholder page for Rules (Dev 3).</p>
+    <p>Placeholder page for Rules .</p>
   `
 })
 export class RulesComponent {}

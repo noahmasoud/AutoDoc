@@ -4,7 +4,7 @@ import { Component } from '@angular/core';
   selector: 'app-dashboard',
   template: `
     <h1>Dashboard</h1>
-    <p>Placeholder page for Dashboard (Dev 3).</p>
+    <p>Placeholder page for Dashboard .</p>
   `
 })
 export class DashboardComponent {}

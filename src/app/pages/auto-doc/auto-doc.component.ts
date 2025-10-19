@@ -4,7 +4,7 @@ import { Component } from '@angular/core';
   selector: 'app-auto-doc',
   template: `
     <h1>Auto Documentation</h1>
-    <p>Placeholder page for Auto Documentation (Dev 3).</p>
+    <p>Placeholder page for Auto Documentation .</p>
   `
 })
 export class AutoDocComponent {}
