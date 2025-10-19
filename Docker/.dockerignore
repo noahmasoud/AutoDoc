@@ -1,0 +1,267 @@
+# AutoDoc .dockerignore
+# Exclude unnecessary files from Docker build context
+
+# =============================================================================
+# Git and Version Control
+# =============================================================================
+.git
+.gitignore
+.gitattributes
+.gitmodules
+.gitkeep
+.git-blame*
+.git/config
+.git/refs
+.git/logs
+
+# =============================================================================
+# Documentation and Markdown
+# =============================================================================
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+LICENSE.*
+*.md
+docs/
+documentation/
+*.rst
+*.txt
+!requirements*.txt
+!constraints*.txt
+
+# =============================================================================
+# Python Specific
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# =============================================================================
+# Virtual Environments
+# =============================================================================
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.env.local
+.env.development
+.env.test
+.env.production
+
+# =============================================================================
+# IDE and Editor Files
+# =============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =============================================================================
+# Testing and Coverage
+# =============================================================================
+.pytest_cache/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+htmlcov/
+.tox/
+.nox/
+coverage.json
+coverage.lcov
+bandit-report.json
+
+# =============================================================================
+# Linting and Code Quality
+# =============================================================================
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.flake8
+.pylintrc
+.bandit
+.safety
+
+# =============================================================================
+# Jupyter Notebooks
+# =============================================================================
+.ipynb_checkpoints/
+*.ipynb
+
+# =============================================================================
+# Logs and Temporary Files
+# =============================================================================
+*.log
+logs/
+log/
+*.tmp
+*.temp
+temp/
+tmp/
+.tmp/
+.temp/
+
+# =============================================================================
+# Database Files
+# =============================================================================
+*.db
+*.sqlite
+*.sqlite3
+*.rdb
+*.dump
+
+# =============================================================================
+# Docker Files
+# =============================================================================
+Dockerfile*
+docker-compose*.yml
+docker-compose*.yaml
+.dockerignore
+.docker/
+
+# =============================================================================
+# CI/CD Files
+# =============================================================================
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+azure-pipelines.yml
+Jenkinsfile
+buildspec.yml
+
+# =============================================================================
+# Security and Secrets
+# =============================================================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+.secrets/
+*.secret
+.env.secret
+config/secrets/
+
+# =============================================================================
+# Backup Files
+# =============================================================================
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*.swp
+*.swo
+
+# =============================================================================
+# OS Generated Files
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# =============================================================================
+# Node.js (if any frontend components)
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# =============================================================================
+# Project Specific Exclusions
+# =============================================================================
+# Keep these files in the build context:
+# !pyproject.toml
+# !autodoc/
+# !scripts/
+# !tests/
+# !Makefile
+# !mypy.ini
+# !pytest.ini
+# !.coveragerc
+
+# Exclude development-only directories
+examples/
+samples/
+benchmarks/
+performance/
+
+# Exclude large data files
+data/
+datasets/
+*.csv
+*.json
+*.xml
+*.yaml
+*.yml
+!**/config*.yaml
+!**/config*.yml
+
+# =============================================================================
+# Build Artifacts
+# =============================================================================
+*.tar.gz
+*.zip
+*.rar
+*.7z
+*.deb
+*.rpm
+*.dmg
+*.pkg
+*.exe
+*.msi
+
+# =============================================================================
+# Runtime Files
+# =============================================================================
+*.pid
+*.sock
+*.socket
+*.lock
+*.lck
