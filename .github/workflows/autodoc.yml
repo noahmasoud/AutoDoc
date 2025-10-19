@@ -16,14 +16,14 @@ jobs:
         name: AutoDoc Pipeline Test
         runs-on: ubuntu-latest
 
+        container:
+          image: autodoc-ci:sprint0
+          
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
               with:
                   fetch-depth: 0 # full history for better diffs later
-
-            - name: Make Script Executable
-              run: chmod +x autodoc.sh
 
             - name: Run AutoDoc Entrypoint Script
               run: |
