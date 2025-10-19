@@ -14,7 +14,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/autodoc-ci
+  IMAGE_NAME: ${{ github.repository_owner }}/autodoc-ci 
 
 jobs:
   build-and-push:
@@ -33,7 +33,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          password: ${{ secrets.GHCR_TOKEN }} # token needed to run
 
       - name: Extract metadata
         id: meta
