@@ -1,0 +1,60 @@
+name: AutoDoc CI
+
+# when the workflow should run
+on:
+    push:
+        branches:
+            - main
+            - dev
+    pull_request:
+        branches:
+            - dev
+
+# what it does
+jobs:
+    autodoc-test:
+        name: AutoDoc Pipeline Test
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0 # full history for better diffs later
+
+            - name: Make Script Executable
+              run: chmod +x autodoc.sh
+
+            - name: Run AutoDoc Entrypoint Script
+              run: |
+                  ./autodoc.sh \
+                    --commit ${{ github.sha }} \
+                    --repo ${{ github.repository }} \
+                    --branch ${{ github.ref_name }} \
+                    --verbose
+      
+            - name: Verify Output
+              run: |
+                if [ ! -f change_report.json ]; then
+                    echo "Error: change_report.json not created"
+                    exit 1
+                  fi
+                  echo "✓ change_report.json created successfully"
+                  echo ""
+                  echo "Report contents:"
+                  cat change_report.json
+      
+            - name: Upload Change Report Artifact
+              uses: actions/upload-artifact@v4
+              with:
+                name: change-report
+                path: change_report.json
+                retention-days: 30
+            
+            - name: Workflow Complete
+              run: |
+                echo "========================================"
+                echo "✓ AutoDoc CI workflow completed!"
+                echo "✓ Entrypoint script executed successfully"
+                echo "✓ Change report artifact uploaded"
+                echo "========================================"

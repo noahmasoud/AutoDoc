@@ -15,7 +15,7 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
     )
 
-    # DB: dev-time auto-create tables (hand off to Alembic later)
+    # DB: dev-time auto-create tables (hand off to Alembic os)
     Base.metadata.create_all(bind=engine)
 
     # CORS for Angular dev
