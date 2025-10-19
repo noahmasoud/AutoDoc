@@ -6,14 +6,12 @@ Per SRS 7.1 Data Requirements and retention policy 7.2.
 
 from datetime import datetime
 from sqlalchemy import (
-    String,
     Boolean,
     Text,
     ForeignKey,
     Integer,
     DateTime,
     JSON,
-    Index,
     CheckConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -23,16 +21,19 @@ from db.session import Base
 class Run(Base):
     """
     Run entity: tracks CI/CD analysis runs.
-    
+
     Per SRS 7.1: Run history and status tracking.
     """
+
     __tablename__ = "runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     repo: Mapped[str] = mapped_column(Text, nullable=False)
     branch: Mapped[str] = mapped_column(Text, nullable=False)
     commit_sha: Mapped[str] = mapped_column(
-        Text, nullable=False, index=True
+        Text,
+        nullable=False,
+        index=True,
     )  # Index per requirements
     started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -64,9 +65,10 @@ class Run(Base):
 class Change(Base):
     """
     Change entity: stores analyzer findings.
-    
+
     Per SRS 7.1: Stores analyzer findings for code changes.
     """
+
     __tablename__ = "changes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -95,14 +97,18 @@ class Change(Base):
 class Rule(Base):
     """
     Rule entity: configuration rules for documentation patterns.
-    
+
     Per SRS 7.1: CRUD required by UI.
     """
+
     __tablename__ = "rules"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(
-        Text, unique=True, nullable=False, index=True
+        Text,
+        unique=True,
+        nullable=False,
+        index=True,
     )  # UNIQUE and indexed
     selector: Mapped[str] = mapped_column(Text, nullable=False)
     space_key: Mapped[str] = mapped_column(Text, nullable=False)
@@ -120,14 +126,18 @@ class Rule(Base):
 class Template(Base):
     """
     Template entity: documentation templates.
-    
+
     Per SRS 7.1: Template-driven patch generation.
     """
+
     __tablename__ = "templates"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(
-        Text, unique=True, nullable=False, index=True
+        Text,
+        unique=True,
+        nullable=False,
+        index=True,
     )  # UNIQUE and indexed
     format: Mapped[str] = mapped_column(Text, nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
@@ -147,9 +157,10 @@ class Template(Base):
 class Patch(Base):
     """
     Patch entity: tracks documentation updates and audit trail.
-    
+
     Per SRS 7.1: Tracks audit per patch.
     """
+
     __tablename__ = "patches"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

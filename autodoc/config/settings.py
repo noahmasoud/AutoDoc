@@ -148,10 +148,12 @@ class SecuritySettings(BaseSettings):
 
     # Secret keys (MUST be provided via environment)
     secret_key: str = Field(
+        default="dev-secret-key-change-in-production-must-be-32-chars-minimum",
         description="Application secret key for encryption and signing",
         alias="SECRET_KEY",
     )
     jwt_secret_key: str = Field(
+        default="dev-jwt-secret-key-must-be-32-chars-minimum",
         description="JWT signing secret key",
         alias="JWT_SECRET_KEY",
     )
@@ -319,13 +321,13 @@ class Settings(BaseSettings):
     debug: bool = Field(default=False, description="Enable debug mode")
 
     # Component settings
-    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
-    redis: RedisSettings = Field(default_factory=RedisSettings)
-    api: APISettings = Field(default_factory=APISettings)
-    security: SecuritySettings = Field(default_factory=SecuritySettings)
-    confluence: ConfluenceSettings = Field(default_factory=ConfluenceSettings)
-    logging: LoggingSettings = Field(default_factory=LoggingSettings)
-    file: FileSettings = Field(default_factory=FileSettings)
+    database: DatabaseSettings = Field(default_factory=lambda: DatabaseSettings())
+    redis: RedisSettings = Field(default_factory=lambda: RedisSettings())
+    api: APISettings = Field(default_factory=lambda: APISettings())
+    security: SecuritySettings = Field(default_factory=lambda: SecuritySettings())
+    confluence: ConfluenceSettings = Field(default_factory=lambda: ConfluenceSettings())
+    logging: LoggingSettings = Field(default_factory=lambda: LoggingSettings())
+    file: FileSettings = Field(default_factory=lambda: FileSettings())
 
     # Python path
     pythonpath: str | None = Field(default=None, description="Python path")

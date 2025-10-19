@@ -9,11 +9,11 @@ from alembic import context
 # Import our settings and models
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from autodoc.config import get_settings
 from db.session import Base
-from db import models  # Import all models to ensure they're registered
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -77,6 +77,7 @@ def run_migrations_online() -> None:
 
     # Enable foreign keys for SQLite
     if settings.database.url.startswith("sqlite"):
+
         @event.listens_for(connectable, "connect")
         def enable_sqlite_fks(dbapi_con, connection_record):
             cursor = dbapi_con.cursor()
@@ -85,7 +86,8 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
         )
 
         with context.begin_transaction():
