@@ -16,12 +16,14 @@ jobs:
         name: AutoDoc Pipeline Test
         runs-on: ubuntu-latest
 
-        container:
-          image: ghcr.io/noahmasoud/autodoc-ci:dev
-          credentials:
-            username: ${{github.actor}}
-            password: ${{secrets.GHCR_TOKEN}}         
         steps:
+            - name: Log in to GHCR
+              uses: docker/login-action@v3
+              with:
+                registry: ghcr.io
+                username: ${{ github.actor }}
+                password: ${{ secrets.GHCR_TOKEN }}
+
             - name: Checkout repository
               uses: actions/checkout@v4
               with:
