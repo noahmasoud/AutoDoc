@@ -18,7 +18,9 @@ jobs:
 
         container:
           image: ghcr.io/noahmasoud/autodoc-ci:dev
-          
+          credentials:
+            username: ${{github.actor}}
+            password: ${{secrets.GHCR_TOKEN}}         
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
