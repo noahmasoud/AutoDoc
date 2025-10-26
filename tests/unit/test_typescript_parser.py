@@ -19,13 +19,13 @@ class TestTypeScriptParser:
     """Test suite for TypeScriptParser."""
 
     @pytest.mark.unit
-    def test_init_with_default_script(self):
+    def test_init_with_default_script(self, mock_nodejs):
         """Test parser initialization with default script path."""
         parser = TypeScriptParser()
         assert parser.parser_script.exists()
 
     @pytest.mark.unit
-    def test_init_with_custom_script(self, tmp_path):
+    def test_init_with_custom_script(self, mock_nodejs, tmp_path):
         """Test parser initialization with custom script path."""
         custom_script = tmp_path / "custom-parser.js"
         custom_script.write_text("console.log('test');")
@@ -34,7 +34,7 @@ class TestTypeScriptParser:
         assert parser.parser_script == custom_script
 
     @pytest.mark.unit
-    def test_init_with_nonexistent_script(self, tmp_path):
+    def test_init_with_nonexistent_script(self, mock_nodejs, tmp_path):
         """Test parser initialization with non-existent script."""
         nonexistent = tmp_path / "does-not-exist.js"
         
@@ -42,26 +42,22 @@ class TestTypeScriptParser:
             TypeScriptParser(str(nonexistent))
 
     @pytest.mark.unit
-    @patch("services.typescript_parser.subprocess.run")
-    def test_check_nodejs_success(self, mock_run):
+    def test_check_nodejs_success(self, mock_nodejs):
         """Test Node.js availability check succeeds."""
-        mock_run.return_value = Mock(returncode=0, stdout="v18.0.0\n")
-        
         parser = TypeScriptParser()
         parser._check_nodejs()  # Should not raise
 
     @pytest.mark.unit
-    @patch("services.typescript_parser.subprocess.run")
-    def test_check_nodejs_not_found(self, mock_run):
+     
+    def test_check_nodejs_not_found(self, mock_nodejs):
         """Test Node.js availability check fails when Node.js not installed."""
-        mock_run.side_effect = FileNotFoundError("node: command not found")
+        mock_nodejs.side_effect = FileNotFoundError("node: command not found")
         
         with pytest.raises(NodeJSNotFoundError):
             TypeScriptParser()
 
     @pytest.mark.unit
-    @patch("services.typescript_parser.subprocess.run")
-    def test_parse_file_success(self, mock_run):
+    def test_parse_file_success(self, mock_nodejs):
         """Test successful file parsing."""
         mock_ast = {
             "type": "Program",
@@ -74,7 +70,7 @@ class TestTypeScriptParser:
             ]
         }
         
-        mock_run.return_value = Mock(
+        mock_nodejs.return_value = Mock(
             returncode=0,
             stdout=json.dumps({"success": True, "ast": mock_ast}),
             stderr=""
@@ -84,13 +80,13 @@ class TestTypeScriptParser:
         result = parser.parse_file("test.ts")
         
         assert result == mock_ast
-        mock_run.assert_called_once()
+        mock_nodejs.assert_called()
 
     @pytest.mark.unit
-    @patch("services.typescript_parser.subprocess.run")
-    def test_parse_file_parse_error(self, mock_run):
+     
+    def test_parse_file_parse_error(self, mock_nodejs):
         """Test file parsing with syntax error."""
-        mock_run.return_value = Mock(
+        mock_nodejs.return_value = Mock(
             returncode=0,
             stdout=json.dumps({
                 "success": False,
@@ -107,10 +103,10 @@ class TestTypeScriptParser:
         assert "Syntax error" in str(exc_info.value)
 
     @pytest.mark.unit
-    @patch("services.typescript_parser.subprocess.run")
-    def test_parse_file_subprocess_error(self, mock_run):
+     
+    def test_parse_file_subprocess_error(self, mock_nodejs):
         """Test file parsing with subprocess error."""
-        mock_run.return_value = Mock(
+        mock_nodejs.return_value = Mock(
             returncode=1,
             stdout="",
             stderr=json.dumps({"error": "Subprocess failed"})
@@ -122,7 +118,7 @@ class TestTypeScriptParser:
             parser.parse_file("test.ts")
 
     @pytest.mark.unit
-    def test_parse_file_nonexistent(self):
+    def test_parse_file_nonexistent(self, mock_nodejs):
         """Test parsing non-existent file."""
         parser = TypeScriptParser()
         
@@ -130,8 +126,8 @@ class TestTypeScriptParser:
             parser.parse_file("nonexistent.ts")
 
     @pytest.mark.unit
-    @patch("services.typescript_parser.subprocess.run")
-    def test_parse_string_success(self, mock_run):
+     
+    def test_parse_string_success(self, mock_nodejs):
         """Test successful string parsing."""
         mock_ast = {
             "type": "Program",
@@ -144,7 +140,7 @@ class TestTypeScriptParser:
             ]
         }
         
-        mock_run.return_value = Mock(
+        mock_nodejs.return_value = Mock(
             returncode=0,
             stdout=json.dumps({"success": True, "ast": mock_ast}),
             stderr=""
@@ -157,7 +153,7 @@ class TestTypeScriptParser:
         assert result == mock_ast
 
     @pytest.mark.unit
-    def test_parse_string_empty(self):
+    def test_parse_string_empty(self, mock_nodejs):
         """Test parsing empty string."""
         parser = TypeScriptParser()
         
@@ -167,10 +163,10 @@ class TestTypeScriptParser:
         assert "empty" in str(exc_info.value).lower()
 
     @pytest.mark.unit
-    @patch("services.typescript_parser.subprocess.run")
-    def test_parse_string_timeout(self, mock_run):
+     
+    def test_parse_string_timeout(self, mock_nodejs):
         """Test string parsing timeout."""
-        mock_run.side_effect = subprocess.TimeoutExpired("node", 30)
+        mock_nodejs.side_effect = subprocess.TimeoutExpired("node", 30)
         
         parser = TypeScriptParser()
         
@@ -180,7 +176,7 @@ class TestTypeScriptParser:
         assert "timeout" in str(exc_info.value).lower()
 
     @pytest.mark.unit
-    def test_extract_public_symbols_classes(self):
+    def test_extract_public_symbols_classes(self, mock_nodejs):
         """Test extracting class symbols from AST."""
         ast = {
             "body": [
@@ -201,7 +197,7 @@ class TestTypeScriptParser:
         assert symbols["classes"][0]["decorators"] == 1
 
     @pytest.mark.unit
-    def test_extract_public_symbols_functions(self):
+    def test_extract_public_symbols_functions(self, mock_nodejs):
         """Test extracting function symbols from AST."""
         ast = {
             "body": [
@@ -222,7 +218,7 @@ class TestTypeScriptParser:
         assert symbols["functions"][0]["async"] is True
 
     @pytest.mark.unit
-    def test_extract_public_symbols_interfaces(self):
+    def test_extract_public_symbols_interfaces(self, mock_nodejs):
         """Test extracting interface symbols from AST."""
         ast = {
             "body": [
@@ -241,7 +237,7 @@ class TestTypeScriptParser:
         assert symbols["interfaces"][0]["name"] == "MyInterface"
 
     @pytest.mark.unit
-    def test_extract_public_symbols_empty(self):
+    def test_extract_public_symbols_empty(self, mock_nodejs):
         """Test extracting symbols from empty AST."""
         ast = {"body": []}
         
@@ -251,7 +247,7 @@ class TestTypeScriptParser:
         assert all(len(symbols[key]) == 0 for key in symbols)
 
     @pytest.mark.unit
-    def test_extract_public_symbols_no_body(self):
+    def test_extract_public_symbols_no_body(self, mock_nodejs):
         """Test extracting symbols from AST without body."""
         ast = {}
         

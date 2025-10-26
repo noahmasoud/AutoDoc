@@ -11,8 +11,12 @@ class TestTypeScriptAnalyzerIntegration:
     """Integration tests for TypeScriptAnalyzer."""
 
     @pytest.mark.integration
-    def test_analyze_no_typescript_files(self):
+    @patch("services.typescript_parser.subprocess.run")
+    def test_analyze_no_typescript_files(self, mock_run):
         """Test analyzer with no TypeScript files."""
+        # Mock Node.js check
+        mock_run.return_value = Mock(returncode=0, stdout="v18.0.0\n")
+        
         analyzer = TypeScriptAnalyzer()
         
         changed_files = ["README.md", "Makefile", "setup.py"]
@@ -23,8 +27,12 @@ class TestTypeScriptAnalyzerIntegration:
         assert len(result["files"]) == 0
 
     @pytest.mark.integration
-    def test_analyze_mixed_file_types(self):
+    @patch("services.typescript_parser.subprocess.run")
+    def test_analyze_mixed_file_types(self, mock_run):
         """Test analyzer with mixed file types."""
+        # Mock Node.js check
+        mock_run.return_value = Mock(returncode=0, stdout="v18.0.0\n")
+        
         analyzer = TypeScriptAnalyzer()
         
         changed_files = [
@@ -66,8 +74,12 @@ class TestTypeScriptAnalyzerIntegration:
                 assert len(result["files"]) == 2
 
     @pytest.mark.integration
-    def test_analyze_with_parse_error(self):
+    @patch("services.typescript_parser.subprocess.run")
+    def test_analyze_with_parse_error(self, mock_run):
         """Test analyzer handles parse errors gracefully."""
+        # Mock Node.js check
+        mock_run.return_value = Mock(returncode=0, stdout="v18.0.0\n")
+        
         analyzer = TypeScriptAnalyzer()
         
         changed_files = ["src/app.ts"]
@@ -86,8 +98,12 @@ class TestTypeScriptAnalyzerIntegration:
             assert "error" in result["files"][0]
 
     @pytest.mark.integration
-    def test_analyze_extracts_symbols(self):
+    @patch("services.typescript_parser.subprocess.run")
+    def test_analyze_extracts_symbols(self, mock_run):
         """Test analyzer extracts symbols correctly."""
+        # Mock Node.js check
+        mock_run.return_value = Mock(returncode=0, stdout="v18.0.0\n")
+        
         analyzer = TypeScriptAnalyzer()
         
         changed_files = ["src/service.ts"]
@@ -123,8 +139,12 @@ class TestTypeScriptAnalyzerIntegration:
                 assert result["symbols_extracted"]["enums"] == 1
 
     @pytest.mark.integration
-    def test_is_typescript_file(self):
+    @patch("services.typescript_parser.subprocess.run")
+    def test_is_typescript_file(self, mock_run):
         """Test TypeScript file detection."""
+        # Mock Node.js check
+        mock_run.return_value = Mock(returncode=0, stdout="v18.0.0\n")
+        
         analyzer = TypeScriptAnalyzer()
         
         assert analyzer._is_typescript_file("file.ts") is True

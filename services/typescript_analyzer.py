@@ -105,14 +105,14 @@ class TypeScriptAnalyzer:
             "files": [],
         }
 
-对每个 TypeScript 文件进行分析
+        # Analyze each TypeScript file
         for file_path in ts_files:
             file_result = self._analyze_file(file_path, run_id)
             results["files"].append(file_result)
 
             if file_result["status"] == "success":
                 results["files_processed"] += 1
-                # 累积符号统计
+                # Accumulate symbol statistics
                 for symbol_type in results["symbols_extracted"]:
                     results["symbols_extracted"][symbol_type] += len(
                         file_result["symbols"].get(symbol_type, [])
@@ -151,10 +151,10 @@ class TypeScriptAnalyzer:
         )
 
         try:
-            # 尝试解析文件
+            # Parse the file
             ast = self.parser.parse_file(file_path)
 
-            # 提取公共符号
+            # Extract public symbols
             symbols = self.parser.extract_public_symbols(ast)
 
             logger.info(
