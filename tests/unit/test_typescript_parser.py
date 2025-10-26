@@ -57,7 +57,7 @@ class TestTypeScriptParser:
             TypeScriptParser()
 
     @pytest.mark.unit
-    def test_parse_file_success(self, mock_nodejs):
+    def test_parse_file_success(self, mock_nodejs, tmp_path):
         """Test successful file parsing."""
         mock_ast = {
             "type": "Program",
@@ -70,6 +70,10 @@ class TestTypeScriptParser:
             ]
         }
         
+        # Create a temporary test file
+        test_file = tmp_path / "test.ts"
+        test_file.write_text("export class MyClass {}")
+        
         mock_nodejs.return_value = Mock(
             returncode=0,
             stdout=json.dumps({"success": True, "ast": mock_ast}),
@@ -77,15 +81,18 @@ class TestTypeScriptParser:
         )
         
         parser = TypeScriptParser()
-        result = parser.parse_file("test.ts")
+        result = parser.parse_file(str(test_file))
         
         assert result == mock_ast
         mock_nodejs.assert_called()
 
     @pytest.mark.unit
-     
-    def test_parse_file_parse_error(self, mock_nodejs):
+    def test_parse_file_parse_error(self, mock_nodejs, tmp_path):
         """Test file parsing with syntax error."""
+        # Create a temporary test file
+        test_file = tmp_path / "test.ts"
+        test_file.write_text("invalid syntax here")
+        
         mock_nodejs.return_value = Mock(
             returncode=0,
             stdout=json.dumps({
@@ -98,24 +105,27 @@ class TestTypeScriptParser:
         parser = TypeScriptParser()
         
         with pytest.raises(ParseError) as exc_info:
-            parser.parse_file("test.ts")
+            parser.parse_file(str(test_file))
         
         assert "Syntax error" in str(exc_info.value)
 
     @pytest.mark.unit
-     
-    def test_parse_file_subprocess_error(self, mock_nodejs):
+    def test_parse_file_subprocess_error(self, mock_nodejs, tmp_path):
         """Test file parsing with subprocess error."""
-        mock_nodejs.return_value = Mock(
-            returncode=1,
-            stdout="",
-            stderr=json.dumps({"error": "Subprocess failed"})
-        )
+        # Create a temporary test file
+        test_file = tmp_path / "test.ts"
+        test_file.write_text("export class Test {}")
+        
+        # First call for Node.js check succeeds, second call for parsing fails
+        mock_nodejs.side_effect = [
+            Mock(returncode=0, stdout="v18.0.0\n"),  # Node.js check
+            Mock(returncode=1, stdout="", stderr=json.dumps({"error": "Subprocess failed"}))  # Parse fails
+        ]
         
         parser = TypeScriptParser()
         
         with pytest.raises(ParseError):
-            parser.parse_file("test.ts")
+            parser.parse_file(str(test_file))
 
     @pytest.mark.unit
     def test_parse_file_nonexistent(self, mock_nodejs):
@@ -163,17 +173,20 @@ class TestTypeScriptParser:
         assert "empty" in str(exc_info.value).lower()
 
     @pytest.mark.unit
-     
     def test_parse_string_timeout(self, mock_nodejs):
         """Test string parsing timeout."""
-        mock_nodejs.side_effect = subprocess.TimeoutExpired("node", 30)
+        # First call for Node.js check succeeds, second call for parsing times out
+        mock_nodejs.side_effect = [
+            Mock(returncode=0, stdout="v18.0.0\n"),  # Node.js check
+            subprocess.TimeoutExpired("node", 30)  # Parse times out
+        ]
         
         parser = TypeScriptParser()
         
         with pytest.raises(ParseError) as exc_info:
             parser.parse_string("const x = 1;")
         
-        assert "timeout" in str(exc_info.value).lower()
+        assert "timed out" in str(exc_info.value).lower()
 
     @pytest.mark.unit
     def test_extract_public_symbols_classes(self, mock_nodejs):
