@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class TypeScriptAnalyzer:
     """
     Analyzer for processing TypeScript files in CI/CD runs.
-    
+
     Detects changed .ts files, parses them to extract symbols,
     and logs results for documentation generation.
     """
@@ -34,11 +34,11 @@ class TypeScriptAnalyzer:
     ) -> dict[str, Any]:
         """
         Analyze changed TypeScript files and extract public symbols.
-        
+
         Args:
             changed_files: List of file paths that have changed
             run_id: Run ID for logging correlation
-            
+
         Returns:
             Dictionary with analysis results:
             {
@@ -115,7 +115,7 @@ class TypeScriptAnalyzer:
                 # Accumulate symbol statistics
                 for symbol_type in results["symbols_extracted"]:
                     results["symbols_extracted"][symbol_type] += len(
-                        file_result["symbols"].get(symbol_type, [])
+                        file_result["symbols"].get(symbol_type, []),
                     )
             else:
                 results["files_failed"] += 1
@@ -137,11 +137,11 @@ class TypeScriptAnalyzer:
     def _analyze_file(self, file_path: str, run_id: str) -> dict[str, Any]:
         """
         Analyze a single TypeScript file.
-        
+
         Args:
             file_path: Path to the TypeScript file
             run_id: Run ID for logging
-            
+
         Returns:
             Dictionary with file analysis results
         """
@@ -173,7 +173,7 @@ class TypeScriptAnalyzer:
             }
 
         except ParseError as e:
-            logger.error(
+            logger.exception(
                 f"[Run: {run_id}] Parse error for {file_path}: {e}",
                 extra={
                     "run_id": run_id,
@@ -189,7 +189,7 @@ class TypeScriptAnalyzer:
             }
 
         except FileNotFoundError as e:
-            logger.error(
+            logger.exception(
                 f"[Run: {run_id}] File not found: {file_path}",
                 extra={
                     "run_id": run_id,
@@ -205,7 +205,7 @@ class TypeScriptAnalyzer:
             }
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"[Run: {run_id}] Unexpected error analyzing {file_path}: {e}",
                 extra={
                     "run_id": run_id,
@@ -223,14 +223,13 @@ class TypeScriptAnalyzer:
     def _is_typescript_file(self, file_path: str) -> bool:
         """
         Check if a file is a TypeScript file.
-        
+
         Args:
             file_path: Path to check
-            
+
         Returns:
             True if file is TypeScript (.ts or .tsx)
         """
         path = Path(file_path)
         suffix = path.suffix.lower()
         return suffix in {".ts", ".tsx"}
-
