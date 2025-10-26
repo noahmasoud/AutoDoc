@@ -24,6 +24,18 @@ volumes:
   postgres-data:
     driver: local
     name: autodoc-postgres-data
+  prometheus-data:
+    driver: local
+    name: autodoc-prometheus-data
+  grafana-data:
+    driver: local
+    name: autodoc-grafana-data
+  pgadmin-data:
+    driver: local
+    name: autodoc-pgadmin-data
+  redis-insight-data:
+    driver: local
+    name: autodoc-redis-insight-data
 
 # =============================================================================
 # Services
@@ -363,20 +375,3 @@ services:
       - redis-insight-data:/data
     profiles:
       - dev-tools
-
-# =============================================================================
-# Additional Volumes for Monitoring and Tools
-# =============================================================================
-volumes:
-  prometheus-data:
-    driver: local
-    name: autodoc-prometheus-data
-  grafana-data:
-    driver: local
-    name: autodoc-grafana-data
-  pgadmin-data:
-    driver: local
-    name: autodoc-pgadmin-data
-  redis-insight-data:
-    driver: local
-    name: autodoc-redis-insight-data
