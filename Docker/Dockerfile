@@ -151,23 +151,19 @@ RUN groupadd --gid 1000 autodoc && \
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml ./
+# Copy application code first (needed for version detection)
+COPY --chown=autodoc:autodoc . .
 
 # Install Python dependencies including development tools
 RUN pip install --upgrade pip setuptools wheel && \
     pip install -e ".[dev,test,lint,docs]"
 
-# Copy application code
-COPY --chown=autodoc:autodoc . .
-
-# Copy entrypoint script
-COPY --chown=autodoc:autodoc scripts/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Make entrypoint script executable
+RUN chmod +x /app/scripts/entrypoint.sh
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs /app/data /app/temp /app/htmlcov && \
-    chown -R autodoc:autodoc /app /entrypoint.sh
+    chown -R autodoc:autodoc /app
 
 # Switch to non-root user
 USER autodoc
@@ -176,7 +172,7 @@ USER autodoc
 EXPOSE 8000
 
 # Set entrypoint
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 
 # Default command for development
 CMD ["autodoc", "--help"]
@@ -216,19 +212,15 @@ RUN groupadd --gid 1000 autodoc && \
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml ./
+# Copy application code first (needed for version detection)
+COPY --chown=autodoc:autodoc . .
 
 # Install Python dependencies including test and lint tools
 RUN pip install --upgrade pip setuptools wheel && \
     pip install -e ".[dev,test,lint]"
 
-# Copy application code
-COPY --chown=autodoc:autodoc . .
-
-# Copy entrypoint script
-COPY --chown=autodoc:autodoc scripts/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Make entrypoint script executable
+RUN chmod +x /app/scripts/entrypoint.sh
 
 # Copy CI scripts
 COPY --chown=autodoc:autodoc scripts/ci-test.sh scripts/ci-lint.sh scripts/run-tests.sh ./
@@ -236,13 +228,13 @@ RUN chmod +x scripts/ci-test.sh scripts/ci-lint.sh scripts/run-tests.sh
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs /app/data /app/temp /app/htmlcov && \
-    chown -R autodoc:autodoc /app /entrypoint.sh
+    chown -R autodoc:autodoc /app
 
 # Switch to non-root user
 USER autodoc
 
 # Set entrypoint
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 
 # Default command for CI
 CMD ["./scripts/ci-test.sh"]
