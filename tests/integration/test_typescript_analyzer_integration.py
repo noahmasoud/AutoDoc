@@ -1,0 +1,135 @@
+"""Integration tests for TypeScript analyzer."""
+
+from unittest.mock import Mock, patch
+
+import pytest
+
+from services.typescript_analyzer import TypeScriptAnalyzer
+
+
+class TestTypeScriptAnalyzerIntegration:
+    """Integration tests for TypeScriptAnalyzer."""
+
+    @pytest.mark.integration
+    def test_analyze_no_typescript_files(self):
+        """Test analyzer with no TypeScript files."""
+        analyzer = TypeScriptAnalyzer()
+        
+        changed_files = ["README.md", "Makefile", "setup.py"]
+        result = analyzer.analyze_changed_files(changed_files, "run_001")
+        
+        assert result["files_processed"] == 0
+        assert result["files_failed"] == 0
+        assert len(result["files"]) == 0
+
+    @pytest.mark.integration
+    def test_analyze_mixed_file_types(self):
+        """Test analyzer with mixed file types."""
+        analyzer = TypeScriptAnalyzer()
+        
+        changed_files = [
+            "src/app.ts",
+            "src/styles.css",
+            "README.md",
+            "tests/test.ts",
+        ]
+        
+        # Mock the parser to avoid requiring Node.js
+        with patch.object(analyzer.parser, "parse_file") as mock_parse:
+            mock_ast = {
+                "body": [
+                    {
+                        "type": "ClassDeclaration",
+                        "id": {"name": "TestClass"},
+                        "loc": {"start": {"line": 1}},
+                        "decorators": [],
+                    }
+                ]
+            }
+            mock_parse.return_value = mock_ast
+            
+            with patch.object(
+                analyzer.parser, "extract_public_symbols"
+            ) as mock_extract:
+                mock_extract.return_value = {
+                    "classes": [{"name": "TestClass", "line": 1, "decorators": 0}],
+                    "functions": [],
+                    "interfaces": [],
+                    "types": [],
+                    "enums": [],
+                }
+                
+                result = analyzer.analyze_changed_files(changed_files, "run_002")
+                
+                # Should only process .ts files
+                assert result["files_processed"] == 2  # app.ts and test.ts
+                assert len(result["files"]) == 2
+
+    @pytest.mark.integration
+    def test_analyze_with_parse_error(self):
+        """Test analyzer handles parse errors gracefully."""
+        analyzer = TypeScriptAnalyzer()
+        
+        changed_files = ["src/app.ts"]
+        
+        # Mock parser to raise ParseError
+        with patch.object(analyzer.parser, "parse_file") as mock_parse:
+            from services.typescript_parser import ParseError
+            
+            mock_parse.side_effect = ParseError("Syntax error")
+            
+            result = analyzer.analyze_changed_files(changed_files, "run_003")
+            
+            assert result["files_processed"] == 0
+            assert result["files_failed"] == 1
+            assert result["files"][0]["status"] == "failed"
+            assert "error" in result["files"][0]
+
+    @pytest.mark.integration
+    def test_analyze_extracts_symbols(self):
+        """Test analyzer extracts symbols correctly."""
+        analyzer = TypeScriptAnalyzer()
+        
+        changed_files = ["src/service.ts"]
+        
+        with patch.object(analyzer.parser, "parse_file") as mock_parse:
+            mock_parse.return_value = {"body": []}
+            
+            with patch.object(
+                analyzer.parser, "extract_public_symbols"
+            ) as mock_extract:
+                mock_extract.return_value = {
+                    "classes": [
+                        {"name": "ServiceClass", "line": 1, "decorators": 0}
+                    ],
+                    "functions": [
+                        {"name": "getData", "line": 10, "async": True}
+                    ],
+                    "interfaces": [
+                        {"name": "IData", "line": 5}
+                    ],
+                    "types": [],
+                    "enums": [
+                        {"name": "Status", "line": 20}
+                    ],
+                }
+                
+                result = analyzer.analyze_changed_files(changed_files, "run_004")
+                
+                assert result["files_processed"] == 1
+                assert result["symbols_extracted"]["classes"] == 1
+                assert result["symbols_extracted"]["functions"] == 1
+                assert result["symbols_extracted"]["interfaces"] == 1
+                assert result["symbols_extracted"]["enums"] == 1
+
+    @pytest.mark.integration
+    def test_is_typescript_file(self):
+        """Test TypeScript file detection."""
+        analyzer = TypeScriptAnalyzer()
+        
+        assert analyzer._is_typescript_file("file.ts") is True
+        assert analyzer._is_typescript_file("file.tsx") is True
+        assert analyzer._is_typescript_file("file.js") is False
+        assert analyzer._is_typescript_file("file.py") is False
+        assert analyzer._is_typescript_file("file.TS") is True  # Case insensitive
+

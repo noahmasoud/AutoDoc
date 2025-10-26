@@ -1,5 +1,6 @@
 """Services module for AutoDoc."""
 
+from services.typescript_analyzer import TypeScriptAnalyzer
 from services.typescript_parser import (
     NodeJSNotFoundError,
     ParseError,
@@ -12,5 +13,6 @@ __all__ = [
     "TypeScriptParserError",
     "ParseError",
     "NodeJSNotFoundError",
+    "TypeScriptAnalyzer",
 ]
 
