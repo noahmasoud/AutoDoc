@@ -1,8 +1,8 @@
 # AutoDoc Project .gitignore
-# Generated for Python project with Docker and development tools
+# Full-stack project with Python backend and Angular frontend
 
 # =============================================================================
-# Python
+# Python Backend
 # =============================================================================
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -142,6 +142,28 @@ dmypy.json
 cython_debug/
 
 # =============================================================================
+# Angular Frontend
+# =============================================================================
+# Compiled output
+/dist
+/tmp
+/out-tsc
+/bazel-out
+
+# Node
+/node_modules
+npm-debug.log
+yarn-error.log
+
+# Angular cache
+/.angular/cache
+.sass-cache/
+/connect.lock
+/libpeerconnection.log
+testem.log
+/typings
+
+# =============================================================================
 # Project Specific
 # =============================================================================
 # SRS Document (confidential)
@@ -171,14 +193,34 @@ tmp/
 uploads/
 user-uploads/
 
-# IDE and Editor files
-.vscode/
+# =============================================================================
+# IDEs and Editors
+# =============================================================================
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/*
+
+# IntelliJ IDEA
 .idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# Editor files
 *.swp
 *.swo
 *~
 
+# =============================================================================
 # OS generated files
+# =============================================================================
 .DS_Store
 .DS_Store?
 ._*
