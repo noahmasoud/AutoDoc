@@ -1,3 +1,8 @@
+#########################################################
+# test comment to show pipeline running
+# NKM - demo commit 10/30/25
+#########################################################
+
 name: AutoDoc CI
 
 # when the workflow should run
