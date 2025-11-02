@@ -71,15 +71,19 @@ def detect_changes(
             _detect_modifications(previous_symbols, current_symbols),
         )
 
+        breaking_count = sum(1 for c in changes if c.is_breaking)
+
         logger.info(
             f"Detected {len(changes)} changes: "
             f"{sum(1 for c in changes if c.change_type == 'added')} added, "
             f"{sum(1 for c in changes if c.change_type == 'removed')} removed, "
-            f"{sum(1 for c in changes if c.change_type == 'modified')} modified",
+            f"{sum(1 for c in changes if c.change_type == 'modified')} modified, "
+            f"{breaking_count} breaking",
             extra={
                 "previous_run_id": previous_artifact.run_id,
                 "current_run_id": current_artifact.run_id,
                 "total_changes": len(changes),
+                "breaking_changes": breaking_count,
             },
         )
 
@@ -152,6 +156,7 @@ def _detect_additions_only(current_artifact: RunArtifact) -> list[ChangeDetected
             signature_before=None,
             signature_after=_symbol_to_signature_dict(symbol),
             is_breaking=False,  # Additions are not breaking
+            breaking_reason=None,
         )
         changes.append(change)
     return changes
@@ -180,6 +185,7 @@ def _detect_removals(
                 signature_before=_symbol_to_signature_dict(symbol),
                 signature_after=None,
                 is_breaking=True,  # Removals are always breaking
+                breaking_reason="symbol_removed",
             )
             changes.append(change)
     return changes
@@ -208,6 +214,7 @@ def _detect_additions(
                 signature_before=None,
                 signature_after=_symbol_to_signature_dict(symbol),
                 is_breaking=False,  # Additions are not breaking
+                breaking_reason=None,
             )
             changes.append(change)
     return changes
@@ -233,7 +240,7 @@ def _detect_modifications(
 
             # Check if symbols are actually different
             if _symbols_differ(previous_symbol, current_symbol):
-                is_breaking = _is_breaking_change(
+                breaking_result = _analyze_breaking_change(
                     previous_symbol,
                     current_symbol,
                 )
@@ -244,7 +251,8 @@ def _detect_modifications(
                     change_type="modified",
                     signature_before=_symbol_to_signature_dict(previous_symbol),
                     signature_after=_symbol_to_signature_dict(current_symbol),
-                    is_breaking=is_breaking,
+                    is_breaking=breaking_result["is_breaking"],
+                    breaking_reason=breaking_result.get("reason"),
                 )
                 changes.append(change)
 
@@ -339,39 +347,49 @@ def _parameters_differ(
     return previous.kind != current.kind
 
 
-def _is_breaking_change(  # noqa: PLR0911
+def _analyze_breaking_change(  # noqa: PLR0911
     previous: SymbolData,
     current: SymbolData,
-) -> bool:
-    """Determine if a change is breaking.
+) -> dict[str, Any]:
+    """Analyze if a change is breaking and provide detailed reasons.
 
-    A breaking change is one that would break existing code:
-    - Parameter removal
-    - Return type change
-    - Parameter type change
+    A breaking change is one that would break existing code. This function
+    provides detailed analysis including:
+    - Whether the change is breaking
+    - The specific reason for the breaking change
+    - Category of the breaking change
 
     Args:
         previous: Previous symbol
         current: Current symbol
 
     Returns:
-        True if the change is breaking, False otherwise
+        Dictionary with 'is_breaking' (bool) and optional 'reason' (str)
     """
     # If signatures don't exist, check docstring/visibility only (not breaking)
     if previous.signature is None or current.signature is None:
-        return False
+        return {"is_breaking": False, "reason": None}
 
     # Return type change is breaking
     if previous.signature.return_annotation != current.signature.return_annotation:
-        return True
+        return {
+            "is_breaking": True,
+            "reason": "return_type_changed",
+        }
 
     # Parameter addition is breaking
     if len(previous.signature.parameters) < len(current.signature.parameters):
-        return True
+        return {
+            "is_breaking": True,
+            "reason": "parameter_added",
+        }
 
     # Parameter removal is breaking
     if len(previous.signature.parameters) > len(current.signature.parameters):
-        return True
+        return {
+            "is_breaking": True,
+            "reason": "parameter_removed",
+        }
 
     # Check for parameter type changes
     for prev_param, curr_param in zip(
@@ -381,19 +399,45 @@ def _is_breaking_change(  # noqa: PLR0911
     ):
         # Parameter name changed - breaking
         if prev_param.name != curr_param.name:
-            return True
+            return {
+                "is_breaking": True,
+                "reason": f"parameter_name_changed:{prev_param.name}->{curr_param.name}",
+            }
 
         # Parameter type changed - breaking
         if prev_param.annotation != curr_param.annotation:
             # Allow None vs explicit type (not breaking)
             if prev_param.annotation is not None and curr_param.annotation is not None:
-                return True
+                return {
+                    "is_breaking": True,
+                    "reason": f"parameter_type_changed:{prev_param.name}",
+                }
 
         # Parameter lost default value - breaking
         if prev_param.default_value is not None and curr_param.default_value is None:
-            return True
+            return {
+                "is_breaking": True,
+                "reason": f"parameter_default_removed:{prev_param.name}",
+            }
 
-    return False
+    return {"is_breaking": False, "reason": None}
+
+
+def _is_breaking_change(
+    previous: SymbolData,
+    current: SymbolData,
+) -> bool:
+    """Determine if a change is breaking (simple boolean check).
+
+    Args:
+        previous: Previous symbol
+        current: Current symbol
+
+    Returns:
+        True if the change is breaking, False otherwise
+    """
+    result = _analyze_breaking_change(previous, current)
+    return result["is_breaking"]
 
 
 def _symbol_to_signature_dict(symbol: SymbolData) -> dict[str, Any]:
@@ -434,3 +478,46 @@ def _symbol_to_signature_dict(symbol: SymbolData) -> dict[str, Any]:
         )
 
     return signature_dict
+
+
+def get_breaking_changes_summary(changes: list[ChangeDetected]) -> dict[str, Any]:
+    """Get a summary of breaking changes.
+
+    Args:
+        changes: List of detected changes
+
+    Returns:
+        Dictionary with summary statistics and categorized breaking changes
+    """
+    breaking_changes = [c for c in changes if c.is_breaking]
+
+    # Categorize breaking changes by reason
+    categories = {}
+    for change in breaking_changes:
+        reason = change.breaking_reason or "unknown"
+        # Extract base category (before any colon)
+        category = reason.split(":")[0]
+        if category not in categories:
+            categories[category] = []
+        categories[category].append(change)
+
+    return {
+        "total_changes": len(changes),
+        "breaking_count": len(breaking_changes),
+        "non_breaking_count": len(changes) - len(breaking_changes),
+        "breaking_percentage": (
+            (len(breaking_changes) / len(changes) * 100) if changes else 0.0
+        ),
+        "categories": {
+            category: len(changes_list) for category, changes_list in categories.items()
+        },
+        "breaking_changes": [
+            {
+                "file_path": change.file_path,
+                "symbol_name": change.symbol_name,
+                "change_type": change.change_type,
+                "reason": change.breaking_reason,
+            }
+            for change in breaking_changes
+        ],
+    }

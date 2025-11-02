@@ -10,6 +10,7 @@ from schemas.changes import (
 )
 from services.change_detector import (
     detect_changes,
+    get_breaking_changes_summary,
     _create_symbol_map,
     _get_symbol_key,
     _parameters_differ,
@@ -654,3 +655,227 @@ class TestUtilityFunctions:
         )
 
         assert _is_breaking_change(prev_symbol, curr_symbol) is False
+
+
+class TestBreakingChangesSummary:
+    """Test suite for get_breaking_changes_summary function."""
+
+    @pytest.mark.unit
+    def test_get_breaking_changes_summary_empty(self):
+        """Test summary with no changes."""
+        summary = get_breaking_changes_summary([])
+
+        assert summary["total_changes"] == 0
+        assert summary["breaking_count"] == 0
+        assert summary["non_breaking_count"] == 0
+        assert summary["breaking_percentage"] == 0.0
+        assert summary["categories"] == {}
+        assert summary["breaking_changes"] == []
+
+    @pytest.mark.unit
+    def test_get_breaking_changes_summary_mixed(self):
+        """Test summary with mixed breaking and non-breaking changes."""
+        from schemas.changes import ChangeDetected
+
+        changes = [
+            ChangeDetected(
+                file_path="test.py",
+                symbol_name="func1",
+                change_type="added",
+                signature_before=None,
+                signature_after={},
+                is_breaking=False,
+                breaking_reason=None,
+            ),
+            ChangeDetected(
+                file_path="test.py",
+                symbol_name="func2",
+                change_type="removed",
+                signature_before={},
+                signature_after=None,
+                is_breaking=True,
+                breaking_reason="symbol_removed",
+            ),
+            ChangeDetected(
+                file_path="test.py",
+                symbol_name="func3",
+                change_type="modified",
+                signature_before={},
+                signature_after={},
+                is_breaking=True,
+                breaking_reason="return_type_changed",
+            ),
+        ]
+
+        summary = get_breaking_changes_summary(changes)
+
+        assert summary["total_changes"] == 3
+        assert summary["breaking_count"] == 2
+        assert summary["non_breaking_count"] == 1
+        assert summary["breaking_percentage"] == pytest.approx(66.67, rel=1e-1)
+        assert "symbol_removed" in summary["categories"]
+        assert "return_type_changed" in summary["categories"]
+        assert len(summary["breaking_changes"]) == 2
+
+    @pytest.mark.unit
+    def test_get_breaking_changes_summary_categories(self):
+        """Test summary categorizes breaking changes correctly."""
+        from schemas.changes import ChangeDetected
+
+        changes = [
+            ChangeDetected(
+                file_path="test.py",
+                symbol_name="func1",
+                change_type="modified",
+                signature_before={},
+                signature_after={},
+                is_breaking=True,
+                breaking_reason="parameter_type_changed:x",
+            ),
+            ChangeDetected(
+                file_path="test.py",
+                symbol_name="func2",
+                change_type="modified",
+                signature_before={},
+                signature_after={},
+                is_breaking=True,
+                breaking_reason="parameter_type_changed:y",
+            ),
+            ChangeDetected(
+                file_path="test.py",
+                symbol_name="func3",
+                change_type="modified",
+                signature_before={},
+                signature_after={},
+                is_breaking=True,
+                breaking_reason="parameter_added",
+            ),
+        ]
+
+        summary = get_breaking_changes_summary(changes)
+
+        assert summary["breaking_count"] == 3
+        assert summary["categories"]["parameter_type_changed"] == 2
+        assert summary["categories"]["parameter_added"] == 1
+
+    @pytest.mark.unit
+    def test_get_breaking_changes_summary_all_breaking(self):
+        """Test summary when all changes are breaking."""
+        from schemas.changes import ChangeDetected
+
+        changes = [
+            ChangeDetected(
+                file_path="test.py",
+                symbol_name="func1",
+                change_type="removed",
+                signature_before={},
+                signature_after=None,
+                is_breaking=True,
+                breaking_reason="symbol_removed",
+            ),
+            ChangeDetected(
+                file_path="test.py",
+                symbol_name="func2",
+                change_type="removed",
+                signature_before={},
+                signature_after=None,
+                is_breaking=True,
+                breaking_reason="symbol_removed",
+            ),
+        ]
+
+        summary = get_breaking_changes_summary(changes)
+
+        assert summary["total_changes"] == 2
+        assert summary["breaking_count"] == 2
+        assert summary["non_breaking_count"] == 0
+        assert summary["breaking_percentage"] == 100.0
+
+    @pytest.mark.unit
+    def test_breaking_reason_in_detected_changes(self):
+        """Test that breaking reasons are correctly captured in detected changes."""
+        previous_symbol = SymbolData(
+            file_path="test.py",
+            symbol_name="test_func",
+            symbol_type="function",
+            signature=SignatureInfo(
+                name="test_func",
+                parameters=[
+                    ParameterInfo(name="x", annotation="int"),
+                ],
+                return_annotation="int",
+            ),
+        )
+
+        current_symbol = SymbolData(
+            file_path="test.py",
+            symbol_name="test_func",
+            symbol_type="function",
+            signature=SignatureInfo(
+                name="test_func",
+                parameters=[
+                    ParameterInfo(name="x", annotation="str"),
+                ],
+                return_annotation="int",
+            ),
+        )
+
+        previous_artifact = RunArtifact(
+            run_id=1,
+            repo="test/repo",
+            branch="main",
+            commit_sha="abc123",
+            symbols=[previous_symbol],
+        )
+
+        current_artifact = RunArtifact(
+            run_id=2,
+            repo="test/repo",
+            branch="main",
+            commit_sha="def456",
+            symbols=[current_symbol],
+        )
+
+        changes = detect_changes(previous_artifact, current_artifact)
+
+        assert len(changes) == 1
+        assert changes[0].is_breaking is True
+        assert changes[0].breaking_reason is not None
+        assert "parameter_type_changed" in changes[0].breaking_reason
+
+    @pytest.mark.unit
+    def test_breaking_reason_for_removed_symbol(self):
+        """Test that removed symbols have correct breaking reason."""
+        removed_symbol = SymbolData(
+            file_path="test.py",
+            symbol_name="old_func",
+            symbol_type="function",
+            signature=SignatureInfo(
+                name="old_func",
+                parameters=[],
+                return_annotation="None",
+            ),
+        )
+
+        previous_artifact = RunArtifact(
+            run_id=1,
+            repo="test/repo",
+            branch="main",
+            commit_sha="abc123",
+            symbols=[removed_symbol],
+        )
+
+        current_artifact = RunArtifact(
+            run_id=2,
+            repo="test/repo",
+            branch="main",
+            commit_sha="def456",
+            symbols=[],
+        )
+
+        changes = detect_changes(previous_artifact, current_artifact)
+
+        assert len(changes) == 1
+        assert changes[0].change_type == "removed"
+        assert changes[0].is_breaking is True
+        assert changes[0].breaking_reason == "symbol_removed"

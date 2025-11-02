@@ -53,6 +53,7 @@ class ChangeDetected(BaseModel):
     signature_before: dict[str, Any] | None = None
     signature_after: dict[str, Any] | None = None
     is_breaking: bool = False
+    breaking_reason: str | None = None
 
 
 class ChangeCreate(BaseModel):

@@ -7,6 +7,7 @@ from services.artifact_loader import (
 )
 from services.change_detector import (
     detect_changes,
+    get_breaking_changes_summary,
     ChangeDetectionError,
 )
 
@@ -15,5 +16,6 @@ __all__ = [
     "load_artifact_from_run",
     "ArtifactLoadError",
     "detect_changes",
+    "get_breaking_changes_summary",
     "ChangeDetectionError",
 ]
