@@ -289,7 +289,7 @@ class TypeScriptParser:
         ast: dict[str, Any],
     ) -> list[dict[str, Any]]:
         """
-        Extract all exported entities from AST.
+        Extract all exported entities from AST and return uniform JSON structure.
 
         Traverses AST to collect exported entities including:
         - ExportNamedDeclaration (export class X, export function Y, export const Z)
@@ -300,7 +300,7 @@ class TypeScriptParser:
             ast: AST dictionary from parser
 
         Returns:
-            List of exported symbols with format:
+            List of exported symbols with uniform JSON format:
             [{
                 'symbol': str,      # Symbol name
                 'type': str,        # Declaration type (class, function, interface, etc.)
@@ -308,6 +308,8 @@ class TypeScriptParser:
                 'location': dict,   # Line/column information
                 'isDefault': bool   # Whether it's a default export
             }]
+
+        All returned dictionaries are JSON-serializable and follow the same structure.
         """
         exports = []
 
@@ -319,7 +321,8 @@ class TypeScriptParser:
             if export_info:
                 exports.extend(export_info)
 
-        return exports
+        # Validate and normalize all exports for JSON serialization
+        return self._normalize_exports_for_json(exports)
 
     def _extract_export_info(
         self,
@@ -607,3 +610,62 @@ class TypeScriptParser:
             }
 
         return {"line": None, "column": None}
+
+    def _normalize_exports_for_json(
+        self,
+        exports: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """
+        Normalize and validate exports for JSON serialization.
+
+        Ensures all exports follow the uniform structure {symbol, type, signature, location}.
+        Handles None values and ensures all fields are JSON-serializable.
+
+        Args:
+            exports: List of export dictionaries
+
+        Returns:
+            Normalized list of exports ready for JSON serialization
+        """
+        normalized = []
+
+        for export in exports:
+            # Ensure all required fields exist with proper defaults
+            normalized_export = {
+                "symbol": export.get("symbol", ""),
+                "type": export.get("type", "unknown"),
+                "signature": export.get("signature", {}),
+                "location": export.get("location", {"line": None, "column": None}),
+                "isDefault": export.get("isDefault", False),
+            }
+
+            # Add any additional fields (like exportType for all exports, etc.)
+            for key, value in export.items():
+                if key not in normalized_export:
+                    normalized_export[key] = value
+
+            # Ensure nested dicts are properly structured
+            if not isinstance(normalized_export["signature"], dict):
+                normalized_export["signature"] = {}
+
+            if not isinstance(normalized_export["location"], dict):
+                normalized_export["location"] = {"line": None, "column": None}
+
+            normalized.append(normalized_export)
+
+        return normalized
+
+    def serialize_exports_to_json(self, exports: list[dict[str, Any]]) -> str:
+        """
+        Serialize exported symbols to JSON string.
+
+        Args:
+            exports: List of export dictionaries
+
+        Returns:
+            JSON string representation of exports
+
+        Raises:
+            TypeError: If exports contain non-serializable data
+        """
+        return json.dumps(exports, indent=2, default=str)

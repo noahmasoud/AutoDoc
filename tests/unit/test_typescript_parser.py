@@ -591,3 +591,108 @@ class TestTypeScriptParser:
         assert len(exports) == 1
         assert exports[0]["symbol"] == "User"
         assert exports[0]["type"] == "interface"
+
+    @pytest.mark.unit
+    def test_exports_uniform_json_structure(self, mock_nodejs):
+        """Test that all exports follow uniform JSON structure."""
+        ast = {
+            "body": [
+                {
+                    "type": "ExportNamedDeclaration",
+                    "declaration": {
+                        "type": "FunctionDeclaration",
+                        "id": {"name": "func"},
+                        "loc": {"start": {"line": 1, "column": 0}},
+                        "params": [],
+                    },
+                },
+                {
+                    "type": "ExportNamedDeclaration",
+                    "declaration": {
+                        "type": "ClassDeclaration",
+                        "id": {"name": "MyClass"},
+                        "loc": {"start": {"line": 2, "column": 0}},
+                        "decorators": [],
+                    },
+                },
+            ],
+        }
+
+        parser = TypeScriptParser()
+        exports = parser.extract_exported_symbols(ast)
+
+        # Check uniform structure for all exports
+        for export in exports:
+            assert "symbol" in export
+            assert "type" in export
+            assert "signature" in export
+            assert "location" in export
+            assert "isDefault" in export
+
+            # Verify types
+            assert isinstance(export["symbol"], str)
+            assert isinstance(export["type"], str)
+            assert isinstance(export["signature"], dict)
+            assert isinstance(export["location"], dict)
+            assert isinstance(export["isDefault"], bool)
+
+            # Verify location structure
+            assert "line" in export["location"]
+            assert "column" in export["location"]
+
+    @pytest.mark.unit
+    def test_serialize_exports_to_json(self, mock_nodejs):
+        """Test JSON serialization of exports."""
+        ast = {
+            "body": [
+                {
+                    "type": "ExportNamedDeclaration",
+                    "declaration": {
+                        "type": "ClassDeclaration",
+                        "id": {"name": "TestClass"},
+                        "loc": {"start": {"line": 1, "column": 0}},
+                        "decorators": [],
+                    },
+                },
+            ],
+        }
+
+        parser = TypeScriptParser()
+        exports = parser.extract_exported_symbols(ast)
+
+        # Serialize to JSON
+        json_str = parser.serialize_exports_to_json(exports)
+
+        # Verify valid JSON
+        assert isinstance(json_str, str)
+        parsed = json.loads(json_str)
+        assert isinstance(parsed, list)
+        assert len(parsed) == 1
+        assert parsed[0]["symbol"] == "TestClass"
+
+    @pytest.mark.unit
+    def test_json_structure_handles_none_values(self, mock_nodejs):
+        """Test that JSON structure handles None values gracefully."""
+        ast = {
+            "body": [
+                {
+                    "type": "ExportNamedDeclaration",
+                    "declaration": {
+                        "type": "FunctionDeclaration",
+                        "id": {"name": "test"},
+                        "loc": {"start": {"line": 1, "column": None}},
+                        "params": [],
+                    },
+                },
+            ],
+        }
+
+        parser = TypeScriptParser()
+        exports = parser.extract_exported_symbols(ast)
+
+        # Should handle None values without errors
+        json_str = parser.serialize_exports_to_json(exports)
+        parsed = json.loads(json_str)
+
+        assert len(parsed) == 1
+        assert parsed[0]["location"]["column"] is None
