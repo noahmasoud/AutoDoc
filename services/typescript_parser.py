@@ -294,7 +294,8 @@ class TypeScriptParser:
         Traverses AST to collect exported entities including:
         - ExportNamedDeclaration (export class X, export function Y, export const Z)
         - ExportDefaultDeclaration (export default ...)
-        - Re-exports (export * from './file')
+        - Re-exports (export { X } from './file', export * from './file')
+        - Nested exports (exports inside namespaces/modules)
 
         Args:
             ast: AST dictionary from parser
@@ -317,9 +318,15 @@ class TypeScriptParser:
             return exports
 
         for node in ast["body"]:
+            # Extract direct exports
             export_info = self._extract_export_info(node)
             if export_info:
                 exports.extend(export_info)
+
+            # Check for nested exports inside modules/namespaces
+            nested_exports = self._extract_nested_exports(node)
+            if nested_exports:
+                exports.extend(nested_exports)
 
         # Validate and normalize all exports for JSON serialization
         return self._normalize_exports_for_json(exports)
@@ -343,6 +350,7 @@ class TypeScriptParser:
         # Handle ExportNamedDeclaration: export class, export function, export const, etc.
         if node_type == "ExportNamedDeclaration":
             declaration = node.get("declaration")
+            source = node.get("source")
 
             if declaration:
                 # Single declaration export: export class X { }
@@ -351,8 +359,12 @@ class TypeScriptParser:
                     exports.append(info)
             elif node.get("specifiers"):
                 # Multiple named exports: export { a, b, c }
+                # OR re-exports: export { a, b } from './file'
+                source_path = (
+                    source.get("value", "") if isinstance(source, dict) else None
+                )
                 for specifier in node.get("specifiers", []):
-                    info = self._extract_named_specifier(specifier)
+                    info = self._extract_named_specifier(specifier, source_path)
                     if info:
                         exports.append(info)
 
@@ -430,14 +442,19 @@ class TypeScriptParser:
     def _extract_named_specifier(
         self,
         specifier: dict[str, Any],
+        source_path: str | None = None,
     ) -> dict[str, Any] | None:
         """
         Extract export information from a named export specifier.
 
-        Handles: export { a, b, c } style exports
+        Handles:
+        - Direct exports: export { a, b, c }
+        - Re-exports: export { a, b } from './file'
+        - Re-exports with renaming: export { oldName as newName } from './file'
 
         Args:
             specifier: ExportSpecifier node
+            source_path: Optional source file path for re-exports
 
         Returns:
             Export information dictionary or None
@@ -451,15 +468,21 @@ class TypeScriptParser:
         if not symbol_name:
             return None
 
+        # Build signature with re-export information
+        signature = {}
+        if original_name and original_name != symbol_name:
+            signature["originalName"] = original_name
+        if source_path:
+            signature["source"] = source_path
+            signature["isReExport"] = True
+
         return {
             "symbol": symbol_name,
             "type": "named",
-            "signature": {"originalName": original_name}
-            if original_name != symbol_name
-            else {},
+            "signature": signature,
             "location": self._extract_location(specifier),
             "isDefault": False,
-            "exportType": "specifier",
+            "exportType": "specifier" if not source_path else "re-export",
         }
 
     def _extract_signature(
@@ -610,6 +633,77 @@ class TypeScriptParser:
             }
 
         return {"line": None, "column": None}
+
+    def _extract_nested_exports(
+        self,
+        node: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """
+        Extract nested exports from modules/namespaces.
+
+        Handles exports inside:
+        - TSModuleDeclaration (namespace/module declarations)
+        - ClassDeclaration (static exports, though less common)
+
+        Args:
+            node: AST node to examine for nested exports
+
+        Returns:
+            List of nested export information dictionaries
+        """
+        nested_exports = []
+        node_type = node.get("type")
+
+        # Handle TSModuleDeclaration (namespace X { ... } or module X { ... })
+        if node_type == "TSModuleDeclaration":
+            body = node.get("body", {})
+            # TSModuleBlock contains the body
+            if isinstance(body, dict) and body.get("type") == "TSModuleBlock":
+                module_body = body.get("body", [])
+                module_id = node.get("id", {})
+                module_name = (
+                    module_id.get("name") if isinstance(module_id, dict) else None
+                )
+
+                # Recursively extract exports from module body
+                for nested_node in module_body:
+                    export_info = self._extract_export_info(nested_node)
+                    if export_info:
+                        # Prefix nested exports with module name for clarity
+                        for exp in export_info:
+                            exp["signature"] = exp.get("signature", {})
+                            exp["signature"]["nestedIn"] = module_name
+                            exp["signature"]["isNested"] = True
+                        nested_exports.extend(export_info)
+
+                    # Handle nested modules (nested namespaces)
+                    deeper_nested = self._extract_nested_exports(nested_node)
+                    if deeper_nested:
+                        nested_exports.extend(deeper_nested)
+
+        # Handle ClassDeclaration for static exports (if any)
+        elif node_type == "ClassDeclaration":
+            # Check for static class members that are exports
+            # This is less common but some frameworks use this pattern
+            body = node.get("body", {})
+            if isinstance(body, dict) and body.get("type") == "ClassBody":
+                class_body = body.get("body", [])
+                class_id = node.get("id", {})
+                class_name = (
+                    class_id.get("name") if isinstance(class_id, dict) else None
+                )
+
+                for member in class_body:
+                    # Look for static members that might be considered exports
+                    if member.get("static") and member.get("type") in (
+                        "MethodDefinition",
+                        "PropertyDefinition",
+                    ):
+                        # These are class members, not module exports
+                        # but we can track them if needed for documentation
+                        pass
+
+        return nested_exports
 
     def _normalize_exports_for_json(
         self,

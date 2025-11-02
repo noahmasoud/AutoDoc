@@ -696,3 +696,196 @@ class TestTypeScriptParser:
 
         assert len(parsed) == 1
         assert parsed[0]["location"]["column"] is None
+
+    @pytest.mark.unit
+    def test_extract_re_export_from_file(self, mock_nodejs):
+        """Test extracting re-exports from another file."""
+        ast = {
+            "body": [
+                {
+                    "type": "ExportNamedDeclaration",
+                    "specifiers": [
+                        {
+                            "type": "ExportSpecifier",
+                            "exported": {"name": "MyClass"},
+                            "local": {"name": "MyClass"},
+                            "loc": {"start": {"line": 1, "column": 0}},
+                        },
+                    ],
+                    "source": {"value": "./other-file"},
+                },
+            ],
+        }
+
+        parser = TypeScriptParser()
+        exports = parser.extract_exported_symbols(ast)
+
+        assert len(exports) == 1
+        assert exports[0]["symbol"] == "MyClass"
+        assert exports[0]["exportType"] == "re-export"
+        assert exports[0]["signature"]["source"] == "./other-file"
+        assert exports[0]["signature"]["isReExport"] is True
+
+    @pytest.mark.unit
+    def test_extract_re_export_with_renaming(self, mock_nodejs):
+        """Test extracting re-exports with renaming."""
+        ast = {
+            "body": [
+                {
+                    "type": "ExportNamedDeclaration",
+                    "specifiers": [
+                        {
+                            "type": "ExportSpecifier",
+                            "exported": {"name": "NewName"},
+                            "local": {"name": "OldName"},
+                            "loc": {"start": {"line": 1, "column": 0}},
+                        },
+                    ],
+                    "source": {"value": "./source-file"},
+                },
+            ],
+        }
+
+        parser = TypeScriptParser()
+        exports = parser.extract_exported_symbols(ast)
+
+        assert len(exports) == 1
+        assert exports[0]["symbol"] == "NewName"
+        assert exports[0]["signature"]["originalName"] == "OldName"
+        assert exports[0]["signature"]["source"] == "./source-file"
+        assert exports[0]["exportType"] == "re-export"
+
+    @pytest.mark.unit
+    def test_extract_nested_exports_in_namespace(self, mock_nodejs):
+        """Test extracting exports nested inside a namespace."""
+        ast = {
+            "body": [
+                {
+                    "type": "TSModuleDeclaration",
+                    "id": {"name": "MyNamespace"},
+                    "body": {
+                        "type": "TSModuleBlock",
+                        "body": [
+                            {
+                                "type": "ExportNamedDeclaration",
+                                "declaration": {
+                                    "type": "FunctionDeclaration",
+                                    "id": {"name": "nestedFunction"},
+                                    "loc": {"start": {"line": 2, "column": 2}},
+                                    "params": [],
+                                },
+                            },
+                        ],
+                    },
+                    "loc": {"start": {"line": 1, "column": 0}},
+                },
+            ],
+        }
+
+        parser = TypeScriptParser()
+        exports = parser.extract_exported_symbols(ast)
+
+        assert len(exports) == 1
+        assert exports[0]["symbol"] == "nestedFunction"
+        assert exports[0]["type"] == "function"
+        assert exports[0]["signature"]["nestedIn"] == "MyNamespace"
+        assert exports[0]["signature"]["isNested"] is True
+
+    @pytest.mark.unit
+    def test_extract_nested_exports_multiple_levels(self, mock_nodejs):
+        """Test extracting exports from nested namespaces."""
+        ast = {
+            "body": [
+                {
+                    "type": "TSModuleDeclaration",
+                    "id": {"name": "Outer"},
+                    "body": {
+                        "type": "TSModuleBlock",
+                        "body": [
+                            {
+                                "type": "TSModuleDeclaration",
+                                "id": {"name": "Inner"},
+                                "body": {
+                                    "type": "TSModuleBlock",
+                                    "body": [
+                                        {
+                                            "type": "ExportNamedDeclaration",
+                                            "declaration": {
+                                                "type": "ClassDeclaration",
+                                                "id": {"name": "DeepClass"},
+                                                "loc": {
+                                                    "start": {"line": 3, "column": 4},
+                                                },
+                                                "decorators": [],
+                                            },
+                                        },
+                                    ],
+                                },
+                                "loc": {"start": {"line": 2, "column": 2}},
+                            },
+                        ],
+                    },
+                    "loc": {"start": {"line": 1, "column": 0}},
+                },
+            ],
+        }
+
+        parser = TypeScriptParser()
+        exports = parser.extract_exported_symbols(ast)
+
+        assert len(exports) == 1
+        assert exports[0]["symbol"] == "DeepClass"
+        assert exports[0]["type"] == "class"
+        assert exports[0]["signature"]["nestedIn"] == "Inner"
+        assert exports[0]["signature"]["isNested"] is True
+
+    @pytest.mark.unit
+    def test_extract_mixed_exports_and_re_exports(self, mock_nodejs):
+        """Test extracting mixed direct exports and re-exports."""
+        ast = {
+            "body": [
+                {
+                    "type": "ExportNamedDeclaration",
+                    "declaration": {
+                        "type": "FunctionDeclaration",
+                        "id": {"name": "localFunction"},
+                        "loc": {"start": {"line": 1, "column": 0}},
+                        "params": [],
+                    },
+                },
+                {
+                    "type": "ExportNamedDeclaration",
+                    "specifiers": [
+                        {
+                            "type": "ExportSpecifier",
+                            "exported": {"name": "ExternalClass"},
+                            "local": {"name": "ExternalClass"},
+                            "loc": {"start": {"line": 2, "column": 0}},
+                        },
+                    ],
+                    "source": {"value": "./external-module"},
+                },
+            ],
+        }
+
+        parser = TypeScriptParser()
+        exports = parser.extract_exported_symbols(ast)
+
+        assert len(exports) == 2
+        # First export should be local (direct declaration export)
+        local_export = next(
+            (e for e in exports if e["symbol"] == "localFunction"),
+            None,
+        )
+        assert local_export is not None
+        assert local_export["type"] == "function"
+        # Direct declaration exports don't have exportType set
+
+        # Second export should be re-export
+        re_export = next(
+            (e for e in exports if e["symbol"] == "ExternalClass"),
+            None,
+        )
+        assert re_export is not None
+        assert re_export["exportType"] == "re-export"
+        assert re_export["signature"]["source"] == "./external-module"
