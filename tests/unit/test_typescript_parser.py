@@ -401,3 +401,193 @@ class TestTypeScriptParser:
         exports = parser.extract_exported_symbols(ast)
 
         assert len(exports) == 0
+
+    @pytest.mark.unit
+    def test_extract_function_signature_with_params(self, mock_nodejs):
+        """Test extracting function signature with parameters."""
+        ast = {
+            "body": [
+                {
+                    "type": "ExportNamedDeclaration",
+                    "declaration": {
+                        "type": "FunctionDeclaration",
+                        "id": {"name": "calculate"},
+                        "loc": {"start": {"line": 1, "column": 0}},
+                        "params": [
+                            {
+                                "type": "Identifier",
+                                "name": "a",
+                            },
+                            {
+                                "type": "Identifier",
+                                "name": "b",
+                            },
+                        ],
+                        "returnType": {
+                            "type": "TSTypeAnnotation",
+                            "typeAnnotation": {
+                                "type": "TSNumberKeyword",
+                            },
+                        },
+                        "async": False,
+                        "generator": False,
+                    },
+                },
+            ],
+        }
+
+        parser = TypeScriptParser()
+        exports = parser.extract_exported_symbols(ast)
+
+        assert len(exports) == 1
+        assert exports[0]["symbol"] == "calculate"
+        assert "signature" in exports[0]
+        assert len(exports[0]["signature"]["params"]) == 2
+        assert exports[0]["signature"]["params"][0]["name"] == "a"
+        assert exports[0]["signature"]["params"][1]["name"] == "b"
+        assert exports[0]["signature"]["async"] is False
+
+    @pytest.mark.unit
+    def test_extract_async_function_signature(self, mock_nodejs):
+        """Test extracting async function signature."""
+        ast = {
+            "body": [
+                {
+                    "type": "ExportNamedDeclaration",
+                    "declaration": {
+                        "type": "FunctionDeclaration",
+                        "id": {"name": "fetchData"},
+                        "loc": {"start": {"line": 1, "column": 0}},
+                        "params": [],
+                        "async": True,
+                        "generator": False,
+                    },
+                },
+            ],
+        }
+
+        parser = TypeScriptParser()
+        exports = parser.extract_exported_symbols(ast)
+
+        assert len(exports) == 1
+        assert exports[0]["symbol"] == "fetchData"
+        assert exports[0]["signature"]["async"] is True
+
+    @pytest.mark.unit
+    def test_extract_class_with_superclass(self, mock_nodejs):
+        """Test extracting class signature with superclass."""
+        ast = {
+            "body": [
+                {
+                    "type": "ExportNamedDeclaration",
+                    "declaration": {
+                        "type": "ClassDeclaration",
+                        "id": {"name": "ChildClass"},
+                        "loc": {"start": {"line": 1, "column": 0}},
+                        "superClass": {
+                            "type": "Identifier",
+                            "name": "BaseClass",
+                        },
+                        "decorators": [],
+                    },
+                },
+            ],
+        }
+
+        parser = TypeScriptParser()
+        exports = parser.extract_exported_symbols(ast)
+
+        assert len(exports) == 1
+        assert exports[0]["symbol"] == "ChildClass"
+        assert "signature" in exports[0]
+        assert exports[0]["signature"]["superClass"] == "BaseClass"
+
+    @pytest.mark.unit
+    def test_extract_class_with_decorators(self, mock_nodejs):
+        """Test extracting class with decorators."""
+        ast = {
+            "body": [
+                {
+                    "type": "ExportNamedDeclaration",
+                    "declaration": {
+                        "type": "ClassDeclaration",
+                        "id": {"name": "Component"},
+                        "loc": {"start": {"line": 1, "column": 0}},
+                        "decorators": [
+                            {"type": "Decorator", "expression": {"name": "Injectable"}},
+                            {
+                                "type": "Decorator",
+                                "expression": {"name": "AppComponent"},
+                            },
+                        ],
+                        "superClass": None,
+                    },
+                },
+            ],
+        }
+
+        parser = TypeScriptParser()
+        exports = parser.extract_exported_symbols(ast)
+
+        assert len(exports) == 1
+        assert exports[0]["symbol"] == "Component"
+        assert exports[0]["signature"]["decorators"] == 2
+
+    @pytest.mark.unit
+    def test_extract_complex_parameter_types(self, mock_nodejs):
+        """Test extracting function with complex parameter types."""
+        ast = {
+            "body": [
+                {
+                    "type": "ExportNamedDeclaration",
+                    "declaration": {
+                        "type": "FunctionDeclaration",
+                        "id": {"name": "processData"},
+                        "loc": {"start": {"line": 1, "column": 0}},
+                        "params": [
+                            {
+                                "type": "AssignmentPattern",
+                                "left": {"type": "Identifier", "name": "options"},
+                            },
+                            {
+                                "type": "ObjectPattern",
+                                "left": {},
+                            },
+                        ],
+                        "async": False,
+                        "generator": False,
+                    },
+                },
+            ],
+        }
+
+        parser = TypeScriptParser()
+        exports = parser.extract_exported_symbols(ast)
+
+        assert len(exports) == 1
+        assert len(exports[0]["signature"]["params"]) == 2
+        assert exports[0]["signature"]["params"][0]["name"] == "options"
+        assert exports[0]["signature"]["params"][0]["type"] == "AssignmentPattern"
+
+    @pytest.mark.unit
+    def test_extract_interface_signature(self, mock_nodejs):
+        """Test extracting interface signature."""
+        ast = {
+            "body": [
+                {
+                    "type": "ExportNamedDeclaration",
+                    "declaration": {
+                        "type": "TSInterfaceDeclaration",
+                        "id": {"name": "User"},
+                        "loc": {"start": {"line": 1, "column": 0}},
+                    },
+                },
+            ],
+        }
+
+        parser = TypeScriptParser()
+        exports = parser.extract_exported_symbols(ast)
+
+        assert len(exports) == 1
+        assert exports[0]["symbol"] == "User"
+        assert exports[0]["type"] == "interface"
