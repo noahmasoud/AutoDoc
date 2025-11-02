@@ -4,7 +4,7 @@ import tempfile
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -147,6 +147,14 @@ def mock_file_system() -> Mock:
     fs.rmdir.return_value = None
     fs.unlink.return_value = None
     return fs
+
+
+@pytest.fixture
+def mock_nodejs():
+    """Mock Node.js availability for TypeScript parser tests."""
+    with patch("services.typescript_parser.subprocess.run") as mock_run:
+        mock_run.return_value = Mock(returncode=0, stdout="v18.0.0\n")
+        yield mock_run
 
 
 # Markers for different test types
