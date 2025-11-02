@@ -15,6 +15,7 @@ networks:
 # Volumes
 # =============================================================================
 volumes:
+  # Application volumes
   autodoc-data:
     driver: local
     name: autodoc-data
@@ -24,6 +25,20 @@ volumes:
   postgres-data:
     driver: local
     name: autodoc-postgres-data
+  
+  # Monitoring and tools volumes
+  prometheus-data:
+    driver: local
+    name: autodoc-prometheus-data
+  grafana-data:
+    driver: local
+    name: autodoc-grafana-data
+  pgadmin-data:
+    driver: local
+    name: autodoc-pgadmin-data
+  redis-insight-data:
+    driver: local
+    name: autodoc-redis-insight-data
 
 # =============================================================================
 # Services
@@ -36,8 +51,8 @@ services:
   # Development AutoDoc service
   autodoc-dev:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: Docker/Dockerfile
       target: development
       args:
         BUILD_DATE: "${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}"
@@ -83,8 +98,8 @@ services:
   # Production AutoDoc service
   autodoc-prod:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: Docker/Dockerfile
       target: production
       args:
         BUILD_DATE: "${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}"
@@ -125,8 +140,8 @@ services:
   # CI AutoDoc service
   autodoc-ci:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: Docker/Dockerfile
       target: ci
       args:
         BUILD_DATE: "${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}"
@@ -162,8 +177,8 @@ services:
   # AutoDoc CLI service
   autodoc-cli:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: Docker/Dockerfile
       target: development
     image: autodoc:dev
     container_name: autodoc-cli
@@ -194,8 +209,8 @@ services:
   # AutoDoc Worker service
   autodoc-worker:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: Docker/Dockerfile
       target: production
     image: autodoc:prod
     container_name: autodoc-worker
@@ -364,19 +379,3 @@ services:
     profiles:
       - dev-tools
 
-# =============================================================================
-# Additional Volumes for Monitoring and Tools
-# =============================================================================
-volumes:
-  prometheus-data:
-    driver: local
-    name: autodoc-prometheus-data
-  grafana-data:
-    driver: local
-    name: autodoc-grafana-data
-  pgadmin-data:
-    driver: local
-    name: autodoc-pgadmin-data
-  redis-insight-data:
-    driver: local
-    name: autodoc-redis-insight-data

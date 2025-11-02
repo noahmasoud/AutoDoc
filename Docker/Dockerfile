@@ -51,8 +51,9 @@ RUN groupadd --gid 1000 autodoc && \
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files first for better layer caching
+# Copy dependency files and code first for better layer caching
 COPY pyproject.toml ./
+COPY . .
 
 # Install Python dependencies
 RUN pip install --upgrade pip setuptools wheel && \
@@ -154,16 +155,16 @@ WORKDIR /app
 # Copy dependency files
 COPY pyproject.toml ./
 
-# Install Python dependencies including development tools
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install -e ".[dev,test,lint,docs]"
-
 # Copy application code
 COPY --chown=autodoc:autodoc . .
 
-# Copy entrypoint script
+# Copy entrypoint script to root
 COPY --chown=autodoc:autodoc scripts/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+
+# Install Python dependencies including development tools
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install -e ".[dev,test,lint,docs]" && \
+    chmod +x /entrypoint.sh
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs /app/data /app/temp /app/htmlcov && \
@@ -219,20 +220,17 @@ WORKDIR /app
 # Copy dependency files
 COPY pyproject.toml ./
 
-# Install Python dependencies including test and lint tools
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install -e ".[dev,test,lint]"
-
 # Copy application code
 COPY --chown=autodoc:autodoc . .
 
-# Copy entrypoint script
+# Copy entrypoint script to root
 COPY --chown=autodoc:autodoc scripts/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
 
-# Copy CI scripts
-COPY --chown=autodoc:autodoc scripts/ci-test.sh scripts/ci-lint.sh scripts/run-tests.sh ./
-RUN chmod +x scripts/ci-test.sh scripts/ci-lint.sh scripts/run-tests.sh
+# Install Python dependencies including test and lint tools
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install -e ".[dev,test,lint]" && \
+    chmod +x /entrypoint.sh && \
+    chmod +x scripts/ci-test.sh scripts/ci-lint.sh scripts/run-tests.sh
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs /app/data /app/temp /app/htmlcov && \
