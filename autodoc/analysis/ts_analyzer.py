@@ -42,11 +42,19 @@ class TypeScriptAnalyzer:
         """
         Analyze a TypeScript file and extract AST information.
 
+        Extracts symbols with integrated JSDoc documentation, including parsed tags.
+        Symbols in the output contain a 'jsdoc' field with normalized text and tags.
+
         Args:
             file_path: Path to the TypeScript file to analyze
 
         Returns:
-            Dictionary containing extracted symbols, types, and JSDoc comments
+            Dictionary containing:
+            - file_path: Path to the analyzed file
+            - symbols: List of symbols with integrated JSDoc data (jsdoc field)
+            - jsdoc_comments: List of all JSDoc comments (for reference)
+            - imports: List of import statements
+            - exports: List of export statements
         """
         self.logger.info("Analyzing TypeScript file", extra={"file": str(file_path)})
 
@@ -217,17 +225,77 @@ console.log(JSON.stringify({{
         """
         Extract symbols (functions, classes, interfaces, etc.) from AST.
 
-        This is a placeholder for symbol extraction logic that will be
-        implemented in subsequent steps.
+        Extracts symbols from AST nodes and includes their associated JSDoc
+        comments and parsed tags.
 
         Args:
             ast_data: Parsed AST data
 
         Returns:
-            List of extracted symbols
+            List of extracted symbols with integrated JSDoc documentation
         """
-        # Placeholder - will be implemented in later steps
-        return []
+        symbols: list[dict[str, Any]] = []
+
+        if "nodes" not in ast_data:
+            return symbols
+
+        # First pass: Extract all symbols from AST nodes
+        for node in ast_data["nodes"]:
+            symbol_info = self._extract_symbol_info(node)
+            if symbol_info:
+                # Create symbol entry
+                symbol: dict[str, Any] = {
+                    "name": symbol_info.get("name"),
+                    "type": symbol_info.get("type"),
+                    "kind": symbol_info.get("kind"),
+                    "text_preview": symbol_info.get("text_preview"),
+                    "position": symbol_info.get("position"),
+                    "jsdoc": None,  # Will be populated if JSDoc found
+                }
+
+                # Check for associated JSDoc comment
+                jsdoc_data = self._extract_jsdoc_for_node(node)
+                if jsdoc_data:
+                    symbol["jsdoc"] = jsdoc_data
+
+                symbols.append(symbol)
+
+        return symbols
+
+    def _extract_jsdoc_for_node(self, node: dict[str, Any]) -> dict[str, Any] | None:
+        """
+        Extract and parse JSDoc comment for a specific AST node.
+
+        This method extracts JSDoc comments from leading comments of a node,
+        normalizes the text, and parses tags.
+
+        Args:
+            node: AST node dictionary
+
+        Returns:
+            Dictionary with JSDoc data (raw_text, normalized_text, tags) or None
+        """
+        if "leadingComments" not in node:
+            return None
+
+        # Find JSDoc comment (first JSDoc comment is typically the one for the symbol)
+        for comment in node.get("leadingComments", []):
+            if comment.get("isJSDoc", False):
+                raw_text = comment.get("text", "")
+                normalized_text = self._normalize_comment_text(raw_text)
+                parsed_tags = self._parse_jsdoc_tags(normalized_text)
+
+                return {
+                    "raw_text": raw_text,
+                    "normalized_text": normalized_text,
+                    "tags": parsed_tags,
+                    "position": {
+                        "start": comment.get("pos"),
+                        "end": comment.get("end"),
+                    },
+                }
+
+        return None
 
     def _normalize_comment_text(self, comment_text: str) -> str:
         """
