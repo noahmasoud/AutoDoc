@@ -9,6 +9,7 @@ This module provides TypeScript code analysis capabilities including:
 """
 
 import json
+import re
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -228,19 +229,148 @@ console.log(JSON.stringify({{
         # Placeholder - will be implemented in later steps
         return []
 
+    def _normalize_comment_text(self, comment_text: str) -> str:
+        """
+        Normalize JSDoc comment text by removing markers and formatting.
+
+        This method cleans up JSDoc comments by:
+        - Removing JSDoc markers (/** and */)
+        - Stripping leading asterisks from each line
+        - Removing extra whitespace
+        - Preserving the structure and content
+
+        Args:
+            comment_text: Raw JSDoc comment text from AST
+
+        Returns:
+            Normalized comment text without JSDoc formatting markers
+        """
+        if not comment_text:
+            return ""
+
+        # Remove JSDoc opening and closing markers
+        normalized = comment_text.strip()
+
+        # Remove /** from the beginning
+        normalized = normalized.removeprefix("/**")
+
+        # Remove */ from the end
+        normalized = normalized.removesuffix("*/")
+
+        # Split into lines and process each
+        lines = normalized.split("\n")
+        normalized_lines = []
+
+        for line in lines:
+            # Strip leading whitespace
+            line = line.strip()
+
+            # Remove leading asterisk if present (JSDoc format)
+            if line.startswith("*"):
+                line = line[1:].strip()
+
+            # Skip empty lines unless they're part of content structure
+            if line:
+                normalized_lines.append(line)
+            elif (
+                normalized_lines
+            ):  # Preserve intentional blank lines between paragraphs
+                normalized_lines.append("")
+
+        # Join lines back together
+        return "\n".join(normalized_lines).strip()
+
+    def _extract_symbol_info(self, node: dict[str, Any]) -> dict[str, Any] | None:
+        """
+        Extract symbol information from an AST node.
+
+        Identifies the type of symbol (function, class, interface, etc.) and
+        extracts relevant metadata like name, parameters, return type.
+
+        Args:
+            node: AST node dictionary
+
+        Returns:
+            Dictionary with symbol information or None if not a symbol node
+        """
+        node_kind = node.get("kind", "")
+        node_text = node.get("text", "")
+
+        # Common symbol node kinds in TypeScript
+        symbol_kinds = [
+            "FunctionDeclaration",
+            "MethodDeclaration",
+            "ClassDeclaration",
+            "InterfaceDeclaration",
+            "TypeAliasDeclaration",
+            "VariableDeclaration",
+            "PropertyDeclaration",
+            "GetAccessor",
+            "SetAccessor",
+            "Constructor",
+            "EnumDeclaration",
+            "ModuleDeclaration",
+        ]
+
+        if node_kind not in symbol_kinds:
+            return None
+
+        # Extract symbol name (basic extraction - can be enhanced)
+        symbol_name = None
+        symbol_type = node_kind
+
+        # Try to extract name from node text
+        # This is a simplified extraction - full implementation would parse the AST properly
+        if node_text:
+            # Look for function/class/interface name patterns
+            # Function: function name(...)
+            # Class: class Name
+            # Interface: interface Name
+            patterns = {
+                "FunctionDeclaration": r"function\s+(\w+)",
+                "MethodDeclaration": r"(\w+)\s*\([^)]*\)",
+                "ClassDeclaration": r"class\s+(\w+)",
+                "InterfaceDeclaration": r"interface\s+(\w+)",
+                "TypeAliasDeclaration": r"type\s+(\w+)",
+                "VariableDeclaration": r"(?:const|let|var)\s+(\w+)",
+                "PropertyDeclaration": r"(\w+)\s*:",
+                "EnumDeclaration": r"enum\s+(\w+)",
+            }
+
+            for pattern_kind, pattern in patterns.items():
+                if node_kind == pattern_kind or node_kind.startswith(
+                    pattern_kind.split("Declaration")[0],
+                ):
+                    match = re.search(pattern, node_text)
+                    if match:
+                        symbol_name = match.group(1)
+                        break
+
+        return {
+            "name": symbol_name,
+            "type": symbol_type,
+            "kind": node_kind,
+            "text_preview": node_text[:200],  # First 200 chars for context
+            "position": {
+                "start": node.get("start"),
+                "end": node.get("end"),
+            },
+        }
+
     def _extract_jsdoc_comments(self, ast_data: dict[str, Any]) -> list[dict[str, Any]]:
         """
-        Extract JSDoc comments from AST nodes.
+        Extract and normalize JSDoc comments from AST nodes.
 
-        This method identifies and extracts JSDoc comments from the AST,
-        specifically looking for multi-line comments that start with /**.
-        These comments are associated with their following AST nodes.
+        This method:
+        1. Identifies JSDoc comments from the AST
+        2. Normalizes the comment text (removes markers, formatting)
+        3. Maps comments to their associated symbols
 
         Args:
             ast_data: Parsed AST data containing nodes with comments
 
         Returns:
-            List of JSDoc comment objects with their associated node information
+            List of normalized JSDoc comment objects with symbol mapping
         """
         jsdoc_comments: list[dict[str, Any]] = []
 
@@ -250,22 +380,38 @@ console.log(JSON.stringify({{
         for node in ast_data["nodes"]:
             # Check for leading comments that are JSDoc
             if "leadingComments" in node:
-                jsdoc_comments.extend(
-                    {
-                        "comment_text": comment["text"],
-                        "position": {
-                            "start": comment["pos"],
-                            "end": comment["end"],
-                        },
-                        "associated_node": {
-                            "kind": node.get("kind"),
-                            "text": node.get("text", "")[:100],  # First 100 chars
-                            "start": node.get("start"),
-                        },
-                    }
-                    for comment in node["leadingComments"]
-                    if comment.get("isJSDoc", False)
-                )
+                for comment in node["leadingComments"]:
+                    if comment.get("isJSDoc", False):
+                        # Normalize the comment text
+                        raw_text = comment.get("text", "")
+                        normalized_text = self._normalize_comment_text(raw_text)
+
+                        # Extract symbol information from the associated node
+                        symbol_info = self._extract_symbol_info(node)
+
+                        # Create the JSDoc comment entry
+                        jsdoc_entry: dict[str, Any] = {
+                            "raw_text": raw_text,
+                            "normalized_text": normalized_text,
+                            "position": {
+                                "start": comment["pos"],
+                                "end": comment["end"],
+                            },
+                            "associated_node": {
+                                "kind": node.get("kind"),
+                                "text_preview": node.get("text", "")[:100],
+                                "start": node.get("start"),
+                                "end": node.get("end"),
+                            },
+                        }
+
+                        # Add symbol information if available
+                        if symbol_info:
+                            jsdoc_entry["symbol"] = symbol_info
+                            jsdoc_entry["symbol_name"] = symbol_info.get("name")
+                            jsdoc_entry["symbol_type"] = symbol_info.get("type")
+
+                        jsdoc_comments.append(jsdoc_entry)
 
         return jsdoc_comments
 
