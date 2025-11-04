@@ -245,7 +245,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-"tests/**/*.py" = ["S101", "PLR2004", "S106", "S108", "TID252"]
+"tests/**/*.py" = ["S101", "PLR2004", "S106", "S108", "TID252", "SLF001"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["autodoc", "api", "cli", "core", "db", "schemas", "services"]
