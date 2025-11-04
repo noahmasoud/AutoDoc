@@ -280,6 +280,199 @@ console.log(JSON.stringify({{
         # Join lines back together
         return "\n".join(normalized_lines).strip()
 
+    def _parse_jsdoc_tags(self, normalized_text: str) -> dict[str, Any]:
+        """
+        Parse JSDoc tags from normalized comment text.
+
+        Extracts common JSDoc tags including:
+        - @param: Parameter descriptions
+        - @returns/@return: Return value descriptions
+        - @deprecated: Deprecation notices
+        - @throws/@exception: Exception descriptions
+        - @example: Code examples
+        - @see: References
+        - @since: Version information
+        - @author: Author information
+        - @version: Version information
+        - @type: Type information
+        - @typedef: Type definitions
+
+        Args:
+            normalized_text: Normalized JSDoc comment text (without markers)
+
+        Returns:
+            Dictionary containing parsed tags organized by tag type
+        """
+        tags: dict[str, Any] = {
+            "params": [],
+            "returns": None,
+            "deprecated": None,
+            "throws": [],
+            "examples": [],
+            "see": [],
+            "since": None,
+            "author": [],
+            "version": None,
+            "type": None,
+            "typedef": None,
+            "custom": [],
+        }
+
+        if not normalized_text:
+            return tags
+
+        # Pattern to match JSDoc tags
+        # Matches: @tagName {type} [name] description or @tagName description
+        # Handles formats like:
+        # - @param {string} name Description
+        # - @param {string} [name] Optional description
+        # - @returns {type} Description
+        # - @deprecated Description
+        tag_pattern = re.compile(
+            r"@(\w+)(?:\s+(?:\{([^}]+)\})?(?:\s*\[?([^\]]+)\]?)?(?:\s+(.+))?)?",
+            re.MULTILINE,
+        )
+
+        lines = normalized_text.split("\n")
+        current_tag: str | None = None
+        current_tag_content: list[str] = []
+        current_tag_type: str | None = None
+        current_tag_name: str | None = None
+
+        for line in lines:
+            line = line.strip()
+
+            # Check if this line starts a new tag
+            tag_match = tag_pattern.match(line)
+            if tag_match:
+                # Save previous tag if any
+                if current_tag and current_tag_content:
+                    self._process_tag(
+                        tags,
+                        current_tag,
+                        "\n".join(current_tag_content).strip(),
+                        current_tag_type,
+                        current_tag_name,
+                    )
+
+                # Start new tag
+                current_tag = tag_match.group(1).lower()
+                tag_type = tag_match.group(2)  # Optional type in braces {type}
+                tag_name = tag_match.group(3)  # Optional name
+                tag_desc = tag_match.group(4)  # Optional description
+
+                current_tag_type = tag_type
+                current_tag_name = tag_name
+                current_tag_content = []
+
+                # Add description if present on same line
+                if tag_desc:
+                    current_tag_content.append(tag_desc)
+                # If we have a name but no description, add empty description
+                elif tag_name:
+                    current_tag_content.append("")
+            elif current_tag and line:
+                # Continuation of current tag description
+                current_tag_content.append(line)
+            elif not line and current_tag:
+                # Empty line in tag description
+                if current_tag_content:
+                    current_tag_content.append("")
+
+        # Process last tag
+        if current_tag and current_tag_content:
+            self._process_tag(
+                tags,
+                current_tag,
+                "\n".join(current_tag_content).strip(),
+                current_tag_type,
+                current_tag_name,
+            )
+
+        return tags
+
+    def _process_tag(
+        self,
+        tags: dict[str, Any],
+        tag_name: str,
+        content: str,
+        tag_type: str | None,
+        tag_param_name: str | None = None,
+    ) -> None:
+        """
+        Process a single JSDoc tag and add it to the tags dictionary.
+
+        Args:
+            tags: Dictionary to store parsed tags
+            tag_name: Name of the tag (lowercase)
+            content: Content of the tag
+            tag_type: Optional type information from braces {type}
+            tag_param_name: Optional parameter name extracted from tag
+        """
+        # Extract name and description from content if not already provided
+        # Format may be: {name} description or just description
+        name = tag_param_name
+        description = content.strip()
+
+        # If name not provided in tag but might be in content
+        if not name and content:
+            # Check if content starts with {name} pattern
+            name_match = re.match(r"\{([^}]+)\}\s*(.*)", content)
+            if name_match:
+                name = name_match.group(1)
+                description = name_match.group(2).strip()
+            # Check if content starts with [name] pattern (optional parameter)
+            elif content.startswith("[") and "]" in content:
+                bracket_match = re.match(r"\[([^\]]+)\]\s*(.*)", content)
+                if bracket_match:
+                    name = bracket_match.group(1)
+                    description = bracket_match.group(2).strip()
+
+        tag_data = {
+            "name": name,
+            "type": tag_type,
+            "description": description,
+        }
+
+        # Route to appropriate tag list/field using dispatch pattern to reduce complexity
+        if tag_name in {"param", "parameter"}:
+            tags["params"].append(tag_data)
+        elif tag_name in {"returns", "return"}:
+            tags["returns"] = tag_data
+        elif tag_name == "deprecated":
+            tags["deprecated"] = {
+                "description": description,
+                "since": tag_type,  # Sometimes version is in type position
+            }
+        elif tag_name in {"throws", "exception"}:
+            tags["throws"].append(tag_data)
+        elif tag_name == "example":
+            tags["examples"].append(description)
+        elif tag_name == "see":
+            tags["see"].append(description)
+        elif tag_name == "since":
+            tags["since"] = description or tag_type
+        elif tag_name == "author":
+            tags["author"].append(description)
+        elif tag_name == "version":
+            tags["version"] = description or tag_type
+        elif tag_name == "type":
+            tags["type"] = {
+                "type": tag_type,
+                "description": description,
+            }
+        elif tag_name == "typedef":
+            tags["typedef"] = tag_data
+        else:
+            # Custom or unknown tag
+            tags["custom"].append(
+                {
+                    "tag": tag_name,
+                    "type": tag_type,
+                    "content": content,
+                },
+            )
+
     def _extract_symbol_info(self, node: dict[str, Any]) -> dict[str, Any] | None:
         """
         Extract symbol information from an AST node.
@@ -386,6 +579,9 @@ console.log(JSON.stringify({{
                         raw_text = comment.get("text", "")
                         normalized_text = self._normalize_comment_text(raw_text)
 
+                        # Parse JSDoc tags from normalized text
+                        parsed_tags = self._parse_jsdoc_tags(normalized_text)
+
                         # Extract symbol information from the associated node
                         symbol_info = self._extract_symbol_info(node)
 
@@ -393,6 +589,7 @@ console.log(JSON.stringify({{
                         jsdoc_entry: dict[str, Any] = {
                             "raw_text": raw_text,
                             "normalized_text": normalized_text,
+                            "tags": parsed_tags,
                             "position": {
                                 "start": comment["pos"],
                                 "end": comment["end"],

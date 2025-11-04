@@ -224,6 +224,7 @@ ignore = [
     "W293",  # blank-line-with-whitespace
     "PLC0415",  # import-outside-top-level (conditional imports)
     "PLR0913",  # too-many-arguments (some functions legitimately need many args)
+    "PLR0912",  # too-many-branches (tag routing needs many branches)
     "F841",  # unused-variable (common in examples)
     "ERA001",  # commented-out-code (placeholder code)
     "TRY300",  # try-consider-else
