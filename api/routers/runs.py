@@ -1,11 +1,26 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from db.session import get_db
 from db.models import Run
 from schemas.runs import RunCreate, RunOut, RunsPage
+from services.change_report_generator import generate_change_report
 
 router = APIRouter(prefix="/runs", tags=["runs"])
+
+
+class ChangeReportRequest(BaseModel):
+    """Request model for change report generation."""
+
+    diffs: dict
+    findings: dict
+
+
+class ChangeReportResponse(BaseModel):
+    """Response model for change report generation."""
+
+    report_path: str
 
 
 @router.get("", response_model=RunsPage)
@@ -42,3 +57,37 @@ def create_run(payload: RunCreate, db: Session = Depends(get_db)):
     db.add(row)
     db.flush()
     return row
+
+
+@router.post("/{run_id}/report", response_model=ChangeReportResponse)
+def generate_run_report(
+    run_id: int,
+    payload: ChangeReportRequest,
+    db: Session = Depends(get_db),
+):
+    """Generate a change report for a run.
+
+    Args:
+        run_id: The run ID
+        payload: Request containing diffs and findings
+        db: Database session
+
+    Returns:
+        ChangeReportResponse with the path to the generated JSON file
+
+    Raises:
+        HTTPException: If the run is not found
+    """
+    # Verify run exists
+    run = db.get(Run, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    # Generate the change report
+    report_path = generate_change_report(
+        run_id=str(run_id),
+        diffs=payload.diffs,
+        findings=payload.findings,
+    )
+
+    return ChangeReportResponse(report_path=report_path)
