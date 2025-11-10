@@ -237,6 +237,8 @@ data/
 datasets/
 *.csv
 *.json
+!package.json
+!package-lock.json
 *.xml
 *.yaml
 *.yml
