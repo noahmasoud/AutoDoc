@@ -224,6 +224,7 @@ ignore = [
     "W293",  # blank-line-with-whitespace
     "PLC0415",  # import-outside-top-level (conditional imports)
     "PLR0913",  # too-many-arguments (some functions legitimately need many args)
+    "PLR0912",  # too-many-branches (tag routing needs many branches)
     "F841",  # unused-variable (common in examples)
     "ERA001",  # commented-out-code (placeholder code)
     "TRY300",  # try-consider-else
@@ -244,7 +245,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-"tests/**/*.py" = ["S101", "PLR2004", "S106", "S108", "TID252"]
+"tests/**/*.py" = ["S101", "PLR2004", "S106", "S108", "TID252", "SLF001"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["autodoc", "api", "cli", "core", "db", "schemas", "services"]
