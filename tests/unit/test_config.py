@@ -4,6 +4,7 @@ import os
 from unittest.mock import patch
 
 import pytest
+from pydantic_settings import SettingsConfigDict
 
 from autodoc.config import (
     Settings,
@@ -34,8 +35,20 @@ class TestSettings:
                 del os.environ["DEBUG"]
 
             clear_settings_cache()
-            # Create settings without loading .env file
-            settings = Settings.model_validate({})
+
+            # Create a test Settings class that doesn't load from .env file
+            class TestSettings(Settings):
+                """Test settings class that doesn't load from .env file."""
+
+                model_config = SettingsConfigDict(
+                    env_file=None,  # Don't load .env file
+                    env_file_encoding="utf-8",
+                    case_sensitive=False,
+                    validate_assignment=True,
+                    extra="allow",
+                )
+
+            settings = TestSettings.model_validate({})
 
             # Test default values
             assert settings.app_name == "AutoDoc"
@@ -185,9 +198,25 @@ class TestSettings:
             "test-jwt-secret-key-for-testing-32-chars-minimum"
         )
 
-        # Test default Confluence settings
+        # Clear any existing Confluence environment variables
+        for key in list(os.environ.keys()):
+            if key.startswith("CONFLUENCE_"):
+                del os.environ[key]
+
+        # Test default Confluence settings using TestSettings that doesn't load .env
+        class TestSettings(Settings):
+            """Test settings class that doesn't load from .env file."""
+
+            model_config = SettingsConfigDict(
+                env_file=None,  # Don't load .env file
+                env_file_encoding="utf-8",
+                case_sensitive=False,
+                validate_assignment=True,
+                extra="allow",
+            )
+
         clear_settings_cache()
-        settings = get_settings()
+        settings = TestSettings()
 
         assert settings.confluence.url is None
         assert settings.confluence.username is None
@@ -199,7 +228,8 @@ class TestSettings:
         os.environ["CONFLUENCE_USERNAME"] = "test@example.com"
         os.environ["CONFLUENCE_TOKEN"] = "test-token"
         clear_settings_cache()
-        settings = get_settings()
+        # Use TestSettings for consistency, but it will read from environment
+        settings = TestSettings()
 
         assert settings.confluence.url == "https://test.atlassian.net"
         assert settings.confluence.username == "test@example.com"
@@ -213,8 +243,25 @@ class TestSettings:
             "test-jwt-secret-key-for-testing-32-chars-minimum"
         )
 
+        # Clear any existing LOG environment variables
+        for key in list(os.environ.keys()):
+            if key.startswith("LOG_"):
+                del os.environ[key]
+
+        # Test default logging settings using TestSettings that doesn't load .env
+        class TestSettings(Settings):
+            """Test settings class that doesn't load from .env file."""
+
+            model_config = SettingsConfigDict(
+                env_file=None,  # Don't load .env file
+                env_file_encoding="utf-8",
+                case_sensitive=False,
+                validate_assignment=True,
+                extra="allow",
+            )
+
         clear_settings_cache()
-        settings = get_settings()
+        settings = TestSettings()
 
         assert settings.logging.level == "INFO"
         assert settings.logging.format == "json"
