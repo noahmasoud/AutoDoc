@@ -51,8 +51,9 @@ RUN groupadd --gid 1000 autodoc && \
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files first for better layer caching
+# Copy dependency files and code first for better layer caching
 COPY pyproject.toml ./
+COPY . .
 
 # Install Python dependencies
 RUN pip install --upgrade pip setuptools wheel && \
@@ -158,8 +159,8 @@ COPY --chown=autodoc:autodoc . .
 RUN pip install --upgrade pip setuptools wheel && \
     pip install -e ".[dev,test,lint,docs]"
 
-# Make entrypoint script executable
-RUN chmod +x /app/scripts/entrypoint.sh
+# Make entrypoint available at root for compose health checks
+RUN install -m 755 /app/scripts/entrypoint.sh /entrypoint.sh
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs /app/data /app/temp /app/htmlcov && \
@@ -172,7 +173,7 @@ USER autodoc
 EXPOSE 8000
 
 # Set entrypoint
-ENTRYPOINT ["/app/scripts/entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Default command for development
 CMD ["autodoc", "--help"]
@@ -219,12 +220,9 @@ COPY --chown=autodoc:autodoc . .
 RUN pip install --upgrade pip setuptools wheel && \
     pip install -e ".[dev,test,lint]"
 
-# Make entrypoint script executable
-RUN chmod +x /app/scripts/entrypoint.sh
-
-# Copy CI scripts
-COPY --chown=autodoc:autodoc scripts/ci-test.sh scripts/ci-lint.sh scripts/run-tests.sh ./
-RUN chmod +x scripts/ci-test.sh scripts/ci-lint.sh scripts/run-tests.sh
+# Make entrypoint available at root and ensure CI scripts are executable
+RUN install -m 755 /app/scripts/entrypoint.sh /entrypoint.sh && \
+    chmod +x scripts/ci-test.sh scripts/ci-lint.sh scripts/run-tests.sh
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs /app/data /app/temp /app/htmlcov && \
@@ -234,7 +232,7 @@ RUN mkdir -p /app/logs /app/data /app/temp /app/htmlcov && \
 USER autodoc
 
 # Set entrypoint
-ENTRYPOINT ["/app/scripts/entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Default command for CI
 CMD ["./scripts/ci-test.sh"]
