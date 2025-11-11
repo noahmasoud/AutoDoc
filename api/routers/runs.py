@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -58,6 +60,45 @@ def create_run(payload: RunCreate, db: Session = Depends(get_db)):
     db.add(row)
     db.flush()
     return row
+
+
+@router.get("/{run_id}/report")
+def get_run_report(
+    run_id: int,
+    db: Session = Depends(get_db),
+):
+    """Retrieve the change report for a run.
+
+    Args:
+        run_id: The run ID
+        db: Database session
+
+    Returns:
+        ChangeReport JSON data
+
+    Raises:
+        HTTPException: If the run is not found or report doesn't exist
+    """
+    # Verify run exists
+    run = db.get(Run, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    # Try to load the report file
+    report_path = Path("artifacts") / str(run_id) / "change_report.json"
+
+    if not report_path.exists():
+        raise HTTPException(
+            status_code=404, detail=f"Change report not found for run {run_id}"
+        )
+
+    try:
+        with report_path.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to read change report: {exc!s}"
+        ) from exc
 
 
 @router.post("/{run_id}/report", response_model=ChangeReportResponse)
