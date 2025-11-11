@@ -1,7 +1,6 @@
 """Tests for change report generator module."""
 
 import json
-import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -85,7 +84,9 @@ class TestChangeReportGenerator:
             # Verify it's a valid datetime object
             assert isinstance(parsed_timestamp, datetime)
         except (ValueError, AttributeError) as e:
-            pytest.fail(f"Timestamp is not in valid ISO format: {timestamp_str}. Error: {e}")
+            pytest.fail(
+                f"Timestamp is not in valid ISO format: {timestamp_str}. Error: {e}"
+            )
 
     @pytest.mark.unit
     def test_generate_change_report_creates_directory(self, tmp_path, monkeypatch):
@@ -108,7 +109,9 @@ class TestChangeReportGenerator:
         assert artifacts_dir.is_dir()
 
     @pytest.mark.unit
-    def test_generate_change_report_handles_existing_directory(self, tmp_path, monkeypatch):
+    def test_generate_change_report_handles_existing_directory(
+        self, tmp_path, monkeypatch
+    ):
         """Test that the function works when the directory already exists."""
         # Change to temporary directory
         monkeypatch.chdir(tmp_path)
@@ -135,10 +138,14 @@ class TestChangeReportEndpoint:
     def test_engine(self):
         """Create an in-memory SQLite database for testing."""
         from sqlalchemy import create_engine, event
+        from sqlalchemy.pool import StaticPool
         from db.session import Base
-        from db.models import Run
 
-        engine = create_engine("sqlite:///:memory:")
+        engine = create_engine(
+            "sqlite+pysqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
 
         # Enable foreign keys for SQLite
         @event.listens_for(engine, "connect")
@@ -158,9 +165,11 @@ class TestChangeReportEndpoint:
 
         Session = sessionmaker(bind=test_engine)
         session = Session()
-        yield session
-        session.rollback()
-        session.close()
+        try:
+            yield session
+        finally:
+            session.rollback()
+            session.close()
 
     @pytest.fixture
     def sample_run(self, test_session):
@@ -184,7 +193,6 @@ class TestChangeReportEndpoint:
     @pytest.fixture
     def client(self, test_session):
         """Create a test client for the FastAPI app with test database."""
-        from unittest.mock import patch
         from db.session import get_db
 
         app = create_app()
@@ -225,7 +233,9 @@ class TestChangeReportEndpoint:
 
     @pytest.mark.unit
     @pytest.mark.api
-    def test_endpoint_returns_valid_json_path(self, client, sample_run, tmp_path, monkeypatch):
+    def test_endpoint_returns_valid_json_path(
+        self, client, sample_run, tmp_path, monkeypatch
+    ):
         """Test that the endpoint returns a valid JSON file path."""
         # Change to temporary directory
         monkeypatch.chdir(tmp_path)
@@ -254,7 +264,9 @@ class TestChangeReportEndpoint:
 
     @pytest.mark.unit
     @pytest.mark.api
-    def test_endpoint_returns_404_for_nonexistent_run(self, client, tmp_path, monkeypatch):
+    def test_endpoint_returns_404_for_nonexistent_run(
+        self, client, tmp_path, monkeypatch
+    ):
         """Test that the endpoint returns 404 for a non-existent run."""
         # Change to temporary directory
         monkeypatch.chdir(tmp_path)
@@ -271,4 +283,3 @@ class TestChangeReportEndpoint:
         )
 
         assert response.status_code == 404
-

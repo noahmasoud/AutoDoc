@@ -241,6 +241,7 @@ ignore = [
     "RUF022",  # unsorted-dunder-all
     "TRY301",  # raise-within-try
     "TRY401",  # verbose-log-message
+    "COM812",  # trailing comma rule conflicts with formatter
 ]
 
 [tool.ruff.lint.per-file-ignores]

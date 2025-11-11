@@ -5,8 +5,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from db.session import get_db
-from db.models import Run
+from db.models import Run, PythonSymbol
 from schemas.runs import RunCreate, RunOut, RunsPage
+from schemas.symbols import PythonSymbolList
 from services.change_report_generator import generate_change_report
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -93,12 +94,11 @@ def get_run_report(
 
     try:
         with report_path.open("r", encoding="utf-8") as f:
-            report_data = json.load(f)
-        return report_data
-    except (json.JSONDecodeError, IOError) as e:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as exc:
         raise HTTPException(
-            status_code=500, detail=f"Failed to read change report: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to read change report: {exc!s}"
+        ) from exc
 
 
 @router.post("/{run_id}/report", response_model=ChangeReportResponse)
@@ -134,3 +134,22 @@ def generate_run_report(
 
     return ChangeReportResponse(report_path=report_path)
 
+
+@router.get("/{run_id}/python-symbols", response_model=PythonSymbolList)
+def list_python_symbols(run_id: int, db: Session = Depends(get_db)):
+    """List persisted Python symbols (including docstrings) for a run."""
+    run = db.get(Run, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    symbols = db.scalars(
+        select(PythonSymbol)
+        .where(PythonSymbol.run_id == run_id)
+        .order_by(
+            PythonSymbol.file_path,
+            PythonSymbol.symbol_type,
+            PythonSymbol.qualified_name,
+        ),
+    ).all()
+
+    return {"items": symbols}

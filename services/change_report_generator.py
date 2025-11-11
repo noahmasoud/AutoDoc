@@ -3,10 +3,12 @@
 import json
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 
-def generate_change_report(run_id: str, diffs: Dict[str, Any], findings: Dict[str, Any]) -> str:
+def generate_change_report(
+    run_id: str, diffs: dict[str, Any], findings: dict[str, Any]
+) -> str:
     """Generate a change report JSON file for a run.
 
     Args:
@@ -39,4 +41,3 @@ def generate_change_report(run_id: str, diffs: Dict[str, Any], findings: Dict[st
 
     # Return absolute path as string
     return str(report_path.absolute())
-

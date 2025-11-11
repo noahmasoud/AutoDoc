@@ -1,6 +1,6 @@
 import ast
 from dataclasses import dataclass, field, asdict
-from typing import List, Optional, Any, Dict
+from typing import Any
 
 
 @dataclass
@@ -14,12 +14,13 @@ class ParameterInfo:
         default: Default value as string, if any
         kind: Parameter kind (positional, keyword, etc.)
     """
+
     name: str
-    annotation: Optional[str] = None
-    default: Optional[str] = None
+    annotation: str | None = None
+    default: str | None = None
     kind: str = "positional"  # positional, keyword, *args, **kwargs
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict"""
         return asdict(self)
 
@@ -40,28 +41,29 @@ class FunctionInfo:
         docstring: Function docstring
         lineno: Line number where function is defined
     """
+
     name: str
-    parameters: List[ParameterInfo] = field(default_factory=list)
-    return_type: Optional[str] = None
-    decorators: List[str] = field(default_factory=list)
+    parameters: list[ParameterInfo] = field(default_factory=list)
+    return_type: str | None = None
+    decorators: list[str] = field(default_factory=list)
     is_async: bool = False
     is_public: bool = True
     is_method: bool = False
-    docstring: Optional[str] = None
+    docstring: str | None = None
     lineno: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict"""
         return {
-            'name': self.name,
-            'parameters': [p.to_dict() for p in self.parameters],
-            'return_type': self.return_type,
-            'decorators': self.decorators,
-            'is_async': self.is_async,
-            'is_public': self.is_public,
-            'is_method': self.is_method,
-            'docstring': self.docstring,
-            'lineno': self.lineno
+            "name": self.name,
+            "parameters": [p.to_dict() for p in self.parameters],
+            "return_type": self.return_type,
+            "decorators": self.decorators,
+            "is_async": self.is_async,
+            "is_public": self.is_public,
+            "is_method": self.is_method,
+            "docstring": self.docstring,
+            "lineno": self.lineno,
         }
 
 
@@ -79,24 +81,25 @@ class ClassInfo:
         docstring: Class docstring
         lineno: Line number where class is defined
     """
+
     name: str
-    base_classes: List[str] = field(default_factory=list)
-    methods: List[FunctionInfo] = field(default_factory=list)
-    decorators: List[str] = field(default_factory=list)
+    base_classes: list[str] = field(default_factory=list)
+    methods: list[FunctionInfo] = field(default_factory=list)
+    decorators: list[str] = field(default_factory=list)
     is_public: bool = True
-    docstring: Optional[str] = None
+    docstring: str | None = None
     lineno: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict"""
         return {
-            'name': self.name,
-            'base_classes': self.base_classes,
-            'methods': [m.to_dict() for m in self.methods],
-            'decorators': self.decorators,
-            'is_public': self.is_public,
-            'docstring': self.docstring,
-            'lineno': self.lineno
+            "name": self.name,
+            "base_classes": self.base_classes,
+            "methods": [m.to_dict() for m in self.methods],
+            "decorators": self.decorators,
+            "is_public": self.is_public,
+            "docstring": self.docstring,
+            "lineno": self.lineno,
         }
 
 
@@ -111,18 +114,19 @@ class ModuleInfo:
         classes: List of classes
         module_docstring: Module-level docstring
     """
-    file_path: str
-    functions: List[FunctionInfo] = field(default_factory=list)
-    classes: List[ClassInfo] = field(default_factory=list)
-    module_docstring: Optional[str] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    file_path: str
+    functions: list[FunctionInfo] = field(default_factory=list)
+    classes: list[ClassInfo] = field(default_factory=list)
+    module_docstring: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict"""
         return {
-            'file_path': self.file_path,
-            'functions': [f.to_dict() for f in self.functions],
-            'classes': [c.to_dict() for c in self.classes],
-            'module_docstring': self.module_docstring
+            "file_path": self.file_path,
+            "functions": [f.to_dict() for f in self.functions],
+            "classes": [c.to_dict() for c in self.classes],
+            "module_docstring": self.module_docstring,
         }
 
 
@@ -143,10 +147,10 @@ class SymbolExtractor(ast.NodeVisitor):
 
     def __init__(self):
         """Initialize the extractor."""
-        self.functions: List[FunctionInfo] = []
-        self.classes: List[ClassInfo] = []
-        self.current_class: Optional[ClassInfo] = None
-        self.module_docstring: Optional[str] = None
+        self.functions: list[FunctionInfo] = []
+        self.classes: list[ClassInfo] = []
+        self.current_class: ClassInfo | None = None
+        self.module_docstring: str | None = None
 
     def extract(self, tree: ast.AST, file_path: str) -> ModuleInfo:
         """
@@ -159,20 +163,25 @@ class SymbolExtractor(ast.NodeVisitor):
         Returns:
             ModuleInfo containing all extracted symbols
         """
+        if not isinstance(tree, ast.Module):
+            raise TypeError("SymbolExtractor.extract expects an ast.Module instance")
+
+        module_tree = tree
+
         # Reset state for new extraction
         self.functions = []
         self.classes = []
         self.current_class = None
-        self.module_docstring = ast.get_docstring(tree)
+        self.module_docstring = ast.get_docstring(module_tree)
 
         # Visit all nodes in the tree
-        self.visit(tree)
+        self.visit(module_tree)
 
         return ModuleInfo(
             file_path=file_path,
             functions=self.functions,
             classes=self.classes,
-            module_docstring=self.module_docstring
+            module_docstring=self.module_docstring,
         )
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
@@ -220,7 +229,7 @@ class SymbolExtractor(ast.NodeVisitor):
             decorators=self._extract_decorators(node),
             is_public=self._is_public(node.name),
             docstring=ast.get_docstring(node),
-            lineno=node.lineno
+            lineno=node.lineno,
         )
 
         # Save current class context
@@ -239,7 +248,7 @@ class SymbolExtractor(ast.NodeVisitor):
     def _extract_function_info(
         self,
         node: ast.FunctionDef | ast.AsyncFunctionDef,
-        is_async: bool
+        is_async: bool,
     ) -> FunctionInfo:
         """
         Extract detailed information from a function node.
@@ -259,10 +268,10 @@ class SymbolExtractor(ast.NodeVisitor):
             is_async=is_async,
             is_public=self._is_public(node.name),
             docstring=ast.get_docstring(node),
-            lineno=node.lineno
+            lineno=node.lineno,
         )
 
-    def _extract_parameters(self, args: ast.arguments) -> List[ParameterInfo]:
+    def _extract_parameters(self, args: ast.arguments) -> list[ParameterInfo]:
         """
         Extract parameter information from function arguments.
 
@@ -280,7 +289,7 @@ class SymbolExtractor(ast.NodeVisitor):
 
         for i, arg in enumerate(args.args):
             # Skip 'self' and 'cls' parameters
-            if arg.arg in ('self', 'cls'):
+            if arg.arg in ("self", "cls"):
                 continue
 
             # Determine if this arg has a default value
@@ -288,22 +297,27 @@ class SymbolExtractor(ast.NodeVisitor):
             default_value = None
             if default_index >= 0:
                 default_value = self._extract_default_value(
-                    args.defaults[default_index])
+                    args.defaults[default_index]
+                )
 
-            parameters.append(ParameterInfo(
-                name=arg.arg,
-                annotation=self._extract_annotation(arg.annotation),
-                default=default_value,
-                kind="positional"
-            ))
+            parameters.append(
+                ParameterInfo(
+                    name=arg.arg,
+                    annotation=self._extract_annotation(arg.annotation),
+                    default=default_value,
+                    kind="positional",
+                )
+            )
 
         # *args parameter
         if args.vararg:
-            parameters.append(ParameterInfo(
-                name=args.vararg.arg,
-                annotation=self._extract_annotation(args.vararg.annotation),
-                kind="*args"
-            ))
+            parameters.append(
+                ParameterInfo(
+                    name=args.vararg.arg,
+                    annotation=self._extract_annotation(args.vararg.annotation),
+                    kind="*args",
+                )
+            )
 
         # Keyword-only arguments
         num_kw_defaults = len(args.kw_defaults)
@@ -312,27 +326,30 @@ class SymbolExtractor(ast.NodeVisitor):
         for i, arg in enumerate(args.kwonlyargs):
             default_value = None
             if i < num_kw_defaults and args.kw_defaults[i] is not None:
-                default_value = self._extract_default_value(
-                    args.kw_defaults[i])
+                default_value = self._extract_default_value(args.kw_defaults[i])
 
-            parameters.append(ParameterInfo(
-                name=arg.arg,
-                annotation=self._extract_annotation(arg.annotation),
-                default=default_value,
-                kind="keyword-only"
-            ))
+            parameters.append(
+                ParameterInfo(
+                    name=arg.arg,
+                    annotation=self._extract_annotation(arg.annotation),
+                    default=default_value,
+                    kind="keyword-only",
+                )
+            )
 
         # **kwargs parameter
         if args.kwarg:
-            parameters.append(ParameterInfo(
-                name=args.kwarg.arg,
-                annotation=self._extract_annotation(args.kwarg.annotation),
-                kind="**kwargs"
-            ))
+            parameters.append(
+                ParameterInfo(
+                    name=args.kwarg.arg,
+                    annotation=self._extract_annotation(args.kwarg.annotation),
+                    kind="**kwargs",
+                )
+            )
 
         return parameters
 
-    def _extract_annotation(self, annotation: Optional[ast.expr]) -> Optional[str]:
+    def _extract_annotation(self, annotation: ast.expr | None) -> str | None:
         """
         Extract type annotation as a string.
 
@@ -351,7 +368,7 @@ class SymbolExtractor(ast.NodeVisitor):
             # Fallback for complex annotations
             return ast.dump(annotation)
 
-    def _extract_default_value(self, default: ast.expr) -> str:
+    def _extract_default_value(self, default: ast.expr | None) -> str:
         """
         Extract default value as a string.
 
@@ -361,12 +378,18 @@ class SymbolExtractor(ast.NodeVisitor):
         Returns:
             Default value as string
         """
+        if default is None:
+            return "None"
+
         try:
             return ast.unparse(default)
         except Exception:
             return repr(default)
 
-    def _extract_decorators(self, node: ast.FunctionDef | ast.ClassDef) -> List[str]:
+    def _extract_decorators(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef,
+    ) -> list[str]:
         """
         Extract decorator names from a function or class.
 
@@ -384,7 +407,7 @@ class SymbolExtractor(ast.NodeVisitor):
                 decorators.append(ast.dump(decorator))
         return decorators
 
-    def _extract_base_classes(self, node: ast.ClassDef) -> List[str]:
+    def _extract_base_classes(self, node: ast.ClassDef) -> list[str]:
         """
         Extract base class names from a class definition.
 
@@ -415,10 +438,10 @@ class SymbolExtractor(ast.NodeVisitor):
         Returns:
             True if symbol is public, False otherwise
         """
-        if name.startswith('__') and name.endswith('__'):
+        if name.startswith("__") and name.endswith("__"):
             # Dunder methods are public
             return True
-        return not name.startswith('_')
+        return not name.startswith("_")
 
 
 # Convenience function

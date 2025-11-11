@@ -92,29 +92,31 @@ class TypeScriptAnalyzer:
             extra={"run_id": run_id, "ts_files": ts_files},
         )
 
-        results = {
+        symbols_extracted: dict[str, int] = {
+            "classes": 0,
+            "functions": 0,
+            "interfaces": 0,
+            "types": 0,
+            "enums": 0,
+        }
+        file_results: list[dict[str, Any]] = []
+        results: dict[str, Any] = {
             "files_processed": 0,
             "files_failed": 0,
-            "symbols_extracted": {
-                "classes": 0,
-                "functions": 0,
-                "interfaces": 0,
-                "types": 0,
-                "enums": 0,
-            },
-            "files": [],
+            "symbols_extracted": symbols_extracted,
+            "files": file_results,
         }
 
         # Analyze each TypeScript file
         for file_path in ts_files:
             file_result = self._analyze_file(file_path, run_id)
-            results["files"].append(file_result)
+            file_results.append(file_result)
 
             if file_result["status"] == "success":
                 results["files_processed"] += 1
                 # Accumulate symbol statistics
-                for symbol_type in results["symbols_extracted"]:
-                    results["symbols_extracted"][symbol_type] += len(
+                for symbol_type in symbols_extracted:
+                    symbols_extracted[symbol_type] += len(
                         file_result["symbols"].get(symbol_type, []),
                     )
             else:

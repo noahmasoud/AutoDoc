@@ -18,7 +18,7 @@ class TestParseResult:
         result = ParseResult(
             success=True,
             file_path="/path/to/file.py",
-            ast_tree=tree
+            ast_tree=tree,
         )
 
         assert result.success is True
@@ -33,7 +33,7 @@ class TestParseResult:
             success=False,
             file_path="/path/to/file.py",
             error="Syntax error",
-            error_line=10
+            error_line=10,
         )
 
         assert result.success is False
@@ -56,10 +56,10 @@ class TestPythonParser:
     def temp_python_file(self):
         """Create a temporary Python file for testing"""
         with tempfile.NamedTemporaryFile(
-            mode='w',
-            suffix='.py',
+            mode="w",
+            suffix=".py",
             delete=False,
-            encoding='utf-8'
+            encoding="utf-8",
         ) as f:
             f.write('def hello():\n    return "world"\n')
             temp_path = f.name
@@ -95,7 +95,7 @@ class MyClass:
     def get_value(self):
         return self.value
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -105,8 +105,11 @@ class MyClass:
             assert result.ast_tree is not None
 
             # Verify class is in the AST
-            classes = [node for node in ast.walk(
-                result.ast_tree) if isinstance(node, ast.ClassDef)]
+            classes = [
+                node
+                for node in ast.walk(result.ast_tree)
+                if isinstance(node, ast.ClassDef)
+            ]
             assert len(classes) == 1
             assert classes[0].name == "MyClass"
         finally:
@@ -124,7 +127,7 @@ def process_command(command):
         case _:
             return "Unknown command"
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -134,8 +137,11 @@ def process_command(command):
             assert result.ast_tree is not None
 
             # Verify match statement is in the AST
-            matches = [node for node in ast.walk(
-                result.ast_tree) if isinstance(node, ast.Match)]
+            matches = [
+                node
+                for node in ast.walk(result.ast_tree)
+                if isinstance(node, ast.Match)
+            ]
             assert len(matches) == 1
         finally:
             Path(temp_path).unlink(missing_ok=True)
@@ -150,7 +156,7 @@ def process_items(items: List[str], default: Optional[str] = None) -> str:
         return default or "empty"
     return items[0]
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -163,7 +169,7 @@ def process_items(items: List[str], default: Optional[str] = None) -> str:
 
     def test_parse_empty_file(self, parser):
         """Test parsing an empty Python file"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             # Write nothing - empty file
             temp_path = f.name
 
@@ -182,7 +188,7 @@ def process_items(items: List[str], default: Optional[str] = None) -> str:
 # This is a comment
 # Another comment
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -201,7 +207,7 @@ def my_function():
     """Function docstring"""
     pass
 '''
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -225,7 +231,7 @@ def my_function():
 def broken_function(
     # Missing closing parenthesis
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -239,7 +245,7 @@ def broken_function(
             assert result.error_line is not None
 
             # Verify logger was called
-            parser.logger.error.assert_called()
+            parser.logger.exception.assert_called()
         finally:
             Path(temp_path).unlink(missing_ok=True)
 
@@ -249,7 +255,7 @@ def broken_function(
 def my_function():
 print("This is not indented correctly")
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -266,7 +272,7 @@ print("This is not indented correctly")
         """Test parsing file with invalid Python syntax"""
         code = "def for while class import"
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -287,11 +293,12 @@ print("This is not indented correctly")
         result = parser.parse("/path/to/nonexistent/file.py")
 
         assert result.success is False
-        assert result.error == "File not found"
+        assert result.error is not None
+        assert "File not found" in result.error
         assert result.ast_tree is None
 
         # Verify logger was called
-        parser.logger.error.assert_called()
+        parser.logger.exception.assert_called()
 
     def test_parse_directory_instead_of_file(self, parser):
         """Test parsing a directory path instead of a file"""
@@ -299,8 +306,11 @@ print("This is not indented correctly")
             result = parser.parse(temp_dir)
 
             assert result.success is False
-            assert result.error == "Path is not a file"
+            assert result.error is not None
+            assert "Path is not a file" in result.error
             assert result.ast_tree is None
+
+            parser.logger.exception.assert_called()
 
     def test_parse_relative_path(self, parser):
         """Test parsing with relative path"""
@@ -308,10 +318,10 @@ print("This is not indented correctly")
 
         # Create file in current directory
         with tempfile.NamedTemporaryFile(
-            mode='w',
-            suffix='.py',
+            mode="w",
+            suffix=".py",
             delete=False,
-            dir='.'
+            dir=".",
         ) as f:
             f.write(code)
             temp_name = Path(f.name).name
@@ -340,7 +350,7 @@ print("This is not indented correctly")
     def test_parse_invalid_encoding(self, parser):
         """Test parsing file with invalid UTF-8 encoding"""
         # Create a file with invalid UTF-8 bytes
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".py", delete=False) as f:
             f.write(b'def test():\n    x = "\xff\xfe"\n')  # Invalid UTF-8
             temp_path = f.name
 
@@ -360,7 +370,7 @@ print("This is not indented correctly")
         parser = PythonParser(logger=custom_logger)
 
         code = "x = 1"
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -417,7 +427,7 @@ class TestConvenienceFunction:
         """Test convenience function with valid file"""
         code = "x = 1"
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -447,10 +457,9 @@ class TestEdgeCases:
     def test_parse_very_large_file(self, parser):
         """Test parsing a large Python file"""
         # Generate a large but valid Python file
-        code = "# Large file\n" + \
-            "\n".join([f"x{i} = {i}" for i in range(1000)])
+        code = "# Large file\n" + "\n".join([f"x{i} = {i}" for i in range(1000)])
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -469,7 +478,9 @@ def greet():
     """Say hello in different languages"""
     return "Hello 👋 Bonjour 🇫🇷 こんにちは 🇯🇵"
 '''
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False, encoding="utf-8"
+        ) as f:
             f.write(code)
             temp_path = f.name
 
@@ -494,7 +505,7 @@ async def main():
     result = await fetch_data()
     return result
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -505,7 +516,8 @@ async def main():
 
             # Verify async functions are in the AST
             async_funcs = [
-                node for node in ast.walk(result.ast_tree)
+                node
+                for node in ast.walk(result.ast_tree)
                 if isinstance(node, ast.AsyncFunctionDef)
             ]
             assert len(async_funcs) == 2
