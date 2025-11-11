@@ -133,23 +133,23 @@ docker.build: ## Build Docker images
 
 docker.run: ## Run AutoDoc with Docker Compose
 	@echo "🐳 Starting AutoDoc with Docker Compose..."
-	docker-compose -f Docker/docker-compose.yml up autodoc-dev
+	docker compose -f Docker/docker-compose.yml up autodoc-dev
 
 docker.dev: ## Start development environment with Docker
 	@echo "🐳 Starting development environment..."
-	docker-compose -f Docker/docker-compose.yml --profile dev-tools up
+	docker compose -f Docker/docker-compose.yml --profile dev-tools up
 
 docker.ci: ## Run CI pipeline with Docker
 	@echo "🐳 Running CI pipeline..."
-	docker-compose -f Docker/docker-compose.yml run --rm autodoc-ci
+	docker compose -f Docker/docker-compose.yml run --rm autodoc-ci
 
 docker.stop: ## Stop Docker containers
 	@echo "🐳 Stopping Docker containers..."
-	docker-compose -f Docker/docker-compose.yml down
+	docker compose -f Docker/docker-compose.yml down
 
 docker.clean: ## Clean up Docker resources
 	@echo "🐳 Cleaning up Docker resources..."
-	docker-compose -f Docker/docker-compose.yml down -v
+	docker compose -f Docker/docker-compose.yml down -v
 	docker system prune -f
 
 # =============================================================================
@@ -163,7 +163,7 @@ dev: ## Start development server
 
 dev-shell: ## Start development shell
 	@echo "🐚 Starting development shell..."
-	docker-compose -f Docker/docker-compose.yml exec autodoc-dev bash
+	docker compose -f Docker/docker-compose.yml exec autodoc-dev bash
 
 # =============================================================================
 # Database
@@ -291,8 +291,8 @@ clean-all: clean logs-clean ## Deep clean: remove all temporary files and logs
 
 clean-docker: ## Clean Docker resources (requires Docker)
 	@echo "🐳 Cleaning Docker resources..."
-	@if command -v docker-compose >/dev/null 2>&1; then \
-		docker-compose -f Docker/docker-compose.yml down -v; \
+	@if command -v docker >/dev/null 2>&1; then \
+		docker compose -f Docker/docker-compose.yml down -v; \
 		docker system prune -f; \
 		echo "✅ Docker cleanup complete!"; \
 	else \

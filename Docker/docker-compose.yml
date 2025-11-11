@@ -15,6 +15,7 @@ networks:
 # Volumes
 # =============================================================================
 volumes:
+  # Application volumes
   autodoc-data:
     driver: local
     name: autodoc-data
@@ -24,6 +25,8 @@ volumes:
   postgres-data:
     driver: local
     name: autodoc-postgres-data
+
+  # Monitoring and tools volumes
   prometheus-data:
     driver: local
     name: autodoc-prometheus-data
