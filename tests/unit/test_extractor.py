@@ -9,7 +9,6 @@ Tests cover:
 - Docstring extraction
 """
 import ast
-from unittest.mock import Mock
 
 import pytest
 
@@ -19,7 +18,7 @@ from src.analyzer.extractor import (
     ClassInfo,
     ParameterInfo,
     ModuleInfo,
-    extract_symbols
+    extract_symbols,
 )
 
 
@@ -32,7 +31,7 @@ class TestParameterInfo:
             name="x",
             annotation="int",
             default="0",
-            kind="positional"
+            kind="positional",
         )
 
         assert param.name == "x"
@@ -61,7 +60,7 @@ class TestFunctionInfo:
             return_type="str",
             decorators=["@staticmethod"],
             is_async=False,
-            is_public=True
+            is_public=True,
         )
 
         assert func.name == "test_func"
@@ -74,7 +73,7 @@ class TestFunctionInfo:
         func = FunctionInfo(
             name="test_func",
             parameters=[ParameterInfo(name="x")],
-            return_type="int"
+            return_type="int",
         )
         func_dict = func.to_dict()
 
@@ -93,7 +92,7 @@ class TestClassInfo:
             name="TestClass",
             base_classes=["BaseClass"],
             methods=[FunctionInfo(name="method1")],
-            is_public=True
+            is_public=True,
         )
 
         assert cls.name == "TestClass"
@@ -106,7 +105,7 @@ class TestClassInfo:
         cls = ClassInfo(
             name="TestClass",
             base_classes=["Base"],
-            methods=[FunctionInfo(name="method")]
+            methods=[FunctionInfo(name="method")],
         )
         cls_dict = cls.to_dict()
 
@@ -124,7 +123,7 @@ class TestModuleInfo:
         module = ModuleInfo(
             file_path="test.py",
             functions=[FunctionInfo(name="func1")],
-            classes=[ClassInfo(name="Class1")]
+            classes=[ClassInfo(name="Class1")],
         )
 
         assert module.file_path == "test.py"
@@ -136,7 +135,7 @@ class TestModuleInfo:
         module = ModuleInfo(
             file_path="test.py",
             functions=[FunctionInfo(name="func")],
-            classes=[]
+            classes=[],
         )
         module_dict = module.to_dict()
 

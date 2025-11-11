@@ -231,6 +231,7 @@ Once running, visit:
 - **Interactive API docs**: http://localhost:8000/docs
 - **ReDoc documentation**: http://localhost:8000/redoc
 - **OpenAPI schema**: http://localhost:8000/openapi.json
+- **Python symbol metadata**: `GET /api/v1/runs/{run_id}/python-symbols` returns persisted module/class/function docstrings and signatures for a run.
 
 ## 🏗️ Architecture
 
@@ -247,6 +248,7 @@ Once running, visit:
 - **Approval Workflow**: Review and approve changes before applying
 - **Version Control**: Track and rollback documentation changes
 - **Observability**: Comprehensive logging and monitoring
+- **Docstring Persistence**: Stores Python module/class/function/method docstrings during analysis and exposes them through the API for downstream documentation patches
 
 ## 🔧 Troubleshooting
 

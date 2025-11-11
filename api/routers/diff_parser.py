@@ -1,7 +1,7 @@
 """Diff parser router for comparing file contents."""
 
 import difflib
-from typing import Dict, List, Any
+from typing import Any
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -27,131 +27,170 @@ class ModifiedLine(BaseModel):
 class DiffResponse(BaseModel):
     """Response model for diff parsing."""
 
-    added: List[str]
-    removed: List[str]
-    modified: List[ModifiedLine]
+    added: list[str]
+    removed: list[str]
+    modified: list[ModifiedLine]
 
 
-def parse_diff(old_code: str, new_code: str) -> Dict[str, Any]:
-    """Parse differences between two code strings.
-
-    Uses difflib.unified_diff to compute line-by-line changes between the two files.
-
-    Args:
-        old_code: The original file content
-        new_code: The modified file content
-
-    Returns:
-        Dictionary containing:
-            - added: List of added lines
-            - removed: List of removed lines
-            - modified: List of dicts with line number, old, and new content
-    """
-    # Handle empty or identical files
+def parse_diff(old_code: str, new_code: str) -> dict[str, Any]:
+    """Parse differences between two code strings."""
     if old_code == new_code:
-        return {"added": [], "removed": [], "modified": []}
+        return _empty_diff_result()
 
-    old_lines = old_code.splitlines(keepends=True)
-    new_lines = new_code.splitlines(keepends=True)
+    old_lines = _split_lines(old_code)
+    new_lines = _split_lines(new_code)
 
-    # Handle empty files
     if not old_lines and not new_lines:
-        return {"added": [], "removed": [], "modified": []}
+        return _empty_diff_result()
 
-    # Use unified_diff to compute differences as required
-    diff = list(
+    diff = _build_unified_diff(old_lines, new_lines)
+    return _collect_diff_changes(diff)
+
+
+def _empty_diff_result() -> dict[str, Any]:
+    return {"added": [], "removed": [], "modified": []}
+
+
+def _split_lines(source: str) -> list[str]:
+    return source.splitlines(keepends=True)
+
+
+def _build_unified_diff(old_lines: list[str], new_lines: list[str]) -> list[str]:
+    return list(
         difflib.unified_diff(
             old_lines,
             new_lines,
             fromfile="old",
             tofile="new",
             lineterm="",
-            n=0,  # Context lines (0 means no context, just changes)
-        )
+            n=0,
+        ),
     )
 
-    added: List[str] = []
-    removed: List[str] = []
-    modified: List[Dict[str, Any]] = []
 
-    # Process the unified diff output
-    pending_removals: List[tuple[int, str]] = []  # (line_num, content)
+def _collect_diff_changes(diff: list[str]) -> dict[str, Any]:
+    added: list[str] = []
+    removed: list[str] = []
+    modified: list[dict[str, Any]] = []
+    pending_removals: list[tuple[int, str]] = []
     current_new_line = 0
-
     i = 0
+
     while i < len(diff):
         line = diff[i]
 
-        # Skip file headers
-        if line.startswith("+++") or line.startswith("---"):
+        if line.startswith(("+++", "---")):
             i += 1
             continue
 
-        # Process hunk header: @@ -old_start,old_count +new_start,new_count @@
         if line.startswith("@@"):
-            # Parse hunk header to get starting line numbers
-            parts = line.split("@@")
-            if len(parts) >= 2:
-                hunk_info = parts[1].strip()
-                # Extract new file start line: +start,count
-                plus_part = [p for p in hunk_info.split() if p.startswith("+")]
-                if plus_part:
-                    new_start_str = plus_part[0][1:].split(",")[0]
-                    try:
-                        current_new_line = int(new_start_str) - 1  # Convert to 0-indexed
-                    except ValueError:
-                        current_new_line = 0
-            # Clear pending removals when starting a new hunk
-            for _, content in pending_removals:
-                removed.append(content.rstrip("\n\r"))
+            current_new_line = _parse_hunk_header(line, current_new_line)
+            _flush_pending_removals(pending_removals, removed)
             pending_removals = []
             i += 1
             continue
 
-        # Process diff lines
         if line.startswith("+") and not line.startswith("++"):
-            # Added line
-            content = line[1:]
-            content_clean = content.rstrip("\n\r")
-            # Check if preceded by removal (modification)
-            if pending_removals:
-                old_line_num, old_content = pending_removals.pop(0)
-                modified.append(
-                    {
-                        "line": current_new_line + 1,  # 1-indexed for output
-                        "old": old_content.rstrip("\n\r"),
-                        "new": content_clean,
-                    }
-                )
-            else:
-                # Pure addition
-                added.append(content_clean)
-            current_new_line += 1
+            i, current_new_line = _handle_added_line(
+                line,
+                pending_removals,
+                added,
+                removed,
+                modified,
+                i,
+                current_new_line,
+            )
+            continue
+
+        if line.startswith("-") and not line.startswith("--"):
+            pending_removals.append((current_new_line, line[1:]))
             i += 1
-        elif line.startswith("-") and not line.startswith("--"):
-            # Removed line - store it, might be part of modification
-            content = line[1:]
-            pending_removals.append((current_new_line, content))
-            i += 1
-        elif line.startswith(" "):
-            # Unchanged line - flush any pending removals as pure removals
-            for _, content in pending_removals:
-                removed.append(content.rstrip("\n\r"))
+            continue
+
+        if line.startswith(" "):
+            _flush_pending_removals(pending_removals, removed)
             pending_removals = []
             current_new_line += 1
             i += 1
-        else:
-            i += 1
+            continue
 
-    # Handle any remaining pending removals at the end
-    for _, content in pending_removals:
-        removed.append(content.rstrip("\n\r"))
+        i += 1
+
+    _flush_pending_removals(pending_removals, removed)
 
     return {
         "added": added,
         "removed": removed,
         "modified": modified,
     }
+
+
+def _parse_hunk_header(line: str, current_line: int) -> int:
+    parts = line.split("@@")
+    if len(parts) < 2:
+        return current_line
+
+    hunk_info = parts[1].strip()
+    plus_part = [p for p in hunk_info.split() if p.startswith("+")]
+    if not plus_part:
+        return current_line
+
+    new_start_str = plus_part[0][1:].split(",")[0]
+    try:
+        return int(new_start_str) - 1
+    except ValueError:
+        return 0
+
+
+def _handle_added_line(
+    line: str,
+    pending_removals: list[tuple[int, str]],
+    added: list[str],
+    removed: list[str],
+    modified: list[dict[str, Any]],
+    index: int,
+    current_line: int,
+) -> tuple[int, int]:
+    content = line[1:]
+    content_clean = content.rstrip("\n\r")
+
+    if pending_removals:
+        _, old_content = pending_removals.pop(0)
+        old_content_clean = old_content.rstrip("\n\r")
+
+        if old_content_clean == content_clean:
+            return index + 1, current_line + 1
+
+        if _is_similar_change(old_content_clean, content_clean):
+            modified.append(
+                {
+                    "line": current_line + 1,
+                    "old": old_content_clean,
+                    "new": content_clean,
+                },
+            )
+        else:
+            removed.append(old_content_clean)
+            added.append(content_clean)
+            return index + 1, current_line + 1
+    else:
+        added.append(content_clean)
+
+    return index + 1, current_line + 1
+
+
+def _flush_pending_removals(
+    pending_removals: list[tuple[int, str]],
+    removed: list[str],
+) -> None:
+    for _, content in pending_removals:
+        removed.append(content.rstrip("\n\r"))
+
+
+def _is_similar_change(old: str, new: str) -> bool:
+    if not old or not new:
+        return False
+    return old in new or new in old
 
 
 @router.post("/parse", response_model=DiffResponse)

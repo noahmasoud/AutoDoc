@@ -18,7 +18,7 @@ class TestParseResult:
         result = ParseResult(
             success=True,
             file_path="/path/to/file.py",
-            ast_tree=tree
+            ast_tree=tree,
         )
 
         assert result.success is True
@@ -33,7 +33,7 @@ class TestParseResult:
             success=False,
             file_path="/path/to/file.py",
             error="Syntax error",
-            error_line=10
+            error_line=10,
         )
 
         assert result.success is False
@@ -56,10 +56,10 @@ class TestPythonParser:
     def temp_python_file(self):
         """Create a temporary Python file for testing"""
         with tempfile.NamedTemporaryFile(
-            mode='w',
-            suffix='.py',
+            mode="w",
+            suffix=".py",
             delete=False,
-            encoding='utf-8'
+            encoding="utf-8",
         ) as f:
             f.write('def hello():\n    return "world"\n')
             temp_path = f.name
@@ -95,7 +95,7 @@ class MyClass:
     def get_value(self):
         return self.value
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -124,7 +124,7 @@ def process_command(command):
         case _:
             return "Unknown command"
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -150,7 +150,7 @@ def process_items(items: List[str], default: Optional[str] = None) -> str:
         return default or "empty"
     return items[0]
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -163,7 +163,7 @@ def process_items(items: List[str], default: Optional[str] = None) -> str:
 
     def test_parse_empty_file(self, parser):
         """Test parsing an empty Python file"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             # Write nothing - empty file
             temp_path = f.name
 
@@ -182,7 +182,7 @@ def process_items(items: List[str], default: Optional[str] = None) -> str:
 # This is a comment
 # Another comment
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -201,7 +201,7 @@ def my_function():
     """Function docstring"""
     pass
 '''
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -225,7 +225,7 @@ def my_function():
 def broken_function(
     # Missing closing parenthesis
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -249,7 +249,7 @@ def broken_function(
 def my_function():
 print("This is not indented correctly")
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -266,7 +266,7 @@ print("This is not indented correctly")
         """Test parsing file with invalid Python syntax"""
         code = "def for while class import"
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -308,10 +308,10 @@ print("This is not indented correctly")
 
         # Create file in current directory
         with tempfile.NamedTemporaryFile(
-            mode='w',
-            suffix='.py',
+            mode="w",
+            suffix=".py",
             delete=False,
-            dir='.'
+            dir=".",
         ) as f:
             f.write(code)
             temp_name = Path(f.name).name
@@ -340,7 +340,7 @@ print("This is not indented correctly")
     def test_parse_invalid_encoding(self, parser):
         """Test parsing file with invalid UTF-8 encoding"""
         # Create a file with invalid UTF-8 bytes
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".py", delete=False) as f:
             f.write(b'def test():\n    x = "\xff\xfe"\n')  # Invalid UTF-8
             temp_path = f.name
 
@@ -360,7 +360,7 @@ print("This is not indented correctly")
         parser = PythonParser(logger=custom_logger)
 
         code = "x = 1"
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -417,7 +417,7 @@ class TestConvenienceFunction:
         """Test convenience function with valid file"""
         code = "x = 1"
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -450,7 +450,7 @@ class TestEdgeCases:
         code = "# Large file\n" + \
             "\n".join([f"x{i} = {i}" for i in range(1000)])
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
@@ -469,7 +469,7 @@ def greet():
     """Say hello in different languages"""
     return "Hello 👋 Bonjour 🇫🇷 こんにちは 🇯🇵"
 '''
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as f:
             f.write(code)
             temp_path = f.name
 
@@ -494,7 +494,7 @@ async def main():
     result = await fetch_data()
     return result
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             temp_path = f.name
 

@@ -13,6 +13,7 @@ from sqlalchemy import (
     DateTime,
     JSON,
     CheckConstraint,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.session import Base
@@ -53,6 +54,10 @@ class Run(Base):
         back_populates="run",
         cascade="all, delete-orphan",
     )
+    python_symbols: Mapped[list["PythonSymbol"]] = relationship(
+        back_populates="run",
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         CheckConstraint(
@@ -90,6 +95,44 @@ class Change(Base):
         CheckConstraint(
             "change_type IN ('added', 'removed', 'modified')",
             name="check_change_type",
+        ),
+    )
+
+
+class PythonSymbol(Base):
+    """
+    PythonSymbol entity: stores extracted Python symbol metadata and docstrings.
+
+    Supports documentation pipelines that require persisted symbol data.
+    """
+
+    __tablename__ = "python_symbols"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[int] = mapped_column(
+        ForeignKey("runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    file_path: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    symbol_name: Mapped[str] = mapped_column(Text, nullable=False)
+    qualified_name: Mapped[str] = mapped_column(Text, nullable=False)
+    symbol_type: Mapped[str] = mapped_column(Text, nullable=False)
+    docstring: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lineno: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    symbol_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    run: Mapped["Run"] = relationship(back_populates="python_symbols")
+
+    __table_args__ = (
+        CheckConstraint(
+            "symbol_type IN ('module', 'class', 'function', 'method')",
+            name="check_python_symbol_type",
+        ),
+        UniqueConstraint(
+            "run_id",
+            "qualified_name",
+            name="uq_python_symbols_run_path_name",
         ),
     )
 

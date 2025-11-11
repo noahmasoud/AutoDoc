@@ -1,7 +1,6 @@
 """Tests for change report generator module."""
 
 import json
-import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -135,10 +134,14 @@ class TestChangeReportEndpoint:
     def test_engine(self):
         """Create an in-memory SQLite database for testing."""
         from sqlalchemy import create_engine, event
+        from sqlalchemy.pool import StaticPool
         from db.session import Base
-        from db.models import Run
 
-        engine = create_engine("sqlite:///:memory:")
+        engine = create_engine(
+            "sqlite+pysqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
 
         # Enable foreign keys for SQLite
         @event.listens_for(engine, "connect")
@@ -158,9 +161,11 @@ class TestChangeReportEndpoint:
 
         Session = sessionmaker(bind=test_engine)
         session = Session()
-        yield session
-        session.rollback()
-        session.close()
+        try:
+            yield session
+        finally:
+            session.rollback()
+            session.close()
 
     @pytest.fixture
     def sample_run(self, test_session):
@@ -184,7 +189,6 @@ class TestChangeReportEndpoint:
     @pytest.fixture
     def client(self, test_session):
         """Create a test client for the FastAPI app with test database."""
-        from unittest.mock import patch
         from db.session import get_db
 
         app = create_app()

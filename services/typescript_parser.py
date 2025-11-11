@@ -283,3 +283,185 @@ class TypeScriptParser:
                     )
 
         return symbols
+
+    def extract_exported_symbols(
+        self,
+        ast: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """
+        Extract exported symbols from the AST in a flattened list format.
+
+        Args:
+            ast: AST dictionary from parser
+
+        Returns:
+            List of export dictionaries with symbol metadata
+        """
+        exports: list[dict[str, Any]] = []
+
+        body = ast.get("body", [])
+        if not isinstance(body, list):
+            return exports
+
+        self._extract_exports_from_nodes(body, namespace_stack=[], exports=exports)
+
+        return exports
+
+    def _extract_exports_from_nodes(
+        self,
+        nodes: list[dict[str, Any]],
+        namespace_stack: list[str],
+        exports: list[dict[str, Any]],
+    ) -> None:
+        for node in nodes:
+            node_type = node.get("type")
+
+            if node_type in {"ExportNamedDeclaration", "ExportDefaultDeclaration"}:
+                self._handle_export_declaration(
+                    node,
+                    namespace_stack=namespace_stack,
+                    exports=exports,
+                )
+            elif node_type == "ExportAllDeclaration":
+                self._handle_export_all_declaration(
+                    node,
+                    namespace_stack=namespace_stack,
+                    exports=exports,
+                )
+            elif node_type == "TSModuleDeclaration":
+                module_name = node.get("id", {}).get("name")
+                body = node.get("body", {})
+                if (
+                    isinstance(module_name, str)
+                    and isinstance(body, dict)
+                    and body.get("type") == "TSModuleBlock"
+                ):
+                    nested_nodes = body.get("body", [])
+                    if isinstance(nested_nodes, list):
+                        self._extract_exports_from_nodes(
+                            nested_nodes,
+                            namespace_stack=namespace_stack + [module_name],
+                            exports=exports,
+                        )
+
+    def _handle_export_declaration(
+        self,
+        node: dict[str, Any],
+        namespace_stack: list[str],
+        exports: list[dict[str, Any]],
+    ) -> None:
+        declaration = node.get("declaration")
+        specifiers = node.get("specifiers", [])
+        source = node.get("source")
+        node_type = node.get("type")
+
+        is_default = node_type == "ExportDefaultDeclaration"
+
+        if declaration:
+            export_entry = self._build_export_entry_from_declaration(
+                declaration,
+                is_default=is_default,
+            )
+            if export_entry:
+                self._apply_namespace_metadata(export_entry, namespace_stack)
+                exports.append(export_entry)
+
+        for specifier in specifiers or []:
+            exported = specifier.get("exported", {}) or specifier.get("local", {})
+            name = exported.get("name")
+            if not name:
+                continue
+
+            entry: dict[str, Any] = {
+                "symbol": name,
+                "type": self._infer_export_type_from_specifier(specifier),
+                "isDefault": is_default
+                or (
+                    specifier.get("exportKind") == "value"
+                    and specifier.get("local", {}).get("name") == "default"
+                ),
+                "signature": {
+                    "source": source.get("value") if source else None,
+                },
+            }
+            self._apply_namespace_metadata(entry, namespace_stack)
+            exports.append(entry)
+
+    def _handle_export_all_declaration(
+        self,
+        node: dict[str, Any],
+        namespace_stack: list[str],
+        exports: list[dict[str, Any]],
+    ) -> None:
+        source = node.get("source")
+
+        entry: dict[str, Any] = {
+            "symbol": "*",
+            "type": "all",
+            "isDefault": False,
+            "signature": {
+                "source": source.get("value") if source else None,
+            },
+        }
+        self._apply_namespace_metadata(entry, namespace_stack)
+        exports.append(entry)
+
+    @staticmethod
+    def _build_export_entry_from_declaration(
+        declaration: dict[str, Any],
+        is_default: bool = False,
+    ) -> dict[str, Any] | None:
+        decl_type = declaration.get("type")
+        identifier = declaration.get("id", {})
+        name = identifier.get("name")
+
+        if not name:
+            # Handle export default function/class without identifier
+            if is_default and decl_type in {"FunctionDeclaration", "ClassDeclaration"}:
+                name = "default"
+            else:
+                return None
+
+        export_type_map = {
+            "ClassDeclaration": "class",
+            "FunctionDeclaration": "function",
+            "TSInterfaceDeclaration": "interface",
+            "TSTypeAliasDeclaration": "type",
+            "TSEnumDeclaration": "enum",
+            "VariableDeclaration": "variable",
+        }
+
+        export_type = export_type_map.get(decl_type, "unknown")
+
+        entry: dict[str, Any] = {
+            "symbol": name,
+            "type": export_type,
+            "isDefault": is_default,
+        }
+
+        # Include signature details for richer metadata if available
+        loc = declaration.get("loc", {})
+        start = loc.get("start", {})
+        if start:
+            entry["signature"] = {"line": start.get("line")}
+
+        return entry
+
+    @staticmethod
+    def _infer_export_type_from_specifier(specifier: dict[str, Any]) -> str:
+        if specifier.get("exportKind") == "type":
+            return "type"
+        return "re-export"
+
+    @staticmethod
+    def _apply_namespace_metadata(
+        entry: dict[str, Any],
+        namespace_stack: list[str],
+    ) -> None:
+        if not namespace_stack:
+            return
+
+        nested_name = ".".join(namespace_stack)
+        signature = entry.setdefault("signature", {})
+        signature["nestedIn"] = nested_name
+        signature["isNested"] = True
