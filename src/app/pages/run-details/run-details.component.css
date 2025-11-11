@@ -1,0 +1,222 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  gap: 16px;
+}
+
+.loading-container p {
+  color: #666;
+  font-size: 16px;
+}
+
+.error-card {
+  margin: 24px 0;
+}
+
+.error-card h2 {
+  color: #d32f2f;
+  margin-bottom: 8px;
+}
+
+.header-card {
+  margin-bottom: 24px;
+}
+
+.header-card h1 {
+  margin: 0 0 16px 0;
+  font-size: 28px;
+  font-weight: 500;
+}
+
+.mock-data-banner {
+  margin-bottom: 16px;
+}
+
+.run-info {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.info-item {
+  font-size: 14px;
+  color: #666;
+}
+
+.info-item strong {
+  color: #333;
+  margin-right: 8px;
+}
+
+.search-field {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.section-card {
+  margin-bottom: 24px;
+}
+
+.section-card mat-card-header {
+  margin-bottom: 16px;
+}
+
+.section-card mat-card-title {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.file-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.diff-content {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 8px 0;
+}
+
+.diff-line {
+  display: flex;
+  padding: 4px 8px;
+  margin: 2px 0;
+  border-left: 4px solid;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.added-line {
+  background-color: #e8f5e9;
+  border-left-color: #4caf50;
+}
+
+.removed-line {
+  background-color: #ffebee;
+  border-left-color: #f44336;
+}
+
+.line-prefix {
+  margin-right: 8px;
+  font-weight: bold;
+  min-width: 20px;
+}
+
+.added-line .line-prefix {
+  color: #2e7d32;
+}
+
+.removed-line .line-prefix {
+  color: #c62828;
+}
+
+.line-content {
+  flex: 1;
+}
+
+.modified-block {
+  margin: 8px 0;
+  padding: 8px;
+  background-color: #fff9c4;
+  border-left: 4px solid #fbc02d;
+  border-radius: 4px;
+}
+
+.modified-header {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #f57f17;
+  font-size: 12px;
+}
+
+.modified-block .diff-line {
+  margin: 4px 0;
+  border-left-width: 2px;
+}
+
+.no-changes {
+  color: #999;
+  font-style: italic;
+  padding: 16px;
+  text-align: center;
+}
+
+.findings-content {
+  padding: 8px 0;
+}
+
+.finding-item {
+  padding: 12px;
+  margin: 8px 0;
+  background-color: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  border-radius: 4px;
+}
+
+.finding-header {
+  margin-bottom: 8px;
+}
+
+.finding-message {
+  margin: 8px 0 0 0;
+  font-size: 14px;
+  color: #555;
+}
+
+.empty-card {
+  margin: 24px 0;
+}
+
+.empty-message {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 24px;
+}
+
+.modified-chip {
+  background-color: #fff9c4 !important;
+  color: #f57f17 !important;
+}
+
+.finding-header mat-chip,
+mat-panel-description mat-chip {
+  margin-right: 8px;
+  margin-bottom: 4px;
+}
+
+mat-expansion-panel {
+  margin-bottom: 8px;
+}
+
+mat-panel-description {
+  justify-content: flex-end;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  .run-info {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .diff-content {
+    font-size: 12px;
+  }
+}
+
