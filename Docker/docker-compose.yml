@@ -25,7 +25,7 @@ volumes:
   postgres-data:
     driver: local
     name: autodoc-postgres-data
-  
+
   # Monitoring and tools volumes
   prometheus-data:
     driver: local
@@ -67,7 +67,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - .:/app
+      - ../:/app
       - autodoc-logs:/app/logs
       - autodoc-data:/app/data
     environment:
@@ -153,7 +153,7 @@ services:
     networks:
       - autodoc-network
     volumes:
-      - .:/app
+      - ../:/app
       - autodoc-logs:/app/logs
     environment:
       - PYTHONPATH=/app
@@ -378,4 +378,3 @@ services:
       - redis-insight-data:/data
     profiles:
       - dev-tools
-

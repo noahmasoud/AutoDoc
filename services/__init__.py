@@ -1,31 +1,43 @@
 """Services module for AutoDoc."""
 
 from services.artifact_loader import (
-    load_run_artifact,
-    load_artifact_from_run,
     ArtifactLoadError,
+    load_artifact_from_run,
+    load_run_artifact,
 )
 from services.change_detector import (
+    ChangeDetectionError,
     detect_changes,
     get_breaking_changes_summary,
-    ChangeDetectionError,
 )
 from services.change_persister import (
-    save_changes_to_database,
+    ChangePersistenceError,
     get_changes_for_run,
     get_changes_by_type,
-    ChangePersistenceError,
+    save_changes_to_database,
+)
+from services.typescript_analyzer import TypeScriptAnalyzer
+from services.typescript_parser import (
+    NodeJSNotFoundError,
+    ParseError,
+    TypeScriptParser,
+    TypeScriptParserError,
 )
 
 __all__ = [
-    "load_run_artifact",
-    "load_artifact_from_run",
     "ArtifactLoadError",
+    "ChangeDetectionError",
+    "ChangePersistenceError",
+    "NodeJSNotFoundError",
+    "ParseError",
+    "TypeScriptAnalyzer",
+    "TypeScriptParser",
+    "TypeScriptParserError",
     "detect_changes",
     "get_breaking_changes_summary",
-    "ChangeDetectionError",
-    "save_changes_to_database",
     "get_changes_for_run",
     "get_changes_by_type",
-    "ChangePersistenceError",
+    "load_artifact_from_run",
+    "load_run_artifact",
+    "save_changes_to_database",
 ]

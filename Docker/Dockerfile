@@ -152,23 +152,19 @@ RUN groupadd --gid 1000 autodoc && \
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml ./
-
-# Copy application code
+# Copy application code first (needed for version detection)
 COPY --chown=autodoc:autodoc . .
-
-# Copy entrypoint script to root
-COPY --chown=autodoc:autodoc scripts/entrypoint.sh /entrypoint.sh
 
 # Install Python dependencies including development tools
 RUN pip install --upgrade pip setuptools wheel && \
-    pip install -e ".[dev,test,lint,docs]" && \
-    chmod +x /entrypoint.sh
+    pip install -e ".[dev,test,lint,docs]"
+
+# Make entrypoint available at root for compose health checks
+RUN install -m 755 /app/scripts/entrypoint.sh /entrypoint.sh
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs /app/data /app/temp /app/htmlcov && \
-    chown -R autodoc:autodoc /app /entrypoint.sh
+    chown -R autodoc:autodoc /app
 
 # Switch to non-root user
 USER autodoc
@@ -217,24 +213,20 @@ RUN groupadd --gid 1000 autodoc && \
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml ./
-
-# Copy application code
+# Copy application code first (needed for version detection)
 COPY --chown=autodoc:autodoc . .
-
-# Copy entrypoint script to root
-COPY --chown=autodoc:autodoc scripts/entrypoint.sh /entrypoint.sh
 
 # Install Python dependencies including test and lint tools
 RUN pip install --upgrade pip setuptools wheel && \
-    pip install -e ".[dev,test,lint]" && \
-    chmod +x /entrypoint.sh && \
+    pip install -e ".[dev,test,lint]"
+
+# Make entrypoint available at root and ensure CI scripts are executable
+RUN install -m 755 /app/scripts/entrypoint.sh /entrypoint.sh && \
     chmod +x scripts/ci-test.sh scripts/ci-lint.sh scripts/run-tests.sh
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs /app/data /app/temp /app/htmlcov && \
-    chown -R autodoc:autodoc /app /entrypoint.sh
+    chown -R autodoc:autodoc /app
 
 # Switch to non-root user
 USER autodoc
