@@ -239,7 +239,7 @@ def broken_function(
             assert result.error_line is not None
 
             # Verify logger was called
-            parser.logger.error.assert_called()
+            parser.logger.exception.assert_called()
         finally:
             Path(temp_path).unlink(missing_ok=True)
 
@@ -287,11 +287,12 @@ print("This is not indented correctly")
         result = parser.parse("/path/to/nonexistent/file.py")
 
         assert result.success is False
-        assert result.error == "File not found"
+        assert result.error is not None
+        assert "File not found" in result.error
         assert result.ast_tree is None
 
         # Verify logger was called
-        parser.logger.error.assert_called()
+        parser.logger.exception.assert_called()
 
     def test_parse_directory_instead_of_file(self, parser):
         """Test parsing a directory path instead of a file"""
@@ -299,8 +300,11 @@ print("This is not indented correctly")
             result = parser.parse(temp_dir)
 
             assert result.success is False
-            assert result.error == "Path is not a file"
+            assert result.error is not None
+            assert "Path is not a file" in result.error
             assert result.ast_tree is None
+
+            parser.logger.exception.assert_called()
 
     def test_parse_relative_path(self, parser):
         """Test parsing with relative path"""

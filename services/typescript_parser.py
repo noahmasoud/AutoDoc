@@ -340,7 +340,7 @@ class TypeScriptParser:
                     if isinstance(nested_nodes, list):
                         self._extract_exports_from_nodes(
                             nested_nodes,
-                            namespace_stack=namespace_stack + [module_name],
+                            namespace_stack=[*namespace_stack, module_name],
                             exports=exports,
                         )
 

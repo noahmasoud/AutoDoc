@@ -74,101 +74,85 @@ class PythonParser:
             ...     # Access the AST
             ...     tree = result.ast_tree
         """
-        # Step 1: Resolve the path (handles relative/absolute/home directory)
+        success = False
+        resolved_path_str = file_path
+        ast_tree: ast.AST | None = None
+        error_msg: str | None = None
+        error_line: int | None = None
+
+        resolved_path: Path | None = None
         try:
             resolved_path = self._resolve_path(file_path)
-        except Exception as e:
-            error_msg = f"Failed to resolve path: {e!s}"
-            self.logger.error(
-                f"Path resolution error for '{file_path}': {error_msg}")
-            return ParseResult(
-                success=False,
-                file_path=file_path,
-                error=error_msg,
+        except Exception as exc:
+            error_msg = f"Failed to resolve path: {exc!s}"
+            self.logger.exception(
+                "Path resolution error for '%s': %s",
+                file_path,
+                error_msg,
             )
 
-        # Step 2: Check if file exists
-        if not resolved_path.exists():
-            error_msg = f"File not found: {resolved_path}"
-            self.logger.error(error_msg)
-            return ParseResult(
-                success=False,
-                file_path=str(resolved_path),
-                error="File not found",
-            )
+        if resolved_path is not None and error_msg is None:
+            resolved_path_str = str(resolved_path)
 
-        # Step 3: Check if it's a file (not a directory)
-        if not resolved_path.is_file():
-            error_msg = f"Path is not a file: {resolved_path}"
-            self.logger.error(error_msg)
-            return ParseResult(
-                success=False,
-                file_path=str(resolved_path),
-                error="Path is not a file",
-            )
+            if not resolved_path.exists():
+                error_msg = f"File not found: {resolved_path}"
+                self.logger.exception(error_msg)
+            elif not resolved_path.is_file():
+                error_msg = f"Path is not a file: {resolved_path}"
+                self.logger.exception(error_msg)
+            else:
+                try:
+                    content = self._read_file_content(resolved_path)
+                except UnicodeDecodeError as exc:
+                    error_msg = f"Encoding error: {exc!s}"
+                    self.logger.exception(
+                        "Failed to read %s: %s",
+                        resolved_path,
+                        error_msg,
+                    )
+                except OSError as exc:
+                    error_msg = f"IO error: {exc!s}"
+                    self.logger.exception(
+                        "Failed to read %s: %s",
+                        resolved_path,
+                        error_msg,
+                    )
+                else:
+                    try:
+                        ast_tree = ast.parse(
+                            source=content,
+                            filename=resolved_path_str,
+                            type_comments=True,
+                        )
+                    except SyntaxError as exc:
+                        error_msg = f"Syntax error: {exc.msg}"
+                        if exc.text:
+                            error_msg += f" | Line content: {exc.text.strip()}"
+                        error_line = exc.lineno
+                        self.logger.exception(
+                            "Syntax error in %s at line %s: %s",
+                            resolved_path,
+                            exc.lineno,
+                            exc.msg,
+                        )
+                    except Exception as exc:
+                        error_msg = f"Unexpected error during parsing: {exc!s}"
+                        self.logger.exception(
+                            "Failed to parse %s: %s",
+                            resolved_path,
+                            error_msg,
+                        )
+                    else:
+                        success = True
+                        self.logger.info("Successfully parsed %s", resolved_path)
 
-        # Step 4: Read file contents
-        try:
-            content = self._read_file_content(resolved_path)
-        except UnicodeDecodeError as e:
-            error_msg = f"Encoding error: {e!s}"
-            self.logger.error(f"Failed to read {resolved_path}: {error_msg}")
-            return ParseResult(
-                success=False,
-                file_path=str(resolved_path),
-                error=error_msg,
-            )
-        except OSError as e:
-            error_msg = f"IO error: {e!s}"
-            self.logger.error(f"Failed to read {resolved_path}: {error_msg}")
-            return ParseResult(
-                success=False,
-                file_path=str(resolved_path),
-                error=error_msg,
-            )
-
-        # Step 5: Parse with ast.parse()
-        try:
-            tree = ast.parse(
-                source=content,
-                filename=str(resolved_path),
-                type_comments=True,  # Support Python 3.8+ type comments
-            )
-
-            # Success! Log and return
-            self.logger.info(f"Successfully parsed {resolved_path}")
-            return ParseResult(
-                success=True,
-                file_path=str(resolved_path),
-                ast_tree=tree,
-            )
-
-        except SyntaxError as e:
-            # Extract detailed syntax error information
-            error_msg = f"Syntax error: {e.msg}"
-            if e.text:
-                error_msg += f" | Line content: {e.text.strip()}"
-
-            self.logger.error(
-                f"Syntax error in {resolved_path} at line {e.lineno}: {e.msg}",
-            )
-
-            return ParseResult(
-                success=False,
-                file_path=str(resolved_path),
-                error=error_msg,
-                error_line=e.lineno,
-            )
-
-        except Exception as e:
-            # Catch any other unexpected errors
-            error_msg = f"Unexpected error during parsing: {e!s}"
-            self.logger.error(f"Failed to parse {resolved_path}: {error_msg}")
-            return ParseResult(
-                success=False,
-                file_path=str(resolved_path),
-                error=error_msg,
-            )
+        return ParseResult(
+            success=success,
+            file_path=resolved_path_str,
+            ast_tree=ast_tree,
+            error=error_msg,
+            error_line=error_line,
+        )
 
     def _resolve_path(self, file_path: str) -> Path:
         """
@@ -190,14 +174,9 @@ class PythonParser:
         """
         try:
             # Create Path object and expand ~ if present
-            path = Path(file_path).expanduser()
-
-            # Resolve to absolute path (also resolves symlinks)
-            absolute_path = path.resolve()
-
-            return absolute_path
-        except Exception as e:
-            raise ValueError(f"Invalid path '{file_path}': {e!s}")
+            return Path(file_path).expanduser().resolve()
+        except Exception as exc:
+            raise ValueError(f"Invalid path '{file_path}': {exc!s}") from exc
 
     def _read_file_content(self, path: Path) -> str:
         """
