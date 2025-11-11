@@ -11,5 +11,12 @@ export const routes: Routes = [
   { path: 'connections', component: ConnectionsComponent },
   { path: 'rules', component: RulesComponent },
   { path: 'templates', component: TemplatesComponent },
-  {path: 'auth', component: AuthComponent },
+  { path: 'auth', component: AuthComponent },
+  {
+    path: 'runs/:runId',
+    loadChildren: () =>
+      import('./pages/run-details/run-details.module').then(
+        (m) => m.RunDetailsModule
+      ),
+  },
 ];

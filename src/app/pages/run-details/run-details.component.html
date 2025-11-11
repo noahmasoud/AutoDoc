@@ -1,0 +1,198 @@
+<div class="container">
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <mat-spinner></mat-spinner>
+    <p>Loading run details...</p>
+  </div>
+
+  <!-- Error State -->
+  <mat-card *ngIf="error && !loading" class="error-card">
+    <mat-card-content>
+      <h2>Error Loading Run Details</h2>
+      <p>{{ error }}</p>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Main Content -->
+  <div *ngIf="report && !loading && !error">
+    <!-- Header Card -->
+    <mat-card class="header-card">
+      <mat-card-content>
+        <h1>Run Details</h1>
+        <div *ngIf="useMockData" class="mock-data-banner">
+          <mat-chip color="accent">Mock Data (Offline Mode)</mat-chip>
+        </div>
+        <div class="run-info">
+          <div class="info-item">
+            <strong>Run ID:</strong> {{ report.run_id }}
+          </div>
+          <div class="info-item">
+            <strong>Timestamp:</strong> {{ formatTimestamp(report.timestamp) }}
+          </div>
+        </div>
+
+        <!-- Search Bar -->
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>Search by file name, symbol, or content</mat-label>
+          <input
+            matInput
+            [(ngModel)]="searchQuery"
+            (ngModelChange)="onSearchChange()"
+            placeholder="Search..."
+          />
+          <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- File Diffs -->
+    <mat-card *ngIf="filteredFileDiffs.length > 0" class="section-card">
+      <mat-card-header>
+        <mat-card-title>File Diffs</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-accordion multi="true">
+          <mat-expansion-panel *ngFor="let fileDiff of filteredFileDiffs; let i = index">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <span class="file-name">{{ fileDiff.fileName }}</span>
+              </mat-panel-title>
+              <mat-panel-description>
+                <mat-chip *ngIf="fileDiff.diff.added && fileDiff.diff.added.length > 0" color="primary">
+                  +{{ fileDiff.diff.added.length }}
+                </mat-chip>
+                <mat-chip *ngIf="fileDiff.diff.removed && fileDiff.diff.removed.length > 0" color="warn">
+                  -{{ fileDiff.diff.removed.length }}
+                </mat-chip>
+                <mat-chip *ngIf="fileDiff.diff.modified && fileDiff.diff.modified.length > 0" class="modified-chip">
+                  ~{{ fileDiff.diff.modified.length }}
+                </mat-chip>
+              </mat-panel-description>
+            </mat-expansion-panel-header>
+
+            <div class="diff-content">
+              <!-- Added lines -->
+              <div *ngIf="fileDiff.diff.added && fileDiff.diff.added.length > 0">
+                <div
+                  *ngFor="let line of fileDiff.diff.added; let lineIndex = index"
+                  class="diff-line added-line"
+                >
+                  <span class="line-prefix">+</span>
+                  <span class="line-content">{{ line }}</span>
+                </div>
+              </div>
+
+              <!-- Removed lines -->
+              <div *ngIf="fileDiff.diff.removed && fileDiff.diff.removed.length > 0">
+                <div
+                  *ngFor="let line of fileDiff.diff.removed; let lineIndex = index"
+                  class="diff-line removed-line"
+                >
+                  <span class="line-prefix">-</span>
+                  <span class="line-content">{{ line }}</span>
+                </div>
+              </div>
+
+              <!-- Modified lines -->
+              <div *ngIf="fileDiff.diff.modified && fileDiff.diff.modified.length > 0">
+                <div
+                  *ngFor="let mod of fileDiff.diff.modified; let modIndex = index"
+                  class="modified-block"
+                >
+                  <div class="modified-header">Line {{ mod.line }}:</div>
+                  <div class="diff-line removed-line">
+                    <span class="line-prefix">-</span>
+                    <span class="line-content">{{ mod.old }}</span>
+                  </div>
+                  <div class="diff-line added-line">
+                    <span class="line-prefix">+</span>
+                    <span class="line-content">{{ mod.new }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Empty state for file -->
+              <div
+                *ngIf="
+                  (!fileDiff.diff.added || fileDiff.diff.added.length === 0) &&
+                  (!fileDiff.diff.removed || fileDiff.diff.removed.length === 0) &&
+                  (!fileDiff.diff.modified || fileDiff.diff.modified.length === 0)
+                "
+                class="no-changes"
+              >
+                No changes
+              </div>
+            </div>
+          </mat-expansion-panel>
+        </mat-accordion>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Analyzer Findings -->
+    <mat-card
+      *ngIf="filteredFindings && objectKeys(filteredFindings).length > 0"
+      class="section-card"
+    >
+      <mat-card-header>
+        <mat-card-title>Analyzer Findings</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-accordion multi="true">
+          <mat-expansion-panel
+            *ngFor="let fileEntry of (filteredFindings | keyvalue)"
+          >
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <span class="file-name">{{ fileEntry.key }}</span>
+              </mat-panel-title>
+              <mat-panel-description>
+                <mat-chip>{{ fileEntry.value.length }} finding(s)</mat-chip>
+              </mat-panel-description>
+            </mat-expansion-panel-header>
+
+            <div class="findings-content">
+              <div
+                *ngFor="let finding of fileEntry.value; let index = index"
+                class="finding-item"
+              >
+                <div class="finding-header">
+                  <mat-chip *ngIf="finding.symbol">{{ finding.symbol }}</mat-chip>
+                  <mat-chip *ngIf="finding.type">{{ finding.type }}</mat-chip>
+                  <mat-chip
+                    *ngIf="finding.severity"
+                    [color]="getSeverityColor(finding.severity)"
+                  >
+                    {{ finding.severity }}
+                  </mat-chip>
+                </div>
+                <p *ngIf="finding.message" class="finding-message">
+                  {{ finding.message }}
+                </p>
+              </div>
+            </div>
+          </mat-expansion-panel>
+        </mat-accordion>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Empty State -->
+    <mat-card
+      *ngIf="
+        filteredFileDiffs.length === 0 &&
+        (!filteredFindings || objectKeys(filteredFindings).length === 0)
+      "
+      class="empty-card"
+    >
+      <mat-card-content>
+        <p class="empty-message">
+          {{
+            searchQuery
+              ? 'No results found for "' + searchQuery + '"'
+              : 'No diffs or findings available for this run'
+          }}
+        </p>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>
+

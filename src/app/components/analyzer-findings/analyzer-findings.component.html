@@ -1,0 +1,22 @@
+<div *ngIf="Object.keys(findingsByFile).length > 0" class="findings-container">
+  <div *ngFor="let fileEntry of (findingsByFile | keyvalue)" class="file-findings">
+    <h3 class="file-name">{{ fileEntry.key }}</h3>
+    <div class="findings-list">
+      <div *ngFor="let finding of fileEntry.value" class="finding-item">
+        <div class="finding-header">
+          <mat-chip *ngIf="finding.symbol" [color]="getChangeTypeColor(finding.type)">
+            {{ finding.symbol }}
+          </mat-chip>
+          <mat-chip *ngIf="finding.type" [color]="getChangeTypeColor(finding.type)">
+            {{ finding.type }}
+          </mat-chip>
+          <mat-chip *ngIf="finding.severity" [color]="getSeverityColor(finding.severity)">
+            {{ finding.severity }}
+          </mat-chip>
+        </div>
+        <p *ngIf="finding.message" class="finding-detail">{{ finding.message }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+

@@ -1,0 +1,41 @@
+.findings-container {
+  padding: 16px;
+}
+
+.file-findings {
+  margin-bottom: 24px;
+}
+
+.file-name {
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.findings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.finding-item {
+  padding: 12px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  border-left: 4px solid #2196f3;
+}
+
+.finding-header {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.finding-detail {
+  margin: 0;
+  font-size: 14px;
+  color: #555;
+}
+
