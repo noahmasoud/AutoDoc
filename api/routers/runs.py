@@ -1,13 +1,28 @@
 import json
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from db.session import get_db
 from db.models import Run
 from schemas.runs import RunCreate, RunOut, RunsPage
+from services.change_report_generator import generate_change_report
 
 router = APIRouter(prefix="/runs", tags=["runs"])
+
+
+class ChangeReportRequest(BaseModel):
+    """Request model for change report generation."""
+
+    diffs: dict
+    findings: dict
+
+
+class ChangeReportResponse(BaseModel):
+    """Response model for change report generation."""
+
+    report_path: str
 
 
 @router.get("", response_model=RunsPage)
@@ -44,8 +59,6 @@ def create_run(payload: RunCreate, db: Session = Depends(get_db)):
     db.add(row)
     db.flush()
     return row
-<<<<<<< Updated upstream
-=======
 
 
 @router.get("/{run_id}/report")
@@ -120,4 +133,4 @@ def generate_run_report(
     )
 
     return ChangeReportResponse(report_path=report_path)
->>>>>>> Stashed changes
+
