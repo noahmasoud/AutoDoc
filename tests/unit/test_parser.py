@@ -105,8 +105,11 @@ class MyClass:
             assert result.ast_tree is not None
 
             # Verify class is in the AST
-            classes = [node for node in ast.walk(
-                result.ast_tree) if isinstance(node, ast.ClassDef)]
+            classes = [
+                node
+                for node in ast.walk(result.ast_tree)
+                if isinstance(node, ast.ClassDef)
+            ]
             assert len(classes) == 1
             assert classes[0].name == "MyClass"
         finally:
@@ -134,8 +137,11 @@ def process_command(command):
             assert result.ast_tree is not None
 
             # Verify match statement is in the AST
-            matches = [node for node in ast.walk(
-                result.ast_tree) if isinstance(node, ast.Match)]
+            matches = [
+                node
+                for node in ast.walk(result.ast_tree)
+                if isinstance(node, ast.Match)
+            ]
             assert len(matches) == 1
         finally:
             Path(temp_path).unlink(missing_ok=True)
@@ -451,8 +457,7 @@ class TestEdgeCases:
     def test_parse_very_large_file(self, parser):
         """Test parsing a large Python file"""
         # Generate a large but valid Python file
-        code = "# Large file\n" + \
-            "\n".join([f"x{i} = {i}" for i in range(1000)])
+        code = "# Large file\n" + "\n".join([f"x{i} = {i}" for i in range(1000)])
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
@@ -473,7 +478,9 @@ def greet():
     """Say hello in different languages"""
     return "Hello 👋 Bonjour 🇫🇷 こんにちは 🇯🇵"
 '''
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False, encoding="utf-8"
+        ) as f:
             f.write(code)
             temp_path = f.name
 
@@ -509,7 +516,8 @@ async def main():
 
             # Verify async functions are in the AST
             async_funcs = [
-                node for node in ast.walk(result.ast_tree)
+                node
+                for node in ast.walk(result.ast_tree)
                 if isinstance(node, ast.AsyncFunctionDef)
             ]
             assert len(async_funcs) == 2

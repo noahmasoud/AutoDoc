@@ -8,6 +8,7 @@ Tests cover:
 - Base class extraction
 - Docstring extraction
 """
+
 import ast
 
 import pytest
@@ -272,12 +273,10 @@ def public_func():
 
         assert len(result.functions) == 3
 
-        private1 = next(
-            f for f in result.functions if f.name == "_private_func")
+        private1 = next(f for f in result.functions if f.name == "_private_func")
         assert private1.is_public is False
 
-        private2 = next(
-            f for f in result.functions if f.name == "__very_private")
+        private2 = next(f for f in result.functions if f.name == "__very_private")
         assert private2.is_public is False
 
         public = next(f for f in result.functions if f.name == "public_func")

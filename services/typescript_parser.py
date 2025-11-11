@@ -50,11 +50,13 @@ class TypeScriptParser:
         """
         if parser_script is None:
             # Assume we're running from project root
-            parser_script = (
+            script_path = (
                 Path(__file__).parent.parent / "scripts" / "parse-typescript.js"
             )
+        else:
+            script_path = Path(parser_script)
 
-        self.parser_script = Path(parser_script)
+        self.parser_script = script_path
 
         if not self.parser_script.exists():
             raise FileNotFoundError(
@@ -223,7 +225,7 @@ class TypeScriptParser:
         Returns:
             Dictionary with extracted symbols by type
         """
-        symbols = {
+        symbols: dict[str, list[dict[str, Any]]] = {
             "classes": [],
             "functions": [],
             "interfaces": [],
@@ -235,6 +237,9 @@ class TypeScriptParser:
             return symbols
 
         for node in ast["body"]:
+            if not isinstance(node, dict):
+                continue
+
             if node.get("type") == "ClassDeclaration":
                 if node.get("id", {}).get("name"):
                     symbols["classes"].append(
@@ -353,11 +358,12 @@ class TypeScriptParser:
         declaration = node.get("declaration")
         specifiers = node.get("specifiers", [])
         source = node.get("source")
+        source_dict = source if isinstance(source, dict) else None
         node_type = node.get("type")
 
         is_default = node_type == "ExportDefaultDeclaration"
 
-        if declaration:
+        if isinstance(declaration, dict):
             export_entry = self._build_export_entry_from_declaration(
                 declaration,
                 is_default=is_default,
@@ -367,7 +373,15 @@ class TypeScriptParser:
                 exports.append(export_entry)
 
         for specifier in specifiers or []:
-            exported = specifier.get("exported", {}) or specifier.get("local", {})
+            if not isinstance(specifier, dict):
+                continue
+
+            exported = specifier.get("exported")
+            if not isinstance(exported, dict) or not exported.get("name"):
+                exported = specifier.get("local")
+            if not isinstance(exported, dict):
+                continue
+
             name = exported.get("name")
             if not name:
                 continue
@@ -378,10 +392,11 @@ class TypeScriptParser:
                 "isDefault": is_default
                 or (
                     specifier.get("exportKind") == "value"
+                    and isinstance(specifier.get("local"), dict)
                     and specifier.get("local", {}).get("name") == "default"
                 ),
                 "signature": {
-                    "source": source.get("value") if source else None,
+                    "source": source_dict.get("value") if source_dict else None,
                 },
             }
             self._apply_namespace_metadata(entry, namespace_stack)
@@ -394,13 +409,14 @@ class TypeScriptParser:
         exports: list[dict[str, Any]],
     ) -> None:
         source = node.get("source")
+        source_dict = source if isinstance(source, dict) else None
 
         entry: dict[str, Any] = {
             "symbol": "*",
             "type": "all",
             "isDefault": False,
             "signature": {
-                "source": source.get("value") if source else None,
+                "source": source_dict.get("value") if source_dict else None,
             },
         }
         self._apply_namespace_metadata(entry, namespace_stack)
@@ -412,7 +428,9 @@ class TypeScriptParser:
         is_default: bool = False,
     ) -> dict[str, Any] | None:
         decl_type = declaration.get("type")
-        identifier = declaration.get("id", {})
+        identifier = declaration.get("id")
+        if not isinstance(identifier, dict):
+            identifier = {}
         name = identifier.get("name")
 
         if not name:
@@ -431,7 +449,11 @@ class TypeScriptParser:
             "VariableDeclaration": "variable",
         }
 
-        export_type = export_type_map.get(decl_type, "unknown")
+        export_type = (
+            export_type_map.get(decl_type, "unknown")
+            if isinstance(decl_type, str)
+            else "unknown"
+        )
 
         entry: dict[str, Any] = {
             "symbol": name,
@@ -440,9 +462,9 @@ class TypeScriptParser:
         }
 
         # Include signature details for richer metadata if available
-        loc = declaration.get("loc", {})
-        start = loc.get("start", {})
-        if start:
+        loc = declaration.get("loc")
+        start = loc.get("start") if isinstance(loc, dict) else None
+        if isinstance(start, dict):
             entry["signature"] = {"line": start.get("line")}
 
         return entry

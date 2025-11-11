@@ -49,7 +49,9 @@ class PythonSymbolIngestor:
         if not parse_result.success or parse_result.ast_tree is None:
             return []
 
-        module_info = self._extractor.extract(parse_result.ast_tree, parse_result.file_path)
+        module_info = self._extractor.extract(
+            parse_result.ast_tree, parse_result.file_path
+        )
         self._delete_existing_symbols(run_id, module_info.file_path, db)
 
         symbol_entries = list(self._flatten_module(module_info))
@@ -78,10 +80,14 @@ class PythonSymbolIngestor:
         file_path: str,
         db: SQLASession,
     ) -> None:
-        existing_symbols = db.query(PythonSymbol).filter(
-            PythonSymbol.run_id == run_id,
-            PythonSymbol.file_path == file_path,
-        ).all()
+        existing_symbols = (
+            db.query(PythonSymbol)
+            .filter(
+                PythonSymbol.run_id == run_id,
+                PythonSymbol.file_path == file_path,
+            )
+            .all()
+        )
 
         if not existing_symbols:
             return
@@ -119,7 +125,9 @@ class PythonSymbolIngestor:
         for cls in module.classes:
             yield self._build_class_entry(module.file_path, module_path, cls)
             for method in cls.methods:
-                yield self._build_method_entry(module.file_path, module_path, cls, method)
+                yield self._build_method_entry(
+                    module.file_path, module_path, cls, method
+                )
 
     @staticmethod
     def _normalize_path(file_path: str) -> Path:
@@ -210,4 +218,3 @@ class PythonSymbolIngestor:
         if lineno:
             qualifier = f"{qualifier}@{lineno}"
         return qualifier
-

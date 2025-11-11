@@ -209,4 +209,3 @@ def parse_diff_endpoint(request: DiffRequest) -> DiffResponse:
         removed=result["removed"],
         modified=[ModifiedLine(**m) for m in result["modified"]],
     )
-

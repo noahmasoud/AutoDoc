@@ -16,6 +16,7 @@ class ParseResult:
         error: Error message if parsing failed
         error_line: Line number where error occurred (for syntax errors)
     """
+
     success: bool
     file_path: str
     ast_tree: ast.AST | None = None
@@ -202,7 +203,9 @@ class PythonParser:
 
 
 # Convenience function for simple use cases
-def parse_python_file(file_path: str, logger: logging.Logger | None = None) -> ParseResult:
+def parse_python_file(
+    file_path: str, logger: logging.Logger | None = None
+) -> ParseResult:
     """
     Convenience function to parse a Python file without creating a parser instance.
 

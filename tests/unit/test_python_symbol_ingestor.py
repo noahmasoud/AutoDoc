@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import textwrap
+from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy import create_engine, event, select
@@ -12,6 +13,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from db.models import PythonSymbol, Run
 from db.session import Base
 from services.python_symbol_ingestor import PythonSymbolIngestor
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 @pytest.fixture
@@ -31,7 +35,7 @@ def test_engine():
 
 
 @pytest.fixture
-def test_session(test_engine) -> Session:
+def test_session(test_engine) -> Generator[Session, None, None]:
     """Create a SQLAlchemy session bound to the test engine."""
     SessionLocal = sessionmaker(bind=test_engine)
     session = SessionLocal()
@@ -92,7 +96,9 @@ def test_ingest_persists_symbols_with_docstrings(
     ingestor.ingest_files(run.id, [sample_python_file], test_session)
 
     symbols = test_session.scalars(
-        select(PythonSymbol).where(PythonSymbol.run_id == run.id).order_by(PythonSymbol.id),
+        select(PythonSymbol)
+        .where(PythonSymbol.run_id == run.id)
+        .order_by(PythonSymbol.id),
     ).all()
 
     assert len(symbols) == 4  # module, class, method, function
@@ -131,5 +137,9 @@ def test_ingest_replaces_existing_symbols(
 
     assert len(initial_symbols) == len(refreshed_symbols) == 4
     # Ensure metadata refreshed by checking IDs reset starting from 1 after delete/add
-    assert {symbol.symbol_type for symbol in refreshed_symbols} == {"module", "class", "method", "function"}
-
+    assert {symbol.symbol_type for symbol in refreshed_symbols} == {
+        "module",
+        "class",
+        "method",
+        "function",
+    }

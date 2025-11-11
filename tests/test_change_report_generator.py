@@ -84,7 +84,9 @@ class TestChangeReportGenerator:
             # Verify it's a valid datetime object
             assert isinstance(parsed_timestamp, datetime)
         except (ValueError, AttributeError) as e:
-            pytest.fail(f"Timestamp is not in valid ISO format: {timestamp_str}. Error: {e}")
+            pytest.fail(
+                f"Timestamp is not in valid ISO format: {timestamp_str}. Error: {e}"
+            )
 
     @pytest.mark.unit
     def test_generate_change_report_creates_directory(self, tmp_path, monkeypatch):
@@ -107,7 +109,9 @@ class TestChangeReportGenerator:
         assert artifacts_dir.is_dir()
 
     @pytest.mark.unit
-    def test_generate_change_report_handles_existing_directory(self, tmp_path, monkeypatch):
+    def test_generate_change_report_handles_existing_directory(
+        self, tmp_path, monkeypatch
+    ):
         """Test that the function works when the directory already exists."""
         # Change to temporary directory
         monkeypatch.chdir(tmp_path)
@@ -229,7 +233,9 @@ class TestChangeReportEndpoint:
 
     @pytest.mark.unit
     @pytest.mark.api
-    def test_endpoint_returns_valid_json_path(self, client, sample_run, tmp_path, monkeypatch):
+    def test_endpoint_returns_valid_json_path(
+        self, client, sample_run, tmp_path, monkeypatch
+    ):
         """Test that the endpoint returns a valid JSON file path."""
         # Change to temporary directory
         monkeypatch.chdir(tmp_path)
@@ -258,7 +264,9 @@ class TestChangeReportEndpoint:
 
     @pytest.mark.unit
     @pytest.mark.api
-    def test_endpoint_returns_404_for_nonexistent_run(self, client, tmp_path, monkeypatch):
+    def test_endpoint_returns_404_for_nonexistent_run(
+        self, client, tmp_path, monkeypatch
+    ):
         """Test that the endpoint returns 404 for a non-existent run."""
         # Change to temporary directory
         monkeypatch.chdir(tmp_path)
@@ -275,4 +283,3 @@ class TestChangeReportEndpoint:
         )
 
         assert response.status_code == 404
-

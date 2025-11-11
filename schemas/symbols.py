@@ -23,5 +23,3 @@ class PythonSymbolList(BaseModel):
     """List wrapper for Python symbols."""
 
     items: list[PythonSymbolOut]
-
-

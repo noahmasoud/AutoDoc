@@ -14,6 +14,7 @@ class ParameterInfo:
         default: Default value as string, if any
         kind: Parameter kind (positional, keyword, etc.)
     """
+
     name: str
     annotation: str | None = None
     default: str | None = None
@@ -40,6 +41,7 @@ class FunctionInfo:
         docstring: Function docstring
         lineno: Line number where function is defined
     """
+
     name: str
     parameters: list[ParameterInfo] = field(default_factory=list)
     return_type: str | None = None
@@ -79,6 +81,7 @@ class ClassInfo:
         docstring: Class docstring
         lineno: Line number where class is defined
     """
+
     name: str
     base_classes: list[str] = field(default_factory=list)
     methods: list[FunctionInfo] = field(default_factory=list)
@@ -111,6 +114,7 @@ class ModuleInfo:
         classes: List of classes
         module_docstring: Module-level docstring
     """
+
     file_path: str
     functions: list[FunctionInfo] = field(default_factory=list)
     classes: list[ClassInfo] = field(default_factory=list)
@@ -159,14 +163,19 @@ class SymbolExtractor(ast.NodeVisitor):
         Returns:
             ModuleInfo containing all extracted symbols
         """
+        if not isinstance(tree, ast.Module):
+            raise TypeError("SymbolExtractor.extract expects an ast.Module instance")
+
+        module_tree = tree
+
         # Reset state for new extraction
         self.functions = []
         self.classes = []
         self.current_class = None
-        self.module_docstring = ast.get_docstring(tree)
+        self.module_docstring = ast.get_docstring(module_tree)
 
         # Visit all nodes in the tree
-        self.visit(tree)
+        self.visit(module_tree)
 
         return ModuleInfo(
             file_path=file_path,
@@ -288,22 +297,27 @@ class SymbolExtractor(ast.NodeVisitor):
             default_value = None
             if default_index >= 0:
                 default_value = self._extract_default_value(
-                    args.defaults[default_index])
+                    args.defaults[default_index]
+                )
 
-            parameters.append(ParameterInfo(
-                name=arg.arg,
-                annotation=self._extract_annotation(arg.annotation),
-                default=default_value,
-                kind="positional",
-            ))
+            parameters.append(
+                ParameterInfo(
+                    name=arg.arg,
+                    annotation=self._extract_annotation(arg.annotation),
+                    default=default_value,
+                    kind="positional",
+                )
+            )
 
         # *args parameter
         if args.vararg:
-            parameters.append(ParameterInfo(
-                name=args.vararg.arg,
-                annotation=self._extract_annotation(args.vararg.annotation),
-                kind="*args",
-            ))
+            parameters.append(
+                ParameterInfo(
+                    name=args.vararg.arg,
+                    annotation=self._extract_annotation(args.vararg.annotation),
+                    kind="*args",
+                )
+            )
 
         # Keyword-only arguments
         num_kw_defaults = len(args.kw_defaults)
@@ -312,23 +326,26 @@ class SymbolExtractor(ast.NodeVisitor):
         for i, arg in enumerate(args.kwonlyargs):
             default_value = None
             if i < num_kw_defaults and args.kw_defaults[i] is not None:
-                default_value = self._extract_default_value(
-                    args.kw_defaults[i])
+                default_value = self._extract_default_value(args.kw_defaults[i])
 
-            parameters.append(ParameterInfo(
-                name=arg.arg,
-                annotation=self._extract_annotation(arg.annotation),
-                default=default_value,
-                kind="keyword-only",
-            ))
+            parameters.append(
+                ParameterInfo(
+                    name=arg.arg,
+                    annotation=self._extract_annotation(arg.annotation),
+                    default=default_value,
+                    kind="keyword-only",
+                )
+            )
 
         # **kwargs parameter
         if args.kwarg:
-            parameters.append(ParameterInfo(
-                name=args.kwarg.arg,
-                annotation=self._extract_annotation(args.kwarg.annotation),
-                kind="**kwargs",
-            ))
+            parameters.append(
+                ParameterInfo(
+                    name=args.kwarg.arg,
+                    annotation=self._extract_annotation(args.kwarg.annotation),
+                    kind="**kwargs",
+                )
+            )
 
         return parameters
 
@@ -351,7 +368,7 @@ class SymbolExtractor(ast.NodeVisitor):
             # Fallback for complex annotations
             return ast.dump(annotation)
 
-    def _extract_default_value(self, default: ast.expr) -> str:
+    def _extract_default_value(self, default: ast.expr | None) -> str:
         """
         Extract default value as a string.
 
@@ -361,12 +378,18 @@ class SymbolExtractor(ast.NodeVisitor):
         Returns:
             Default value as string
         """
+        if default is None:
+            return "None"
+
         try:
             return ast.unparse(default)
         except Exception:
             return repr(default)
 
-    def _extract_decorators(self, node: ast.FunctionDef | ast.ClassDef) -> list[str]:
+    def _extract_decorators(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef,
+    ) -> list[str]:
         """
         Extract decorator names from a function or class.
 

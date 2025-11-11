@@ -63,4 +63,3 @@ def test_list_python_symbols_endpoint(client: TestClient):
         session.query(Run).delete()
         session.commit()
         session.close()
-

@@ -4,9 +4,16 @@ Database retention policy service.
 Per SRS 7.2: Keep last 100 runs in local DB. Cascade deletes dependent rows.
 """
 
+from __future__ import annotations
+
+from typing import Any, TYPE_CHECKING, cast
+
 from sqlalchemy import select, func, delete
-from sqlalchemy.orm import Session
 from db.models import Run
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import CursorResult
+    from sqlalchemy.orm import Session
 
 
 def cleanup_old_runs(session: Session, keep_count: int = 100) -> int:
@@ -57,9 +64,11 @@ def cleanup_old_runs(session: Session, keep_count: int = 100) -> int:
 
     # Delete runs older than the cutoff
     # CASCADE will automatically delete related Changes and Patches
-    delete_count = session.execute(
-        delete(Run).where(Run.id.in_(ids_to_delete)),
-    ).rowcount
+    result = cast(
+        "CursorResult[Any]",
+        session.execute(delete(Run).where(Run.id.in_(ids_to_delete))),
+    )
+    delete_count = result.rowcount or 0
 
     session.commit()
 

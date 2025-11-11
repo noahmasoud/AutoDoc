@@ -158,7 +158,10 @@ class TestDiffParserEndpoint:
         """Test endpoint with one changed line."""
         response = client.post(
             "/api/diff/parse",
-            json={"old_file": "line1\nline2\nline3", "new_file": "line1\nline2_modified\nline3"},
+            json={
+                "old_file": "line1\nline2\nline3",
+                "new_file": "line1\nline2_modified\nline3",
+            },
         )
 
         assert response.status_code == 200
@@ -198,4 +201,3 @@ class TestDiffParserEndpoint:
         assert data["added"] == []
         assert data["removed"] == []
         assert data["modified"] == []
-
