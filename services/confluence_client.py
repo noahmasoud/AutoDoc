@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Iterable
+import time
+from typing import Any, Iterable, Mapping
 
 import httpx
 
@@ -16,7 +17,7 @@ class ConfluenceError(Exception):
 
 
 class ConfluenceClient:
-    """Simple Confluence REST API client."""
+    """Confluence REST API client with retry-aware helpers."""
 
     def __init__(
         self,
@@ -26,10 +27,12 @@ class ConfluenceClient:
         *,
         api_prefix: str = "/wiki/rest/api",
         timeout: float = 30.0,
+        max_retries: int = 3,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._api_prefix = self._normalize_prefix(api_prefix)
+        self._max_retries = max(0, max_retries)
         self._client = httpx.Client(
             base_url=f"{self._base_url}{self._api_prefix}",
             auth=httpx.BasicAuth(username, token),
@@ -60,7 +63,10 @@ class ConfluenceClient:
         self.close()
 
     def get_page(
-        self, page_id: str | int, *, expand: Iterable[str] | None = None
+        self,
+        page_id: str | int,
+        *,
+        expand: Iterable[str] | None = None,
     ) -> dict[str, Any]:
         """Retrieve a Confluence page by ID."""
         params = {}
@@ -70,22 +76,88 @@ class ConfluenceClient:
 
     def search_pages(
         self,
-        query: str,
+        cql: str,
         *,
         limit: int = 25,
         start: int = 0,
         expand: Iterable[str] | None = None,
+        cql_context: Mapping[str, Any] | None = None,
+        include_archived: bool = False,
+        fetch_all: bool = True,
+        max_results: int | None = None,
     ) -> dict[str, Any]:
-        """Search for Confluence pages matching the provided query."""
-        params: dict[str, Any] = {
-            "title": query,
-            "limit": limit,
-            "start": start,
-            "type": "page",
+        """Search Confluence pages using the CQL API.
+
+        Args:
+            cql: Confluence Query Language expression.
+            limit: Page size for each API call (max 250).
+            start: Starting offset for results.
+            expand: Fields to expand in the response.
+            cql_context: Optional CQL context mapping.
+            include_archived: Whether to include archived spaces.
+            fetch_all: When True, automatically paginate through all results.
+            max_results: Optional cap on the number of results returned.
+
+        Returns:
+            When fetch_all is True, returns a dictionary containing the aggregated
+            results list, overall total (when provided by the API), and the next
+            start offset if more results are available. When fetch_all is False,
+            returns metadata for a single page of results with the same keys.
+        """
+
+        if limit <= 0:
+            raise ValueError("limit must be greater than zero")
+
+        def build_params(current_start: int) -> dict[str, Any]:
+            params: dict[str, Any] = {
+                "cql": cql,
+                "limit": limit,
+                "start": current_start,
+                "includeArchivedSpaces": str(include_archived).lower(),
+            }
+            if expand:
+                params["expand"] = ",".join(expand)
+            if cql_context:
+                params["cqlcontext"] = cql_context
+            return params
+
+        if not fetch_all:
+            page = self._request("GET", "/content/search", params=build_params(start))
+            return self._build_page_metadata(page, limit)
+
+        aggregated_results: list[dict[str, Any]] = []
+        total = None
+        next_start = start
+
+        while True:
+            page = self._request(
+                "GET", "/content/search", params=build_params(next_start)
+            )
+            page_meta = self._build_page_metadata(page, limit)
+
+            aggregated_results.extend(page_meta["results"])
+            total = page_meta["total"] if page_meta["total"] is not None else total
+
+            if max_results is not None and len(aggregated_results) >= max_results:
+                aggregated_results = aggregated_results[:max_results]
+                next_start = page_meta["next_start"]
+                break
+
+            if page_meta["is_last_page"]:
+                next_start = None
+                break
+
+            if page_meta["next_start"] is None:
+                next_start = None
+                break
+
+            next_start = page_meta["next_start"]
+
+        return {
+            "results": aggregated_results,
+            "total": total if total is not None else len(aggregated_results),
+            "next_start": next_start,
         }
-        if expand:
-            params["expand"] = ",".join(expand)
-        return self._request("GET", "/content", params=params)
 
     def create_page(
         self,
@@ -136,28 +208,73 @@ class ConfluenceClient:
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        try:
-            response = self._client.request(method, url, params=params, json=json)
-            response.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            logger.error(
-                "Confluence API error",
-                extra={
-                    "status_code": exc.response.status_code,
-                    "method": method,
-                    "url": str(exc.request.url),
-                    "body": json,
-                },
-            )
-            raise ConfluenceError(
-                f"Confluence API returned {exc.response.status_code}: {exc.response.text}",
-            ) from exc
-        except httpx.HTTPError as exc:
-            logger.error(
-                "Confluence API request failed",
-                extra={"method": method, "url": url, "error": str(exc)},
-            )
-            raise ConfluenceError(str(exc)) from exc
+        attempt = 0
+        while True:
+            try:
+                response = self._client.request(method, url, params=params, json=json)
+                response.raise_for_status()
+                break
+            except httpx.HTTPStatusError as exc:
+                status_code = exc.response.status_code
+                if status_code == 429 and attempt < self._max_retries:
+                    wait_time = self._retry_after_seconds(exc.response)
+                    logger.warning(
+                        "Confluence API rate limited request; retrying",
+                        extra={
+                            "method": method,
+                            "url": str(exc.request.url),
+                            "retry_after": wait_time,
+                            "attempt": attempt + 1,
+                        },
+                    )
+                    time.sleep(wait_time)
+                    attempt += 1
+                    continue
+
+                if status_code >= 500 and attempt < self._max_retries:
+                    wait_time = self._backoff_seconds(attempt)
+                    logger.warning(
+                        "Confluence API temporary error; retrying",
+                        extra={
+                            "method": method,
+                            "url": str(exc.request.url),
+                            "status_code": status_code,
+                            "retry_in": wait_time,
+                            "attempt": attempt + 1,
+                        },
+                    )
+                    time.sleep(wait_time)
+                    attempt += 1
+                    continue
+
+                logger.error(
+                    "Confluence API error",
+                    extra={
+                        "status_code": status_code,
+                        "method": method,
+                        "url": str(exc.request.url),
+                        "body": json,
+                    },
+                )
+                raise ConfluenceError(
+                    f"Confluence API returned {status_code}: {exc.response.text}",
+                ) from exc
+            except httpx.HTTPError as exc:
+                if attempt < self._max_retries:
+                    wait_time = self._backoff_seconds(attempt)
+                    logger.warning(
+                        "Confluence API request failed; retrying",
+                        extra={"method": method, "url": url, "error": str(exc)},
+                    )
+                    time.sleep(wait_time)
+                    attempt += 1
+                    continue
+
+                logger.error(
+                    "Confluence API request failed",
+                    extra={"method": method, "url": url, "error": str(exc)},
+                )
+                raise ConfluenceError(str(exc)) from exc
 
         try:
             return response.json()
@@ -165,3 +282,42 @@ class ConfluenceClient:
             raise ConfluenceError(
                 "Failed to decode Confluence response as JSON"
             ) from exc
+
+    @staticmethod
+    def _retry_after_seconds(response: httpx.Response) -> float:
+        header = response.headers.get("Retry-After")
+        if not header:
+            return 1.0
+        try:
+            return max(0.0, float(header))
+        except ValueError:
+            return 1.0
+
+    @staticmethod
+    def _backoff_seconds(attempt: int) -> float:
+        return min(2**attempt, 30.0)
+
+    @staticmethod
+    def _build_page_metadata(page: dict[str, Any], limit: int) -> dict[str, Any]:
+        results = page.get("results", []) or []
+        size = page.get("size", len(results))
+        current_limit = page.get("limit", limit)
+        start = page.get("start", 0)
+        links = page.get("_links") or {}
+        has_next_link = bool(links.get("next"))
+        is_last_page = not has_next_link
+        if not results or size < current_limit:
+            is_last_page = True
+        next_start = None if is_last_page else start + current_limit
+        total = page.get("totalSize")
+
+        return {
+            "results": results,
+            "start": start,
+            "limit": current_limit,
+            "size": size,
+            "total": total,
+            "next_start": next_start,
+            "is_last_page": is_last_page,
+            "links": links,
+        }
