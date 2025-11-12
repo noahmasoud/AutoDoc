@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from services.page_rollback import PageRollbackRegistry
+from services.page_rollback import PageRollbackRegistry, PageSnapshot
 
 
 class ConfluenceClientProtocol(Protocol):
@@ -41,20 +41,58 @@ class ConfluencePublisher:
             raise ValueError(msg)
 
         current_state = self._client.get_page(page_id)
+        snapshot: PageSnapshot | None = None
         if current_state is not None:
             content = current_state.get("content", "")
             version = current_state.get("version")
-            self._rollback_registry.record_snapshot(
+            snapshot = self._rollback_registry.record_snapshot(
                 page_id=page_id,
                 content=str(content),
                 version=version if isinstance(version, int) else None,
             )
+        try:
+            return self._client.update_page(payload)
+        except Exception as exc:
+            if snapshot is None:
+                raise
 
-        return self._client.update_page(payload)
+            restore_error: Exception | None = None
+            try:
+                self._restore_snapshot(snapshot)
+            except Exception as rollback_exc:
+                restore_error = rollback_exc
+
+            raise RollbackError(
+                page_id=page_id,
+                original_error=exc,
+                restore_error=restore_error,
+            ) from exc
 
     def create_page(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Create a Confluence page. The resulting snapshot is tracked for rollback."""
-        result = self._client.create_page(payload)
+        try:
+            result = self._client.create_page(payload)
+        except Exception as exc:
+            page_id = payload.get("id")
+            if not page_id:
+                raise
+
+            snapshot = self._rollback_registry.latest_snapshot(page_id)
+            if snapshot is None:
+                raise
+
+            restore_error: Exception | None = None
+            try:
+                self._restore_snapshot(snapshot)
+            except Exception as rollback_exc:
+                restore_error = rollback_exc
+
+            raise RollbackError(
+                page_id=page_id,
+                original_error=exc,
+                restore_error=restore_error,
+            ) from exc
+
         page_id = result.get("id")
         if page_id:
             content = payload.get("content", "")
@@ -64,3 +102,34 @@ class ConfluencePublisher:
                 version=result.get("version"),
             )
         return result
+
+    def _restore_snapshot(self, snapshot: PageSnapshot) -> dict[str, Any]:
+        """Restore the provided snapshot using the client update operation."""
+        restore_payload: dict[str, Any] = {
+            "id": snapshot.page_id,
+            "content": snapshot.content,
+        }
+        if snapshot.version is not None:
+            restore_payload["version"] = snapshot.version
+        return self._client.update_page(restore_payload)
+
+
+class RollbackError(RuntimeError):
+    """Raised when a page operation fails and rollback is attempted."""
+
+    def __init__(
+        self,
+        *,
+        page_id: str,
+        original_error: Exception,
+        restore_error: Exception | None,
+    ) -> None:
+        details = (
+            f"Rollback attempted for page '{page_id}' after failure: {original_error!s}"
+        )
+        if restore_error is not None:
+            details = f"{details}. Rollback attempt also failed: {restore_error!s}"
+        super().__init__(details)
+        self.page_id = page_id
+        self.original_error = original_error
+        self.restore_error = restore_error

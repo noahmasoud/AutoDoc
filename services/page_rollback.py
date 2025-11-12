@@ -49,3 +49,10 @@ class PageRollbackRegistry:
     def get_history(self, page_id: str) -> deque[PageSnapshot]:
         """Return the stored history for the provided page."""
         return self._history.get(page_id, deque())
+
+    def latest_snapshot(self, page_id: str) -> PageSnapshot | None:
+        """Return the most recently captured snapshot for a page."""
+        history = self._history.get(page_id)
+        if not history:
+            return None
+        return history[-1]
