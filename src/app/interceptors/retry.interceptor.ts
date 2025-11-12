@@ -33,7 +33,7 @@ export class RetryInterceptor implements HttpInterceptor {
     req: HttpRequest<unknown>,
     next: HttpHandler,
   ): Observable<HttpEvent<unknown>> {
-    return this.executeWithRetry(() => next.handle(req));
+    return this.executeWithRetry(req, () => next.handle(req));
   }
 
   /**
@@ -41,6 +41,7 @@ export class RetryInterceptor implements HttpInterceptor {
    * incrementally across implementation steps.
    */
   private executeWithRetry(
+    request: HttpRequest<unknown>,
     requestFn: () => Observable<HttpEvent<unknown>>,
   ): Observable<HttpEvent<unknown>> {
     return defer(requestFn).pipe(
@@ -48,9 +49,12 @@ export class RetryInterceptor implements HttpInterceptor {
         errors.pipe(
           mergeMap((error, attempt) => {
             if (!this.isRetryableError(error) || attempt >= this.maxRetries) {
+              this.logFinalFailure(error, request, attempt);
               return throwError(() => error);
             }
-            return timer(this.getRetryDelay(attempt));
+            const delayMs = this.getRetryDelay(attempt);
+            this.logRetryAttempt(error, request, attempt, delayMs);
+            return timer(delayMs);
           }),
         ),
       ),
@@ -87,6 +91,60 @@ export class RetryInterceptor implements HttpInterceptor {
     const jitter = Math.random() * jitterRange;
 
     return cappedDelay + jitter;
+  }
+
+  private logRetryAttempt(
+    error: unknown,
+    request: HttpRequest<unknown>,
+    attempt: number,
+    delayMs: number,
+  ): void {
+    const retryNumber = attempt + 1;
+    const message = [
+      `[HTTP Retry] Attempt ${retryNumber}/${this.maxRetries} scheduled`,
+      `method=${request.method}`,
+      `url=${request.urlWithParams}`,
+      `delay=${Math.round(delayMs)}ms`,
+      `reason=${this.describeError(error)}`,
+    ].join(' | ');
+
+    console.warn(message);
+  }
+
+  private logFinalFailure(
+    error: unknown,
+    request: HttpRequest<unknown>,
+    attempt: number,
+  ): void {
+    const attempts = Math.min(attempt, this.maxRetries) + 1;
+    const message = [
+      '[HTTP Retry] Giving up after attempts',
+      attempts.toString(),
+      `method=${request.method}`,
+      `url=${request.urlWithParams}`,
+      `reason=${this.describeError(error)}`,
+    ].join(' | ');
+
+    console.error(message);
+  }
+
+  private describeError(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 0) {
+        return 'Network error or timeout';
+      }
+      return `HTTP ${error.status} ${error.statusText || ''}`.trim();
+    }
+
+    if (error instanceof TimeoutError) {
+      return 'Request timed out';
+    }
+
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return 'Unknown error';
   }
 }
 
