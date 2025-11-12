@@ -452,7 +452,7 @@ def _symbol_to_signature_dict(symbol: SymbolData) -> dict[str, Any]:
     Returns:
         Dictionary representation of the signature
     """
-    signature_dict = {
+    signature_dict: dict[str, Any] = {
         "name": symbol.symbol_name,
         "symbol_type": symbol.symbol_type,
         "docstring": symbol.docstring,
@@ -492,7 +492,7 @@ def get_breaking_changes_summary(changes: list[ChangeDetected]) -> dict[str, Any
     breaking_changes = [c for c in changes if c.is_breaking]
 
     # Categorize breaking changes by reason
-    categories = {}
+    categories: dict[str, list[ChangeDetected]] = {}
     for change in breaking_changes:
         reason = change.breaking_reason or "unknown"
         # Extract base category (before any colon)
