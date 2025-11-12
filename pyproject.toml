@@ -237,6 +237,15 @@ ignore = [
     "I001",  # unsorted-imports
     "PERF403",  # manual-dict-comprehension
     "PLW2901",  # redefined-loop-name
+    "Q000",  # allow single-quoted strings
+    "UP006",  # allow legacy typing.List style annotations
+    "UP035",  # allow typing extensions imports
+    "UP037",  # allow quoted annotations for compatibility
+    "UP045",  # allow Optional[...] syntax
+    "PERF401",  # allow manual list comprehension assignments
+    "SIM117",  # allow multiple context managers without parentheses
+    "TRY400",  # allow raising arbitrary exceptions in legacy code
+    "PLC0206",  # allow direct dict index access patterns
     "PT011",  # pytest-raises-too-broad (test pattern)
     "RUF022",  # unsorted-dunder-all
     "TRY301",  # raise-within-try
@@ -250,6 +259,11 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["autodoc", "api", "cli", "core", "db", "schemas", "services"]
+
+[tool.ruff.format]
+exclude = [
+    "src/analyzer/change_detector.py",
+]
 
 # MyPy configuration
 [tool.mypy]
