@@ -16,6 +16,12 @@ from services.change_persister import (
     get_changes_by_type,
     save_changes_to_database,
 )
+from services.confluence_client import (
+    ConfluenceClient,
+    ConfluenceConfigurationError,
+    ConfluenceError,
+    ConfluenceHTTPError,
+)
 from services.typescript_analyzer import TypeScriptAnalyzer
 from services.typescript_parser import (
     NodeJSNotFoundError,
@@ -28,6 +34,10 @@ __all__ = [
     "ArtifactLoadError",
     "ChangeDetectionError",
     "ChangePersistenceError",
+    "ConfluenceClient",
+    "ConfluenceConfigurationError",
+    "ConfluenceError",
+    "ConfluenceHTTPError",
     "NodeJSNotFoundError",
     "ParseError",
     "TypeScriptAnalyzer",
