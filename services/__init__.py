@@ -16,6 +16,7 @@ from services.change_persister import (
     get_changes_by_type,
     save_changes_to_database,
 )
+from services.rule_engine import RuleDefinition, RuleEngine, SelectorKind
 from services.typescript_analyzer import TypeScriptAnalyzer
 from services.typescript_parser import (
     NodeJSNotFoundError,
@@ -30,6 +31,9 @@ __all__ = [
     "ChangePersistenceError",
     "NodeJSNotFoundError",
     "ParseError",
+    "RuleDefinition",
+    "RuleEngine",
+    "SelectorKind",
     "TypeScriptAnalyzer",
     "TypeScriptParser",
     "TypeScriptParserError",
