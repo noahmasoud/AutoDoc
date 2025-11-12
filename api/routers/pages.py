@@ -11,6 +11,7 @@ from schemas.pages import (
     PageSearchResponse,
     PageSearchResult,
     PageUpdate,
+    PageDeleteResponse,
 )
 from services.confluence_client import (
     ConfluenceClient,
@@ -156,3 +157,17 @@ def update_page(
     except ConfluenceError as exc:
         raise translate_confluence_exception(exc) from exc
     return PageOut(**page)
+
+
+@router.delete(
+    "/{page_id}",
+    response_model=PageDeleteResponse,
+    summary="Delete a Confluence page",
+)
+def delete_page(page_id: str, client: ConfluenceDep) -> PageDeleteResponse:
+    """Delete (or trash) a Confluence page by ID."""
+    try:
+        client.delete_page(page_id)
+    except ConfluenceError as exc:
+        raise translate_confluence_exception(exc) from exc
+    return PageDeleteResponse(page_id=page_id, status="deleted")

@@ -169,13 +169,14 @@ class ConfluenceClient:
             raise ConfluenceError(
                 f"Page {page_id} does not expose a version number.",
             )
+        next_version = current_version + 1
 
         payload: dict[str, Any] = {
             "id": page_id,
             "type": "page",
             "title": title,
             "version": {
-                "number": current_version,
+                "number": next_version,
                 "minorEdit": minor_edit,
             },
             "body": {
@@ -191,6 +192,14 @@ class ConfluenceClient:
         response = self._client.put(f"/content/{page_id}", json=payload)
         self._raise_for_status(response, f"Failed to update page {page_id}")
         return self._normalise_page_payload(response.json())
+
+    def delete_page(self, page_id: str, *, status: str = "current") -> None:
+        """Delete (trash/remove) a Confluence page by ID."""
+        response = self._client.delete(
+            f"/content/{page_id}",
+            params={"status": status},
+        )
+        self._raise_for_status(response, f"Failed to delete page {page_id}")
 
     #
     # Housekeeping

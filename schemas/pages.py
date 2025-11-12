@@ -100,3 +100,10 @@ class PageSearchResponse(BaseModel):
     items: list[PageSearchResult]
     limit: int
     start: int
+
+
+class PageDeleteResponse(BaseModel):
+    """Response payload for page deletion."""
+
+    page_id: str
+    status: str = "deleted"
