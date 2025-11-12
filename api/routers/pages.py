@@ -16,6 +16,7 @@ from schemas.pages import (
 from services.confluence_client import (
     ConfluenceClient,
     ConfluenceConfigurationError,
+    ConfluenceConflictError,
     ConfluenceError,
     ConfluenceHTTPError,
 )
@@ -55,6 +56,11 @@ def translate_confluence_exception(exc: ConfluenceError) -> HTTPException:
         return HTTPException(
             status_code=502,
             detail=str(exc),
+        )
+    if isinstance(exc, ConfluenceConflictError):
+        return HTTPException(
+            status_code=409,
+            detail="Confluence page has been modified by another user. Please retry.",
         )
 
     return HTTPException(

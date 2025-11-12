@@ -28,6 +28,10 @@ class ConfluenceHTTPError(ConfluenceError):
     """Raised when Confluence returns a non-successful HTTP status."""
 
 
+class ConfluenceConflictError(ConfluenceError):
+    """Raised when Confluence detects an edit conflict (HTTP 409)."""
+
+
 @dataclass(slots=True)
 class ConfluenceLink:
     """Hypermedia link returned by the Confluence API."""
@@ -157,41 +161,54 @@ class ConfluenceClient:
         representation: Literal["storage", "wiki"] = "storage",
         minor_edit: bool = False,
         message: str | None = None,
+        max_retries: int | None = None,
     ) -> dict[str, Any]:
         """Update an existing Confluence page.
 
         The method fetches the current page version before issuing the update
         request to ensure optimistic concurrency expectations can be enforced.
         """
-        current = self.get_page(page_id, expand=("version",))
-        current_version = current.get("version", {}).get("number")
-        if current_version is None:
-            raise ConfluenceError(
-                f"Page {page_id} does not expose a version number.",
-            )
-        next_version = current_version + 1
+        retry_budget = (
+            max_retries
+            if max_retries is not None
+            else max(self._settings.max_retries, 0)
+        )
 
-        payload: dict[str, Any] = {
-            "id": page_id,
-            "type": "page",
-            "title": title,
-            "version": {
-                "number": next_version,
-                "minorEdit": minor_edit,
-            },
-            "body": {
-                "storage": {
-                    "value": body,
-                    "representation": representation,
+        while True:
+            current = self.get_page(page_id, expand=("version",))
+            current_version = current.get("version", {}).get("number")
+            if current_version is None:
+                raise ConfluenceError(
+                    f"Page {page_id} does not expose a version number.",
+                )
+            next_version = current_version + 1
+
+            payload: dict[str, Any] = {
+                "id": page_id,
+                "type": "page",
+                "title": title,
+                "version": {
+                    "number": next_version,
+                    "minorEdit": minor_edit,
                 },
-            },
-        }
-        if message:
-            payload["version"]["message"] = message
+                "body": {
+                    "storage": {
+                        "value": body,
+                        "representation": representation,
+                    },
+                },
+            }
+            if message:
+                payload["version"]["message"] = message
 
-        response = self._client.put(f"/content/{page_id}", json=payload)
-        self._raise_for_status(response, f"Failed to update page {page_id}")
-        return self._normalise_page_payload(response.json())
+            try:
+                response = self._client.put(f"/content/{page_id}", json=payload)
+                self._raise_for_status(response, f"Failed to update page {page_id}")
+                return self._normalise_page_payload(response.json())
+            except ConfluenceConflictError:
+                if retry_budget <= 0:
+                    raise
+                retry_budget -= 1
 
     def delete_page(self, page_id: str, *, status: str = "current") -> None:
         """Delete (trash/remove) a Confluence page by ID."""
@@ -216,6 +233,10 @@ class ConfluenceClient:
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 409:
+                raise ConfluenceConflictError(
+                    f"Confluence conflict: {exc.response.status_code} {exc.response.text}",
+                ) from exc
             raise ConfluenceHTTPError(
                 f"{detail}: {exc.response.status_code} {exc.response.text}",
             ) from exc
@@ -237,6 +258,8 @@ class ConfluenceClient:
         body_data = payload.get("body", {}) or {}
         storage = body_data.get("storage", {}) or {}
 
+        links = self._extract_links(payload)
+
         normalized: dict[str, Any] = {
             "id": payload.get("id"),
             "title": payload.get("title"),
@@ -256,7 +279,10 @@ class ConfluenceClient:
                     "representation": storage.get("representation"),
                 },
             },
-            "links": self._extract_links(payload).__dict__,
+            "links": {
+                "web_ui": links.web_ui,
+                "api": links.api,
+            },
         }
 
         metadata = payload.get("metadata")

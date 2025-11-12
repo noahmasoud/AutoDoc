@@ -19,6 +19,7 @@ from services.change_persister import (
 from services.confluence_client import (
     ConfluenceClient,
     ConfluenceConfigurationError,
+    ConfluenceConflictError,
     ConfluenceError,
     ConfluenceHTTPError,
 )
@@ -36,6 +37,7 @@ __all__ = [
     "ChangePersistenceError",
     "ConfluenceClient",
     "ConfluenceConfigurationError",
+    "ConfluenceConflictError",
     "ConfluenceError",
     "ConfluenceHTTPError",
     "NodeJSNotFoundError",
