@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Protocol
 
 from services.page_rollback import PageRollbackRegistry, PageSnapshot
+
+
+logger = logging.getLogger(__name__)
 
 
 class ConfluenceClientProtocol(Protocol):
@@ -50,17 +54,46 @@ class ConfluencePublisher:
                 content=str(content),
                 version=version if isinstance(version, int) else None,
             )
+            logger.debug(
+                "Recorded rollback snapshot for page '%s' (version=%s)",
+                page_id,
+                snapshot.version,
+            )
         try:
             return self._client.update_page(payload)
         except Exception as exc:
+            logger.exception(
+                "Page update failed for '%s'; attempting rollback",
+                page_id,
+            )
+
+            snapshot = snapshot or self._rollback_registry.latest_snapshot(page_id)
             if snapshot is None:
+                logger.exception(
+                    "Rollback skipped for page '%s'; no snapshot available",
+                    page_id,
+                )
                 raise
 
             restore_error: Exception | None = None
             try:
+                logger.warning(
+                    "Restoring page '%s' to captured version %s",
+                    page_id,
+                    snapshot.version,
+                )
                 self._restore_snapshot(snapshot)
             except Exception as rollback_exc:
                 restore_error = rollback_exc
+                logger.exception(
+                    "Rollback attempt failed for page '%s'",
+                    page_id,
+                )
+            else:
+                logger.info(
+                    "Rollback completed successfully for page '%s'",
+                    page_id,
+                )
 
             raise RollbackError(
                 page_id=page_id,
@@ -73,19 +106,43 @@ class ConfluencePublisher:
         try:
             result = self._client.create_page(payload)
         except Exception as exc:
+            logger.exception(
+                "Page creation failed; attempting rollback using latest snapshot",
+            )
             page_id = payload.get("id")
             if not page_id:
+                logger.exception(
+                    "Rollback skipped for create attempt; payload missing 'id'",
+                )
                 raise
 
             snapshot = self._rollback_registry.latest_snapshot(page_id)
             if snapshot is None:
+                logger.exception(
+                    "Rollback skipped for page '%s'; no snapshot available",
+                    page_id,
+                )
                 raise
 
             restore_error: Exception | None = None
             try:
+                logger.warning(
+                    "Restoring page '%s' to captured version %s",
+                    page_id,
+                    snapshot.version,
+                )
                 self._restore_snapshot(snapshot)
             except Exception as rollback_exc:
                 restore_error = rollback_exc
+                logger.exception(
+                    "Rollback attempt failed for page '%s'",
+                    page_id,
+                )
+            else:
+                logger.info(
+                    "Rollback completed successfully for page '%s'",
+                    page_id,
+                )
 
             raise RollbackError(
                 page_id=page_id,
@@ -100,6 +157,11 @@ class ConfluencePublisher:
                 page_id=page_id,
                 content=str(content),
                 version=result.get("version"),
+            )
+            logger.debug(
+                "Recorded snapshot for newly created page '%s' (version=%s)",
+                page_id,
+                result.get("version"),
             )
         return result
 

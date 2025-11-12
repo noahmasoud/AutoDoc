@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, UTC
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -42,8 +46,24 @@ class PageRollbackRegistry:
             version=version,
             captured_at=captured_at or datetime.now(UTC),
         )
-        history = self._history.setdefault(page_id, deque(maxlen=self._max_history))
+        history = self._history.setdefault(
+            page_id,
+            deque(maxlen=self._max_history),
+        )
+        previous_length = len(history)
         history.append(snapshot)
+        logger.debug(
+            "Recorded snapshot for page '%s' (version=%s); history depth=%s",
+            page_id,
+            snapshot.version,
+            len(history),
+        )
+        if history.maxlen is not None and previous_length == history.maxlen:
+            logger.info(
+                "Rollback history for page '%s' trimmed to last %s entries",
+                page_id,
+                self._max_history,
+            )
         return snapshot
 
     def get_history(self, page_id: str) -> deque[PageSnapshot]:
