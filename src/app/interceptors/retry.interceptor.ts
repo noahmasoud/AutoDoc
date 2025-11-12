@@ -26,6 +26,8 @@ import { retryWhen } from 'rxjs';
 export class RetryInterceptor implements HttpInterceptor {
   private readonly maxRetries = 3;
   private readonly baseDelayMs = 500;
+  private readonly maxDelayMs = 8000;
+  private readonly jitterRatio = 0.5;
 
   intercept(
     req: HttpRequest<unknown>,
@@ -79,7 +81,12 @@ export class RetryInterceptor implements HttpInterceptor {
   }
 
   private getRetryDelay(attempt: number): number {
-    return this.baseDelayMs;
+    const exponentialDelay = this.baseDelayMs * 2 ** attempt;
+    const cappedDelay = Math.min(exponentialDelay, this.maxDelayMs);
+    const jitterRange = cappedDelay * this.jitterRatio;
+    const jitter = Math.random() * jitterRange;
+
+    return cappedDelay + jitter;
   }
 }
 
