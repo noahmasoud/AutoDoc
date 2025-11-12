@@ -161,6 +161,7 @@ deploy = "mkdocs gh-deploy"
 [tool.ruff]
 target-version = "py311"
 line-length = 88
+exclude = []
 
 [tool.ruff.lint]
 select = [
@@ -211,6 +212,7 @@ ignore = [
     "E501",  # line too long, handled by black
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
+    "Q000",  # bad quotes in legacy modules
     "W191",  # indentation contains tabs
     "D100",  # Missing docstring in public module
     "D101",  # Missing docstring in public class
@@ -242,6 +244,16 @@ ignore = [
     "TRY301",  # raise-within-try
     "TRY401",  # verbose-log-message
     "COM812",  # trailing comma rule conflicts with formatter
+    "UP006",  # non-pep585 annotations in legacy modules
+    "UP035",  # deprecated typing imports in generated code
+    "UP045",  # non-PEP604 optional annotations in legacy modules
+    "PLC0206",  # dict-index-missing-items in legacy modules
+    "PERF401",  # manual-list-comprehension in legacy modules
+]
+
+[tool.ruff.format]
+exclude = [
+    "src/analyzer/change_detector.py",
 ]
 
 [tool.ruff.lint.per-file-ignores]
