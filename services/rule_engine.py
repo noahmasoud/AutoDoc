@@ -39,7 +39,10 @@ class RuleEngine:
 
     def __init__(self, rules: Iterable[RuleDefinition] | None = None) -> None:
         self._rules: list[
-            tuple[RuleDefinition, tuple[SelectorKind, str | re.Pattern[str]]]
+            tuple[
+                RuleDefinition,
+                list[tuple[SelectorKind, str | re.Pattern[str]]],
+            ]
         ] = []
         if rules:
             self.load_rules(rules)
@@ -52,12 +55,13 @@ class RuleEngine:
 
     def add_rule(self, rule: RuleDefinition) -> None:
         """Add a rule to the engine with a compiled selector."""
-        compiled = self._compile_selector(rule.selector)
+        selectors = self._split_selector(rule.selector)
+        compiled = [self._compile_selector(item) for item in selectors]
         self._rules.append((rule, compiled))
 
     def match(self, target: str) -> Sequence[RuleDefinition]:
         """
-        Return every rule whose selector matches the provided target.
+        Return every rule whose selectors match the provided target.
 
         Parameters
         ----------
@@ -67,15 +71,20 @@ class RuleEngine:
         """
         normalized = self._normalize_target(target)
         matches: list[RuleDefinition] = []
-        for rule, (selector_kind, compiled) in self._rules:
-            if selector_kind is SelectorKind.GLOB:
-                pattern = compiled if isinstance(compiled, str) else compiled.pattern
-                if fnmatch.fnmatch(normalized, pattern):
-                    matches.append(rule)
-            else:
-                assert isinstance(compiled, re.Pattern)
-                if compiled.search(normalized):
-                    matches.append(rule)
+        for rule, compiled_selectors in self._rules:
+            for selector_kind, compiled in compiled_selectors:
+                if selector_kind is SelectorKind.GLOB:
+                    pattern = (
+                        compiled if isinstance(compiled, str) else compiled.pattern
+                    )
+                    if fnmatch.fnmatch(normalized, pattern):
+                        matches.append(rule)
+                        break
+                else:
+                    assert isinstance(compiled, re.Pattern)
+                    if compiled.search(normalized):
+                        matches.append(rule)
+                        break
         return matches
 
     @staticmethod
@@ -85,6 +94,26 @@ class RuleEngine:
             return ""
         # PurePosixPath will convert Windows backslashes to forward slashes.
         return str(PurePosixPath(target))
+
+    @staticmethod
+    def _split_selector(selector: str) -> list[str]:
+        """
+        Split a selector string into individual selector expressions.
+
+        Selectors can be separated by newlines or semicolons. Whitespace around
+        each selector is ignored. If no separators are found the original
+        selector is returned.
+        """
+        if not selector:
+            return []
+        normalized = selector.replace("\r\n", "\n").replace("\r", "\n")
+        parts: list[str] = []
+        for chunk in normalized.split("\n"):
+            for piece in chunk.split(";"):
+                text = piece.strip()
+                if text:
+                    parts.append(text)
+        return parts or [selector]
 
     @staticmethod
     def _compile_selector(selector: str) -> tuple[SelectorKind, str | re.Pattern[str]]:
