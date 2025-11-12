@@ -63,8 +63,8 @@ class DatabaseSettings(BaseSettings):
     @property
     def is_postgresql(self) -> bool:
         """Check if using PostgreSQL database."""
-        return self.url.startswith("postgresql://") or self.url.startswith(
-            "postgres://",
+        return self.url.startswith(
+            ("postgresql://", "postgres://"),
         )
 
 

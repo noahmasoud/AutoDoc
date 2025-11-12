@@ -1,0 +1,84 @@
+{
+  "run_id": "run_001",
+  "timestamp": "2025-11-01T18:00:00Z",
+  "diff_summary": {
+    "backend/diff_parser.py": {
+      "added": [
+        "def new_func(): pass",
+        "    \"\"\"New function for testing.\"\"\"",
+        "    return True"
+      ],
+      "removed": [
+        "def old_func(): pass"
+      ],
+      "modified": [
+        {
+          "line": 15,
+          "old": "def parse_diff(old_code: str, new_code: str):",
+          "new": "def parse_diff(old_code: str, new_code: str) -> dict:"
+        }
+      ]
+    },
+    "api/routers/runs.py": {
+      "added": [
+        "@router.get(\"/{run_id}/report\")",
+        "def get_run_report(run_id: int, db: Session = Depends(get_db)):"
+      ],
+      "removed": [],
+      "modified": [
+        {
+          "line": 45,
+          "old": "    return row",
+          "new": "    db.commit()\n    return row"
+        }
+      ]
+    },
+    "services/change_report_generator.py": {
+      "added": [
+        "import json",
+        "from pathlib import Path"
+      ],
+      "removed": [],
+      "modified": []
+    }
+  },
+  "analyzer_findings": {
+    "backend/diff_parser.py": [
+      {
+        "type": "added",
+        "symbol": "new_func",
+        "severity": "info",
+        "message": "Added new function for testing purposes"
+      },
+      {
+        "type": "removed",
+        "symbol": "old_func",
+        "severity": "warning",
+        "message": "Removed deprecated function"
+      },
+      {
+        "type": "modified",
+        "symbol": "parse_diff",
+        "severity": "info",
+        "message": "Added return type annotation"
+      }
+    ],
+    "api/routers/runs.py": [
+      {
+        "type": "added",
+        "symbol": "get_run_report",
+        "severity": "info",
+        "message": "Added GET endpoint for retrieving run reports"
+      }
+    ],
+    "services/change_report_generator.py": [
+      {
+        "type": "added",
+        "symbol": null,
+        "severity": "info",
+        "message": "Added imports for JSON and Path handling"
+      }
+    ]
+  }
+}
+

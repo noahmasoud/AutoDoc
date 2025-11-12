@@ -51,8 +51,9 @@ RUN groupadd --gid 1000 autodoc && \
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files first for better layer caching
+# Copy dependency files and code first for better layer caching
 COPY pyproject.toml ./
+COPY . .
 
 # Install Python dependencies
 RUN pip install --upgrade pip setuptools wheel && \
@@ -151,23 +152,19 @@ RUN groupadd --gid 1000 autodoc && \
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml ./
+# Copy application code first (needed for version detection)
+COPY --chown=autodoc:autodoc . .
 
 # Install Python dependencies including development tools
 RUN pip install --upgrade pip setuptools wheel && \
     pip install -e ".[dev,test,lint,docs]"
 
-# Copy application code
-COPY --chown=autodoc:autodoc . .
-
-# Copy entrypoint script
-COPY --chown=autodoc:autodoc scripts/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Make entrypoint available at root for compose health checks
+RUN install -m 755 /app/scripts/entrypoint.sh /entrypoint.sh
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs /app/data /app/temp /app/htmlcov && \
-    chown -R autodoc:autodoc /app /entrypoint.sh
+    chown -R autodoc:autodoc /app
 
 # Switch to non-root user
 USER autodoc
@@ -216,27 +213,20 @@ RUN groupadd --gid 1000 autodoc && \
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml ./
+# Copy application code first (needed for version detection)
+COPY --chown=autodoc:autodoc . .
 
 # Install Python dependencies including test and lint tools
 RUN pip install --upgrade pip setuptools wheel && \
     pip install -e ".[dev,test,lint]"
 
-# Copy application code
-COPY --chown=autodoc:autodoc . .
-
-# Copy entrypoint script
-COPY --chown=autodoc:autodoc scripts/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-# Copy CI scripts
-COPY --chown=autodoc:autodoc scripts/ci-test.sh scripts/ci-lint.sh scripts/run-tests.sh ./
-RUN chmod +x scripts/ci-test.sh scripts/ci-lint.sh scripts/run-tests.sh
+# Make entrypoint available at root and ensure CI scripts are executable
+RUN install -m 755 /app/scripts/entrypoint.sh /entrypoint.sh && \
+    chmod +x scripts/ci-test.sh scripts/ci-lint.sh scripts/run-tests.sh
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs /app/data /app/temp /app/htmlcov && \
-    chown -R autodoc:autodoc /app /entrypoint.sh
+    chown -R autodoc:autodoc /app
 
 # Switch to non-root user
 USER autodoc
