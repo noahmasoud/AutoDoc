@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
-from typing import Any, Iterable, Mapping
+from typing import Any, ClassVar, Iterable, Mapping
 
 import httpx
 
@@ -18,6 +19,17 @@ class ConfluenceError(Exception):
 
 class ConfluenceClient:
     """Confluence REST API client with retry-aware helpers."""
+
+    BODY_REPRESENTATION_KEYS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "storage",
+            "atlas_doc_format",
+            "editor",
+            "view",
+            "export_view",
+            "wiki",
+        },
+    )
 
     def __init__(
         self,
@@ -164,15 +176,23 @@ class ConfluenceClient:
         *,
         title: str,
         space_key: str,
-        body: dict[str, Any],
+        body: str | dict[str, Any],
         parent_id: str | int | None = None,
+        representation: str = "storage",
+        content_type: str | None = None,
+        body_key: str | None = None,
     ) -> dict[str, Any]:
         """Create a Confluence page."""
         payload: dict[str, Any] = {
             "type": "page",
             "title": title,
             "space": {"key": space_key},
-            "body": body,
+            "body": self.build_body(
+                body,
+                representation=representation,
+                content_type=content_type,
+                body_key=body_key,
+            ),
         }
         if parent_id is not None:
             payload["ancestors"] = [{"id": str(parent_id)}]
@@ -183,16 +203,24 @@ class ConfluenceClient:
         page_id: str | int,
         *,
         title: str,
-        body: dict[str, Any],
+        body: str | dict[str, Any],
         version: int,
         minor_edit: bool = False,
+        representation: str = "storage",
+        content_type: str | None = None,
+        body_key: str | None = None,
     ) -> dict[str, Any]:
         """Update an existing Confluence page."""
         payload: dict[str, Any] = {
             "id": str(page_id),
             "type": "page",
             "title": title,
-            "body": body,
+            "body": self.build_body(
+                body,
+                representation=representation,
+                content_type=content_type,
+                body_key=body_key,
+            ),
             "version": {
                 "number": version,
                 "minorEdit": minor_edit,
@@ -321,3 +349,38 @@ class ConfluenceClient:
             "is_last_page": is_last_page,
             "links": links,
         }
+
+    @staticmethod
+    def build_body(
+        body: str | dict[str, Any],
+        *,
+        representation: str = "storage",
+        content_type: str | None = None,
+        body_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Return a Confluence body payload for the given content."""
+        if isinstance(body, Mapping) and ConfluenceClient._looks_like_body(body):
+            return dict(body)
+
+        resolved_key = body_key or representation
+
+        if representation == "atlas_doc_format" and not isinstance(body, str):
+            value = json.dumps(body)
+        elif isinstance(body, str):
+            value = body
+        else:
+            value = json.dumps(body)
+
+        payload: dict[str, Any] = {
+            "value": value,
+            "representation": representation,
+        }
+
+        if content_type:
+            payload["contentType"] = content_type
+
+        return {resolved_key: payload}
+
+    @staticmethod
+    def _looks_like_body(body: Mapping[str, Any]) -> bool:
+        return any(key in ConfluenceClient.BODY_REPRESENTATION_KEYS for key in body)

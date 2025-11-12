@@ -179,14 +179,16 @@ def test_limit_validation() -> None:
             client.search_pages("type=page", limit=0)
 
 
-def test_create_page_sends_payload() -> None:
+def test_create_page_with_html_body() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
         assert request.url.path == "/rest/api/content"
         payload = assert_json_request(request)
         assert payload["title"] == "New Page"
         assert payload["space"]["key"] == "DOCS"
-        assert payload["body"] == {"storage": {"value": "<p>Body</p>"}}
+        storage_section = payload["body"]["storage"]
+        assert storage_section["value"] == "<p>Body</p>"
+        assert storage_section["representation"] == "storage"
         assert payload["ancestors"] == [{"id": "100"}]
         return httpx.Response(200, json={"id": "123", "title": "New Page"})
 
@@ -194,7 +196,7 @@ def test_create_page_sends_payload() -> None:
         response = client.create_page(
             title="New Page",
             space_key="DOCS",
-            body={"storage": {"value": "<p>Body</p>"}},
+            body="<p>Body</p>",
             parent_id="100",
         )
 
@@ -207,7 +209,9 @@ def test_update_page_sends_payload() -> None:
         assert request.url.path == "/rest/api/content/123"
         payload = assert_json_request(request)
         assert payload["title"] == "Updated"
-        assert payload["body"] == {"storage": {"value": "<p>Updated</p>"}}
+        storage_section = payload["body"]["storage"]
+        assert storage_section["value"] == "<p>Updated</p>"
+        assert storage_section["representation"] == "storage"
         assert payload["version"]["number"] == 2
         assert payload["version"]["minorEdit"] is True
         return httpx.Response(200, json={"id": "123", "title": "Updated"})
@@ -216,12 +220,59 @@ def test_update_page_sends_payload() -> None:
         response = client.update_page(
             "123",
             title="Updated",
-            body={"storage": {"value": "<p>Updated</p>"}},
+            body={"storage": {"value": "<p>Updated</p>", "representation": "storage"}},
             version=2,
             minor_edit=True,
         )
 
     assert response["id"] == "123"
+
+
+def test_update_page_serializes_atlas_doc_format() -> None:
+    atlas_doc = {"type": "doc", "content": [{"type": "paragraph", "content": []}]}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = assert_json_request(request)
+        doc_section = payload["body"]["atlas_doc_format"]
+        assert doc_section["representation"] == "atlas_doc_format"
+        assert doc_section["contentType"] == "application/json"
+        assert json.loads(doc_section["value"]) == atlas_doc
+        return httpx.Response(200, json={"id": "123"})
+
+    with create_client(handler) as client:
+        response = client.update_page(
+            "123",
+            title="Updated",
+            body=atlas_doc,
+            version=3,
+            representation="atlas_doc_format",
+            content_type="application/json",
+        )
+
+    assert response["id"] == "123"
+
+
+def test_create_page_accepts_preformatted_body() -> None:
+    preformatted_body = {
+        "storage": {
+            "value": "<p>Body</p>",
+            "representation": "storage",
+        },
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = assert_json_request(request)
+        assert payload["body"] == preformatted_body
+        return httpx.Response(200, json={"id": "456", "title": "Preformatted"})
+
+    with create_client(handler) as client:
+        result = client.create_page(
+            title="Formatted",
+            space_key="DOCS",
+            body=preformatted_body,
+        )
+
+    assert result["id"] == "456"
 
 
 def test_http_error_raises_confluence_error() -> None:
