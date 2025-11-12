@@ -247,6 +247,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "tests/**/*.py" = ["S101", "PLR2004", "S106", "S108", "TID252", "SLF001"]
+"src/analyzer/change_detector.py" = ["Q000", "UP006", "UP035", "UP045", "PLC0206", "PERF401"]
+
+[tool.ruff.format]
+exclude = ["src/analyzer/change_detector.py"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["autodoc", "api", "cli", "core", "db", "schemas", "services"]
