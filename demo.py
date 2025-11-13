@@ -70,12 +70,13 @@ class Calculator:
     new_code = '''
 # Advanced calculator with extended operations.
 # Supports basic arithmetic and memory storage.
-# Perform a calculation based on operation type.
-# Returns: Result of the calculation
-# Raises: ValueError: If operation is not supported
 
 class Calculator:
-
+    # Perform a calculation based on operation type.
+    # Args: operation, x, y
+    # Returns: Result of the calculation
+    # Raises: ValueError if operation is not supported
+    
     def calculate(self, operation: str, x: float, y: float) -> float:
         if operation == 'add':
             return x + y
@@ -86,12 +87,16 @@ class Calculator:
         else:
             raise ValueError(f"Unknown operation: {operation}")
 
+    # Multiply two numbers with type hints
     def multiply(self, x: float, y: float) -> float:
         return x * y
 
+    # Raise a number to a power
+    # Args: base, exponent
+    # Returns: Result of base raised to exponent
     def power(self, base: float, exponent: float) -> float:
         return base ** exponent
-    '''
+'''
     print(new_code)
 
     input("\nPress Enter to analyze changes...")
@@ -145,19 +150,69 @@ class Calculator:
     section("Stage 3: Docstring Extraction - Human-Readable Content")
 
     new_class = new_module.classes[0]
-    print("This is what makes documentation human-readable:")
 
-    print("\n--- Class Docstring ---")
-    print(f'"""{new_class.docstring}"""')
+    if not new_class.docstring and not any(m.docstring for m in new_class.methods):
+        print("""
+IMPORTANT NOTE: This version uses comments (#) instead of docstrings.
 
-    print("\n--- Method Docstring Example ---")
-    for m in new_class.methods:
-        if m.docstring:
-            print(f"\nMethod: {m.name}")
-            print(f'"""{m.docstring}"""')
+Key Difference:
+  Comments (starting with #):
+    • Stripped by Python's AST parser during lexical analysis
+    • Not accessible programmatically
+    • Cannot be extracted for documentation
+    • Used for developer notes in source code
+
+  Docstrings (triple quotes):
+    • Captured by ast.get_docstring()
+    • Accessible at runtime via __doc__ attribute
+    • Extracted for auto-documentation
+    • Used for API documentation
+
+Our Extractor Capability:
+  ✓ DOES extract docstrings when present (SCRUM-29 complete)
+  ✓ Handles Google, NumPy, and reStructuredText formats
+  ✓ Preserves formatting and structure
+  ✗ CANNOT extract comments (by design of Python's AST)
+
+Example of what we WOULD extract if docstrings existed:
+  \"\"\"
+  Advanced calculator with extended operations.
+  
+  Supports basic arithmetic and memory storage.
+  \"\"\"
+
+Why This Matters:
+  • Without docstrings: We detect WHAT changed (structure)
+  • With docstrings: We detect WHAT changed + capture WHY/HOW (content)
+  • Backend uses docstrings to generate rich documentation
+  • LLMs use docstrings to create helpful migration guides
+
+Best Practice:
+  Developers should use docstrings (not comments) for API documentation.
+  Our system incentivizes good documentation practices.
+""")
+    else:
+        print("This is what makes documentation human-readable:")
+
+        print("\n--- Class Docstring ---")
+        if new_class.docstring:
+            print(f'"""{new_class.docstring}"""')
+        else:
+            print("(No docstring found)")
+
+        print("\n--- Method Docstring Examples ---")
+        found_any = False
+        for m in new_class.methods:
+            if m.docstring:
+                found_any = True
+                print(f"\nMethod: {m.name}")
+                print(f'"""{m.docstring}"""')
+
+        if not found_any:
+            print("(No method docstrings found)")
 
     print("\nWhy? Docstrings become the content for documentation pages")
-    print("     They give context to LLMs for better doc generation")
+    print("     When present, they give context to LLMs for better doc generation")
 
     input("\nPress Enter to detect changes...")
 
@@ -175,16 +230,28 @@ Summary:
   • Breaking Changes: {'YES' if report.has_breaking_changes else 'NO'}
     """)
 
+    if report.added:
+        print("Added Symbols:")
+        for change in report.added:
+            print(f"  + {change.symbol_name} ({change.symbol_type.value})")
+
+    if report.removed:
+        print("\nRemoved Symbols (BREAKING):")
+        for change in report.removed:
+            print(f"  - {change.symbol_name} ({change.symbol_type.value})")
+
     if report.modified:
-        print("Detected Changes:")
+        print("\nModified Symbols:")
         for change in report.modified:
             print(f"\n  {change.symbol_name} ({change.symbol_type.value}):")
             print(f"    Breaking: {'YES' if change.is_breaking else 'NO'}")
-            if change.is_breaking:
+            if change.is_breaking and change.breaking_reasons:
+                print("    Reasons:")
                 for reason in change.breaking_reasons:
                     print(f"      • {reason}")
 
     print("\nWhy? Breaking changes need migration guides for users")
+    print("     Change detection works with or without docstrings")
 
     input("\nPress Enter to see final output...")
 
@@ -207,7 +274,7 @@ Summary:
         ],
         "modified": [
             {"symbol": "multiply", "type": "method", "breaking": False,
-                "reasons": ["Type hints added", "Docstring updated"]}
+                "reasons": ["Type hints added"]}
         ],
         "summary": {
             "total_changes": 5,
@@ -221,10 +288,14 @@ Summary:
     print(json.dumps(simulated_output, indent=2))
 
     print("\nThis enables:")
-    print("    Backend generates Confluence documentation")
-    print("    LLM creates migration guides from docstrings")
+    print("    Backend to ingest our JSON with structure information")
+    print("    Detection of breaking changes (works without docstrings)")
     print("    UI shows breaking changes to developers")
     print("    Automated documentation updates on every commit")
+    print("\nWith docstrings, would also enable:")
+    print("    Rich documentation content extraction")
+    print("    LLM-generated migration guides with context")
+    print("    Comprehensive API documentation with examples")
 
     # Sprint Summary
     section("Sprint 1 Complete")
@@ -232,11 +303,15 @@ Summary:
     print("""
 What We Delivered:
     Analysis Engine (Parser + Extractor + Detector)
-    Docstring Extraction (Human-readable content)
     Breaking Change Detection (Smart comparison logic)
     JSON Output (Ready for backend integration)
-    96.7% Test Coverage (30/31 tests passing)
     Dockerized & CI/CD Ready Through GitHub Actions
+
+Key Capabilities:
+      Works with or without docstrings
+      Detects structural changes (parameters, types, methods)
+      Flags breaking vs non-breaking changes
+      Extracts docstrings when present for rich documentation
 
 Next Steps (Sprint 2+):
   > Backend generates Confluence docs from JSON
