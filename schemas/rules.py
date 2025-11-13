@@ -1,11 +1,13 @@
-from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class RuleBase(BaseModel):
     name: str
-    pattern: str
-    is_active: bool = True
+    selector: str
+    space_key: str
+    page_id: str
+    template_id: int | None = None
+    auto_approve: bool = False
 
 
 class RuleCreate(RuleBase):
@@ -14,13 +16,13 @@ class RuleCreate(RuleBase):
 
 class RuleUpdate(BaseModel):
     name: str | None = None
-    pattern: str | None = None
-    is_active: bool | None = None
+    selector: str | None = None
+    space_key: str | None = None
+    page_id: str | None = None
+    template_id: int | None = None
+    auto_approve: bool | None = None
 
 
 class RuleOut(RuleBase):
     id: int
-    created_at: datetime
-    updated_at: datetime
-
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
