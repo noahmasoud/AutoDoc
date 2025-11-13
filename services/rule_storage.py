@@ -21,9 +21,18 @@ class RuleStorageError(Exception):
 class RuleNotFoundError(RuleStorageError):
     """Raised when a rule is not found."""
 
+    def __init__(self, rule_id: int) -> None:
+        self.rule_id = rule_id
+        super().__init__(f"Rule {rule_id} not found")
+
 
 class RuleConflictError(RuleStorageError):
     """Raised when a rule violates a uniqueness constraint."""
+
+    def __init__(self, field: str, value: str) -> None:
+        self.field = field
+        self.value = value
+        super().__init__(f"Rule with {field} '{value}' already exists")
 
 
 def list_rules(session: Session) -> list[Rule]:
@@ -35,7 +44,7 @@ def get_rule(session: Session, rule_id: int) -> Rule:
     """Fetch a single rule or raise if it does not exist."""
     rule = session.get(Rule, rule_id)
     if rule is None:
-        raise RuleNotFoundError(f"Rule {rule_id} not found")
+        raise RuleNotFoundError(rule_id)
     return rule
 
 
@@ -47,7 +56,10 @@ def create_rule(session: Session, payload: RuleCreate) -> Rule:
         session.flush()
     except IntegrityError as exc:  # pragma: no cover - exercised in API layer
         session.rollback()
-        raise RuleConflictError("Rule name must be unique") from exc
+        message = str(exc.orig) if exc.orig else ""
+        if "rules.name" in message:
+            raise RuleConflictError("name", payload.name) from exc
+        raise
     session.refresh(rule)
     return rule
 
@@ -65,7 +77,11 @@ def update_rule(
         session.flush()
     except IntegrityError as exc:  # pragma: no cover - exercised in API layer
         session.rollback()
-        raise RuleConflictError("Rule name must be unique") from exc
+        message = str(exc.orig) if exc.orig else ""
+        if "rules.name" in message:
+            updated_name = payload.model_dump(exclude_unset=True).get("name", rule.name)
+            raise RuleConflictError("name", updated_name) from exc
+        raise
     session.refresh(rule)
     return rule
 
