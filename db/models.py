@@ -232,3 +232,28 @@ class Patch(Base):
             name="check_patch_status",
         ),
     )
+
+
+class Connection(Base):
+    """
+    Connection entity: stores Confluence connection configuration.
+
+    Per FR-28 and NFR-9: Token is encrypted at rest and never logged.
+    Only one connection is allowed per system.
+    """
+
+    __tablename__ = "connections"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    confluence_base_url: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    space_key: Mapped[str] = mapped_column(Text, nullable=False)
+    # Encrypted token - never store plaintext (NFR-9)
+    encrypted_token: Mapped[str] = mapped_column(Text, nullable=False)
+    # Metadata
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
