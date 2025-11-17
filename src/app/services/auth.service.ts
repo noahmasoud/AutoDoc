@@ -88,21 +88,14 @@ export class AuthService {
       return;
     }
 
-    // Verify token with backend (silently fail if backend unavailable)
+    // Verify token with backend (if it fails, token is removed so UI resets gracefully)
     this.http.get(this.USERINFO_URL).subscribe({
       next: () => {
         this.authStatusSubject.next(true);
       },
       error: (error) => {
-        // Token invalid or backend unavailable, clear it
-        // Only clear token on 401 (unauthorized), not on connection errors
-        if (error.status === 401 || error.status === 403) {
-          localStorage.removeItem(this.TOKEN_KEY);
-          this.authStatusSubject.next(false);
-        } else {
-          // Backend might be down, keep token but mark as unverified
-          this.authStatusSubject.next(false);
-        }
+        localStorage.removeItem(this.TOKEN_KEY);
+        this.authStatusSubject.next(false);
       }
     });
   }

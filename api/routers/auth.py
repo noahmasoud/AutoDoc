@@ -148,6 +148,27 @@ def login_endpoint(request: LoginRequest):
     )
 
 
+@router.get("", response_model=UserInfo)
+def get_current_user(username: str = Depends(verify_token)):
+    """
+    Get current user information (protected endpoint).
+
+    Alias of /api/login/userinfo to support legacy clients that call GET /api/login
+    for token validation.
+    """
+    user = DEV_USERS.get(username)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    return UserInfo(
+        username=user["username"],
+        email=user["email"]
+    )
+
+
 @router.get("/userinfo", response_model=UserInfo)
 def get_user_info(username: str = Depends(verify_token)):
     """
