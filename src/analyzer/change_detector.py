@@ -104,6 +104,7 @@ class FunctionChangeDetector:
     ) -> Optional[SymbolChange]:
         breaking_reasons = []
         details: Dict[str, Any] = {}
+
         old_params = {p.name: p for p in old_func.parameters}
         new_params = {p.name: p for p in new_func.parameters}
 
@@ -130,6 +131,8 @@ class FunctionChangeDetector:
                     breaking_reasons.append(
                         f"Parameter '{name}' type changed: {old_type} -> {new_type}"
                     )
+
+        # Detect return type changes
         if (
             old_func.return_type
             and new_func.return_type
@@ -138,6 +141,7 @@ class FunctionChangeDetector:
             breaking_reasons.append(
                 f"Return type changed: {old_func.return_type} -> {new_func.return_type}"
             )
+
         # Detect async changes
         if old_func.is_async != new_func.is_async:
             breaking_reasons.append(
@@ -152,8 +156,10 @@ class FunctionChangeDetector:
             details["docstring_changed"] = True
         if old_func.decorators != new_func.decorators:
             details["decorators_changed"] = True
+
         if not breaking_reasons and not details:
             return None
+
         return SymbolChange(
             change_type=ChangeType.MODIFIED,
             symbol_type=SymbolType.METHOD
@@ -202,6 +208,8 @@ class ClassChangeDetector:
     ) -> Optional[SymbolChange]:
         breaking_reasons = []
         details: Dict[str, Any] = {}
+
+        # Base class changes
         if set(old_class.base_classes) != set(new_class.base_classes):
             breaking_reasons.append("Base classes changed")
             details["base_classes"] = {
@@ -217,6 +225,7 @@ class ClassChangeDetector:
             if name not in new_methods and method.is_public:
                 breaking_reasons.append(f"Public method '{name}' removed")
                 method_changes.append(("removed", name))
+
         for name in old_methods:
             if name in new_methods:
                 change = self.func_detector.compare(
@@ -227,12 +236,16 @@ class ClassChangeDetector:
                         [f"Method '{name}': {r}" for r in change.breaking_reasons]
                     )
                     method_changes.append(("modified", name))
+
         if method_changes:
             details["method_changes"] = method_changes
+
         if old_class.docstring != new_class.docstring:
             details["docstring_changed"] = True
+
         if not breaking_reasons and not details:
             return None
+
         return SymbolChange(
             change_type=ChangeType.MODIFIED,
             symbol_type=SymbolType.CLASS,
