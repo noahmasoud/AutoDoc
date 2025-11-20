@@ -96,7 +96,6 @@ class ModuleInfo:
 
 
 class SymbolExtractor(ast.NodeVisitor):
-
     def __init__(self):
         self.functions: list[FunctionInfo] = []
         self.classes: list[ClassInfo] = []
@@ -106,8 +105,7 @@ class SymbolExtractor(ast.NodeVisitor):
     def extract(self, tree: ast.AST, file_path: str) -> ModuleInfo:
         # extract all symbols from an AST
         if not isinstance(tree, ast.Module):
-            raise TypeError(
-                "SymbolExtractor.extract expects an ast.Module instance")
+            raise TypeError("SymbolExtractor.extract expects an ast.Module instance")
 
         module_tree = tree
 
@@ -130,7 +128,6 @@ class SymbolExtractor(ast.NodeVisitor):
     # vistit a function definition node.
     # extract function name, parameters, return type, decorators, and docstring.
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-
         func_info = self._extract_function_info(node, is_async=False)
 
         if self.current_class:
@@ -173,7 +170,9 @@ class SymbolExtractor(ast.NodeVisitor):
         self.classes.append(class_info)
 
     # Extract detailed information from a function node.
-    def _extract_function_info(self, node: ast.FunctionDef | ast.AsyncFunctionDef, is_async: bool,) -> FunctionInfo:
+    def _extract_function_info(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef, is_async: bool
+    ) -> FunctionInfo:
         return FunctionInfo(
             name=node.name,
             parameters=self._extract_parameters(node.args),
@@ -219,8 +218,7 @@ class SymbolExtractor(ast.NodeVisitor):
             parameters.append(
                 ParameterInfo(
                     name=args.vararg.arg,
-                    annotation=self._extract_annotation(
-                        args.vararg.annotation),
+                    annotation=self._extract_annotation(args.vararg.annotation),
                     kind="*args",
                 )
             )
@@ -231,8 +229,7 @@ class SymbolExtractor(ast.NodeVisitor):
         for i, arg in enumerate(args.kwonlyargs):
             default_value = None
             if i < num_kw_defaults and args.kw_defaults[i] is not None:
-                default_value = self._extract_default_value(
-                    args.kw_defaults[i])
+                default_value = self._extract_default_value(args.kw_defaults[i])
 
             parameters.append(
                 ParameterInfo(

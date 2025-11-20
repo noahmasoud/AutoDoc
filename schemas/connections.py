@@ -1,7 +1,7 @@
 """Pydantic schemas for Confluence connections."""
 
 from datetime import datetime
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class ConnectionBase(BaseModel):
@@ -30,7 +30,9 @@ class ConnectionUpdate(BaseModel):
     """Schema for updating a connection (all fields optional)."""
 
     confluence_base_url: str | None = Field(None, description="Confluence base URL")
-    space_key: str | None = Field(None, min_length=1, description="Confluence space key")
+    space_key: str | None = Field(
+        None, min_length=1, description="Confluence space key"
+    )
     api_token: str | None = Field(
         None, min_length=1, description="API token (only sent if updating)"
     )
@@ -76,4 +78,3 @@ class ConnectionTestResponse(BaseModel):
 
     success: bool
     message: str
-
