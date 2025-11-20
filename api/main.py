@@ -4,7 +4,7 @@ from core.config import settings
 from core.logging import CorrelationIdMiddleware
 from core.errors import install_handlers
 from db.session import engine, Base
-from api.routers import health, runs, rules, templates, patches, diff_parser
+from api.routers import health, runs, rules, templates, patches, diff_parser, pages, connections, auth
 
 
 def create_app() -> FastAPI:
@@ -41,8 +41,13 @@ def create_app() -> FastAPI:
     app.include_router(rules.router, prefix=api_prefix)
     app.include_router(templates.router, prefix=api_prefix)
     app.include_router(patches.router, prefix=api_prefix)
+    app.include_router(pages.router, prefix=api_prefix)
     # Register diff parser at /api/diff (without v1 prefix as per FR-3/FR-24)
     app.include_router(diff_parser.router, prefix="/api")
+    # Register connections at /api/connections (without v1 prefix as per requirements)
+    app.include_router(connections.router, prefix="/api")
+    # Register auth at /api/login (without v1 prefix for consistency with frontend)
+    app.include_router(auth.router, prefix="/api")
 
     return app
 

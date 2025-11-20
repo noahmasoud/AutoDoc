@@ -1,0 +1,68 @@
+<nav class="navbar">
+  <div class="navbar-container">
+    <!-- Brand/Logo -->
+    <div class="navbar-brand">
+      <a routerLink="/dashboard" class="brand-link">AutoDoc</a>
+    </div>
+
+    <!-- Navigation Links -->
+    <div class="navbar-menu" [class.menu-open]="menuOpen">
+      <a 
+        routerLink="/dashboard" 
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{exact: true}"
+        class="nav-link"
+        (click)="menuOpen = false"
+      >
+        Dashboard
+      </a>
+      <a 
+        routerLink="/connections" 
+        routerLinkActive="active"
+        class="nav-link"
+        (click)="menuOpen = false"
+      >
+        Connections
+      </a>
+      <a 
+        routerLink="/rules" 
+        routerLinkActive="active"
+        class="nav-link"
+        (click)="menuOpen = false"
+      >
+        Rules
+      </a>
+      <a 
+        routerLink="/templates" 
+        routerLinkActive="active"
+        class="nav-link"
+        (click)="menuOpen = false"
+      >
+        Templates
+      </a>
+    </div>
+
+    <!-- User Actions -->
+    <div class="navbar-actions">
+      <button 
+        *ngIf="isAuthenticated"
+        (click)="logout()" 
+        class="btn-logout"
+      >
+        Logout
+      </button>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button 
+      class="menu-toggle"
+      (click)="menuOpen = !menuOpen"
+      [attr.aria-label]="menuOpen ? 'Close menu' : 'Open menu'"
+    >
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  </div>
+</nav>
+

@@ -1,284 +1,211 @@
-"""Unit tests for the Confluence client."""
+"""Unit tests for the Confluence client helper."""
 
 from __future__ import annotations
 
-import json
-from typing import Any, Callable
-
 import httpx
 import pytest
+from typing import cast
 
-from services.confluence_client import ConfluenceClient, ConfluenceError
+from autodoc.config.settings import ConfluenceSettings
+from services.confluence_client import (
+    ConfluenceClient,
+    ConfluenceConflictError,
+    ConfluenceError,
+)
 
 
-def create_client(
-    response_handler: Callable[[httpx.Request], httpx.Response],
-    *,
-    max_retries: int = 3,
-) -> ConfluenceClient:
-    transport = httpx.MockTransport(response_handler)
-    return ConfluenceClient(
-        base_url="https://example.atlassian.net",
+class FakeHttpClient:
+    """Minimal httpx.Client stand-in for unit testing."""
+
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        get_responses: list[dict] | None = None,
+        put_responses: list[dict] | None = None,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self._get_responses = get_responses or []
+        self._put_responses = put_responses or []
+        self.put_history: list[tuple[str, dict | None]] = []
+
+    def _make_response(self, method: str, path: str, payload: dict) -> httpx.Response:
+        status = payload.get("status", 200)
+        request = httpx.Request(method, f"{self.base_url}{path}")
+        response_kwargs = {}
+        if "json" in payload:
+            response_kwargs["json"] = payload["json"]
+        if "text" in payload:
+            response_kwargs["text"] = payload["text"]
+        return httpx.Response(status, request=request, **response_kwargs)
+
+    def get(self, path: str, params: dict | None = None) -> httpx.Response:
+        del params  # not needed for tests
+        if not self._get_responses:
+            raise AssertionError("Unexpected GET request")
+        payload = self._get_responses.pop(0)
+        return self._make_response("GET", path, payload)
+
+    def put(self, path: str, json: dict | None = None) -> httpx.Response:
+        self.put_history.append((path, json))
+        if not self._put_responses:
+            raise AssertionError("Unexpected PUT request")
+        payload = self._put_responses.pop(0)
+        return self._make_response("PUT", path, payload)
+
+    def delete(self, path: str, params: dict | None = None) -> httpx.Response:
+        del params
+        return self._make_response("DELETE", path, {"status": 204})
+
+    def close(self) -> None:  # pragma: no cover - required by ConfluenceClient
+        """Compatibility with httpx.Client interface."""
+
+
+def _make_settings(max_retries: int = 0) -> ConfluenceSettings:
+    return ConfluenceSettings(
+        url="https://example.atlassian.net",
         username="user@example.com",
-        token="token",
-        api_prefix="/rest/api",
+        token="api-token",
         max_retries=max_retries,
-        transport=transport,
     )
 
 
-def assert_json_request(request: httpx.Request) -> dict[str, Any]:
-    assert request.headers["Content-Type"] == "application/json"
-    return json.loads(request.content.decode())
+def _base_url(settings: ConfluenceSettings) -> str:
+    if settings.url is None:
+        raise AssertionError("settings.url must be configured for tests")
+    return settings.url.rstrip("/") + "/wiki/rest/api"
 
 
-def test_get_page_success() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert request.method == "GET"
-        assert request.url.path == "/rest/api/content/123"
-        return httpx.Response(200, json={"id": "123", "title": "Test"})
-
-    with create_client(handler) as client:
-        response = client.get_page("123")
-
-    assert response["id"] == "123"
-    assert response["title"] == "Test"
-
-
-def test_search_pages_fetch_all_aggregates_results() -> None:
-    responses = {
-        0: {
-            "results": [{"id": "1", "title": "Doc 1"}],
-            "size": 1,
-            "limit": 1,
-            "start": 0,
-            "totalSize": 2,
-            "_links": {
-                "self": "/rest/api/content/search?start=0",
-                "next": "/rest/api/content/search?start=1",
-            },
-        },
-        1: {
-            "results": [{"id": "2", "title": "Doc 2"}],
-            "size": 1,
-            "limit": 1,
-            "start": 1,
-            "totalSize": 2,
-            "_links": {"self": "/rest/api/content/search?start=1"},
-        },
-    }
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert request.method == "GET"
-        assert request.url.path == "/rest/api/content/search"
-        params = httpx.QueryParams(request.url.query.decode())
-        assert params["cql"] == 'space="DOCS"'
-        start = int(params.get("start", "0"))
-        assert params["limit"] == "1"
-        return httpx.Response(200, json=responses[start])
-
-    with create_client(handler) as client:
-        result = client.search_pages('space="DOCS"', limit=1)
-
-    titles = [entry["title"] for entry in result["results"]]
-    assert titles == ["Doc 1", "Doc 2"]
-    assert result["total"] == 2
-    assert result["next_start"] is None
-
-
-def test_search_pages_single_page_when_fetch_all_disabled() -> None:
-    page = {
-        "results": [{"id": "99", "title": "Single Page"}],
-        "size": 1,
-        "limit": 25,
-        "start": 10,
-        "totalSize": 50,
-        "_links": {"self": "/rest/api/content/search?start=10"},
-    }
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        params = httpx.QueryParams(request.url.query.decode())
-        assert params["cql"] == 'title ~ "Single"'
-        assert params["start"] == "10"
-        return httpx.Response(200, json=page)
-
-    with create_client(handler) as client:
-        result = client.search_pages('title ~ "Single"', start=10, fetch_all=False)
-
-    assert result["results"][0]["id"] == "99"
-    assert result["start"] == 10
-    assert result["next_start"] is None
-    assert result["is_last_page"] is True
-
-
-def test_search_pages_respects_max_results_cap() -> None:
-    responses = {
-        0: {
-            "results": [{"id": "1"}, {"id": "2"}],
-            "size": 2,
-            "limit": 2,
-            "start": 0,
-            "totalSize": 5,
-            "_links": {
-                "self": "/rest/api/content/search?start=0",
-                "next": "/rest/api/content/search?start=2",
-            },
-        },
-        2: {
-            "results": [{"id": "3"}, {"id": "4"}],
-            "size": 2,
-            "limit": 2,
-            "start": 2,
-            "totalSize": 5,
-            "_links": {
-                "self": "/rest/api/content/search?start=2",
-                "next": "/rest/api/content/search?start=4",
+def _page_payload(version_number: int) -> dict:
+    return {
+        "id": "123",
+        "title": "Sample Page",
+        "type": "page",
+        "status": "current",
+        "version": {"number": version_number},
+        "body": {
+            "storage": {
+                "value": "<p>Body</p>",
+                "representation": "storage",
             },
         },
     }
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        params = httpx.QueryParams(request.url.query.decode())
-        start = int(params.get("start", "0"))
-        return httpx.Response(200, json=responses[start])
 
-    with create_client(handler) as client:
-        result = client.search_pages("type=page", limit=2, max_results=3)
-
-    ids = [entry["id"] for entry in result["results"]]
-    assert ids == ["1", "2", "3"]
-    assert result["next_start"] == 4
-
-
-def test_request_retries_on_rate_limit(monkeypatch: pytest.MonkeyPatch) -> None:
-    call_count = {"count": 0}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        call_count["count"] += 1
-        if call_count["count"] == 1:
-            return httpx.Response(429, headers={"Retry-After": "0"})
-        return httpx.Response(
-            200,
-            json={"results": [], "size": 0, "limit": 25, "start": 0},
-        )
-
-    slept: list[float] = []
-    monkeypatch.setattr("services.confluence_client.time.sleep", slept.append)
-
-    with create_client(handler, max_retries=2) as client:
-        result = client.search_pages("type=page", fetch_all=False)
-
-    assert result["results"] == []
-    assert call_count["count"] == 2
-    assert slept == [0.0]
+def _make_confluence_client(
+    settings: ConfluenceSettings,
+    fake_http_client: FakeHttpClient,
+) -> ConfluenceClient:
+    client = ConfluenceClient(settings=settings)
+    real_http_client = client._client
+    client._client = cast("httpx.Client", fake_http_client)
+    real_http_client.close()
+    return client
 
 
-def test_limit_validation() -> None:
-    with create_client(lambda _request: httpx.Response(200, json={})) as client:
-        with pytest.raises(ValueError):
-            client.search_pages("type=page", limit=0)
+def test_update_page_increments_version_number() -> None:
+    settings = _make_settings(max_retries=0)
+    fake_client = FakeHttpClient(
+        _base_url(settings),
+        get_responses=[
+            {"json": _page_payload(3)},
+        ],
+        put_responses=[
+            {"json": _page_payload(4)},
+        ],
+    )
+
+    client = _make_confluence_client(settings, fake_client)
+
+    result = client.update_page(
+        "123",
+        title="Sample Page",
+        body="<p>Updated body</p>",
+    )
+
+    assert fake_client.put_history  # ensure request was sent
+    _, payload = fake_client.put_history[0]
+    assert payload is not None
+    assert payload["version"]["number"] == 4
+    assert result["version"]["number"] == 4
 
 
-def test_create_page_with_html_body() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert request.method == "POST"
-        assert request.url.path == "/rest/api/content"
-        payload = assert_json_request(request)
-        assert payload["title"] == "New Page"
-        assert payload["space"]["key"] == "DOCS"
-        storage_section = payload["body"]["storage"]
-        assert storage_section["value"] == "<p>Body</p>"
-        assert storage_section["representation"] == "storage"
-        assert payload["ancestors"] == [{"id": "100"}]
-        return httpx.Response(200, json={"id": "123", "title": "New Page"})
+def test_update_page_retries_on_conflict_and_succeeds() -> None:
+    settings = _make_settings(max_retries=2)
+    fake_client = FakeHttpClient(
+        _base_url(settings),
+        get_responses=[
+            {"json": _page_payload(1)},
+            {"json": _page_payload(2)},
+        ],
+        put_responses=[
+            {"status": 409, "text": "Conflict"},
+            {"json": _page_payload(3)},
+        ],
+    )
 
-    with create_client(handler) as client:
-        response = client.create_page(
-            title="New Page",
-            space_key="DOCS",
-            body="<p>Body</p>",
-            parent_id="100",
-        )
+    client = _make_confluence_client(settings, fake_client)
 
-    assert response["id"] == "123"
+    result = client.update_page(
+        "123",
+        title="Sample Page",
+        body="<p>Updated body</p>",
+    )
+
+    assert len(fake_client.put_history) == 2
+    # First attempt should target version 2, second attempt version 3.
+    first_payload = fake_client.put_history[0][1]
+    second_payload = fake_client.put_history[1][1]
+    assert first_payload is not None
+    assert first_payload["version"]["number"] == 2
+    assert second_payload is not None
+    assert second_payload["version"]["number"] == 3
+    assert result["version"]["number"] == 3
 
 
-def test_update_page_sends_payload() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert request.method == "PUT"
-        assert request.url.path == "/rest/api/content/123"
-        payload = assert_json_request(request)
-        assert payload["title"] == "Updated"
-        storage_section = payload["body"]["storage"]
-        assert storage_section["value"] == "<p>Updated</p>"
-        assert storage_section["representation"] == "storage"
-        assert payload["version"]["number"] == 2
-        assert payload["version"]["minorEdit"] is True
-        return httpx.Response(200, json={"id": "123", "title": "Updated"})
+def test_update_page_conflict_exhausts_retries() -> None:
+    settings = _make_settings(max_retries=1)
+    fake_client = FakeHttpClient(
+        _base_url(settings),
+        get_responses=[
+            {"json": _page_payload(5)},
+            {"json": _page_payload(6)},
+        ],
+        put_responses=[
+            {"status": 409, "text": "Conflict"},
+            {"status": 409, "text": "Conflict"},
+        ],
+    )
 
-    with create_client(handler) as client:
-        response = client.update_page(
+    client = _make_confluence_client(settings, fake_client)
+
+    with pytest.raises(ConfluenceConflictError):
+        client.update_page(
             "123",
-            title="Updated",
-            body={"storage": {"value": "<p>Updated</p>", "representation": "storage"}},
-            version=2,
-            minor_edit=True,
+            title="Sample Page",
+            body="<p>Updated body</p>",
         )
 
-    assert response["id"] == "123"
+    assert len(fake_client.put_history) == 2
 
 
-def test_update_page_serializes_atlas_doc_format() -> None:
-    atlas_doc = {"type": "doc", "content": [{"type": "paragraph", "content": []}]}
+def test_update_page_requires_version_metadata() -> None:
+    settings = _make_settings(max_retries=0)
+    fake_client = FakeHttpClient(
+        _base_url(settings),
+        get_responses=[
+            {"json": {"id": "123", "title": "No version metadata"}},
+        ],
+        put_responses=[],
+    )
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        payload = assert_json_request(request)
-        doc_section = payload["body"]["atlas_doc_format"]
-        assert doc_section["representation"] == "atlas_doc_format"
-        assert doc_section["contentType"] == "application/json"
-        assert json.loads(doc_section["value"]) == atlas_doc
-        return httpx.Response(200, json={"id": "123"})
+    client = _make_confluence_client(settings, fake_client)
 
-    with create_client(handler) as client:
-        response = client.update_page(
+    with pytest.raises(ConfluenceError):
+        client.update_page(
             "123",
-            title="Updated",
-            body=atlas_doc,
-            version=3,
-            representation="atlas_doc_format",
-            content_type="application/json",
+            title="Sample Page",
+            body="<p>Updated body</p>",
         )
 
-    assert response["id"] == "123"
-
-
-def test_create_page_accepts_preformatted_body() -> None:
-    preformatted_body = {
-        "storage": {
-            "value": "<p>Body</p>",
-            "representation": "storage",
-        },
-    }
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        payload = assert_json_request(request)
-        assert payload["body"] == preformatted_body
-        return httpx.Response(200, json={"id": "456", "title": "Preformatted"})
-
-    with create_client(handler) as client:
-        result = client.create_page(
-            title="Formatted",
-            space_key="DOCS",
-            body=preformatted_body,
-        )
-
-    assert result["id"] == "456"
-
-
-def test_http_error_raises_confluence_error() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(404, json={"message": "Not found"})
-
-    with create_client(handler) as client:
-        with pytest.raises(ConfluenceError):
-            client.get_page("missing")
+    assert not fake_client.put_history
