@@ -19,7 +19,7 @@ export type RuleRequest = Omit<Rule, 'id'>;
   providedIn: 'root',
 })
 export class RulesService {
-  private apiUrl = `${environment.apiBase}/rules`;
+  private apiUrl = `${environment.apiBase}/v1/rules`;
 
   constructor(private http: HttpClient) {}
 

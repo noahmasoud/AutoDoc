@@ -1,0 +1,78 @@
+<div class="connections-page">
+  <div class="page-header">
+    <h1>Confluence Connection</h1>
+    <p class="subtitle">Configure your Confluence connection settings</p>
+  </div>
+
+  <div *ngIf="statusMessage" class="status-message" 
+       [class.success]="statusMessage.type === 'success'"
+       [class.error]="statusMessage.type === 'error'"
+       [class.info]="statusMessage.type === 'info'">
+    <span class="status-text">{{ statusMessage.text }}</span>
+  </div>
+
+  <div class="connection-form-card">
+    <form [formGroup]="connectionForm" (ngSubmit)="saveConnection()" class="connection-form">
+      <div class="form-group">
+        <label for="confluence_base_url">
+          Confluence Base URL *
+        </label>
+        <input
+          id="confluence_base_url"
+          type="text"
+          formControlName="confluence_base_url"
+          placeholder="https://your-domain.atlassian.net"
+          [class.error]="hasError('confluence_base_url')"
+        />
+        <small class="error" *ngIf="hasError('confluence_base_url')">
+          {{ getErrorMessage('confluence_base_url') }}
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label for="space_key">
+          Space Key *
+        </label>
+        <input
+          id="space_key"
+          type="text"
+          formControlName="space_key"
+          placeholder="SPACE"
+          [class.error]="hasError('space_key')"
+        />
+        <small class="error" *ngIf="hasError('space_key')">
+          {{ getErrorMessage('space_key') }}
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label for="api_token">
+          API Token *
+        </label>
+        <input
+          id="api_token"
+          type="password"
+          formControlName="api_token"
+          [placeholder]="isTokenSaved ? '•••••••••• (saved)' : 'Enter your API token'"
+          [class.error]="hasError('api_token')"
+        />
+        <small class="error" *ngIf="hasError('api_token')">
+          {{ getErrorMessage('api_token') }}
+        </small>
+        <small class="help-text" *ngIf="isTokenSaved">
+          Enter a new token to update it.
+        </small>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" [disabled]="connectionForm.invalid">
+          Save Connection
+        </button>
+        <button type="button" class="btn btn-secondary" (click)="testConnection()" [disabled]="connectionForm.invalid">
+          Test Connection
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
