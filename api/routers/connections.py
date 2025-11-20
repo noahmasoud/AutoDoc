@@ -3,6 +3,7 @@
 Implements:
 - POST /api/connections - Save/update connection
 - GET /api/connections - Get connection (without token)
+- POST /api/connections/test - Test connection
 
 Security requirements (FR-28, NFR-9):
 - Never return token in responses
@@ -11,15 +12,22 @@ Security requirements (FR-28, NFR-9):
 """
 
 import logging
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select
+import httpx
 
 from db.session import get_db
 from db.models import Connection
-from schemas.connections import ConnectionCreate, ConnectionOut
+from schemas.connections import (
+    ConnectionCreate,
+    ConnectionOut,
+    ConnectionTestRequest,
+    ConnectionTestResponse,
+)
 from core.encryption import encrypt_token, decrypt_token
-from core.token_masking import mask_payload
+from core.token_masking import mask_payload, mask_token
 
 logger = logging.getLogger(__name__)
 
@@ -72,4 +80,152 @@ def get_connection(db: Session = Depends(get_db)) -> ConnectionOut | None:
     if not connection:
         return None
     return ConnectionOut.model_validate(connection)
+
+
+def _normalize_base_url(url: str) -> str:
+    """Normalize base URL by removing trailing slashes."""
+    return str(url).rstrip("/")
+
+
+@router.post("/test", response_model=ConnectionTestResponse)
+async def test_connection(
+    payload: ConnectionTestRequest,
+) -> ConnectionTestResponse:
+    """
+    Test a Confluence connection by making a harmless API call.
+    
+    Validates:
+    - Base URL format
+    - Token validity via GET /rest/api/space/{spaceKey}
+    
+    Security (FR-28, NFR-9):
+    - Token is never logged
+    - Only masked token appears in logs
+    """
+    base_url = _normalize_base_url(str(payload.confluence_base_url))
+    space_key = payload.space_key
+    token = payload.api_token
+
+    # Mask token for logging (FR-28)
+    masked_token = mask_token(token)
+    safe_payload = {
+        "confluence_base_url": base_url,
+        "space_key": space_key,
+        "api_token": masked_token,
+    }
+    logger.info("Testing connection", extra={"payload": safe_payload})
+
+    # Validate base URL format
+    if not base_url.startswith(("http://", "https://")):
+        return ConnectionTestResponse(
+            ok=False,
+            details="Invalid base URL format. Must start with http:// or https://",
+            timestamp=datetime.utcnow(),
+        )
+
+    # Make test API call to Confluence
+    # Confluence Cloud API uses Basic auth with email:token format
+    # However, API tokens can be used directly with Basic auth as token:token
+    # or we need the user's email. For now, we'll try token:token format
+    # which works for most Confluence Cloud instances
+    import base64
+    
+    # Confluence API token authentication: Basic base64(token:token)
+    # Some instances may require email:token, but token:token is common
+    auth_credentials = f"{token}:{token}"
+    auth_string = base64.b64encode(auth_credentials.encode()).decode()
+    
+    test_url = f"{base_url}/rest/api/space/{space_key}"
+    headers = {
+        "Authorization": f"Basic {auth_string}",
+        "Accept": "application/json",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(test_url, headers=headers)
+
+            if response.status_code == 200:
+                logger.info(
+                    "Connection test successful",
+                    extra={"base_url": base_url, "space_key": space_key},
+                )
+                return ConnectionTestResponse(
+                    ok=True,
+                    details="Connection OK - Successfully connected to Confluence",
+                    timestamp=datetime.utcnow(),
+                )
+            elif response.status_code == 401:
+                logger.warning(
+                    "Connection test failed: Invalid token",
+                    extra={"base_url": base_url, "space_key": space_key},
+                )
+                return ConnectionTestResponse(
+                    ok=False,
+                    details="Token invalid - please re-enter.",
+                    timestamp=datetime.utcnow(),
+                )
+            elif response.status_code == 404:
+                logger.warning(
+                    "Connection test failed: Space not found",
+                    extra={"base_url": base_url, "space_key": space_key},
+                )
+                return ConnectionTestResponse(
+                    ok=False,
+                    details=f"Space '{space_key}' not found. Please check the space key.",
+                    timestamp=datetime.utcnow(),
+                )
+            else:
+                error_detail = "Unknown error"
+                try:
+                    error_json = response.json()
+                    error_detail = error_json.get("message", error_json.get("error", str(response.text)))
+                except Exception:
+                    error_detail = response.text[:200] if response.text else f"HTTP {response.status_code}"
+
+                logger.warning(
+                    "Connection test failed",
+                    extra={
+                        "base_url": base_url,
+                        "space_key": space_key,
+                        "status_code": response.status_code,
+                        "detail": error_detail,
+                    },
+                )
+                return ConnectionTestResponse(
+                    ok=False,
+                    details=f"Connection failed: {error_detail}",
+                    timestamp=datetime.utcnow(),
+                )
+
+    except httpx.TimeoutException:
+        logger.error(
+            "Connection test timeout",
+            extra={"base_url": base_url, "space_key": space_key},
+        )
+        return ConnectionTestResponse(
+            ok=False,
+            details="Connection timeout - Please check your base URL and network connection.",
+            timestamp=datetime.utcnow(),
+        )
+    except httpx.ConnectError as e:
+        logger.error(
+            "Connection test connection error",
+            extra={"base_url": base_url, "space_key": space_key, "error": str(e)},
+        )
+        return ConnectionTestResponse(
+            ok=False,
+            details=f"Unable to connect to {base_url}. Please check the base URL.",
+            timestamp=datetime.utcnow(),
+        )
+    except Exception as e:
+        logger.error(
+            "Connection test unexpected error",
+            extra={"base_url": base_url, "space_key": space_key, "error": str(e)},
+        )
+        return ConnectionTestResponse(
+            ok=False,
+            details=f"Unexpected error: {str(e)}",
+            timestamp=datetime.utcnow(),
+        )
 

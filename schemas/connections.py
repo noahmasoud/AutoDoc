@@ -12,6 +12,24 @@ class ConnectionCreate(BaseModel):
     api_token: str = Field(..., min_length=1, description="Confluence API token")
 
 
+class ConnectionTestRequest(BaseModel):
+    """Request payload for testing a connection."""
+
+    confluence_base_url: AnyHttpUrl = Field(..., description="Confluence base URL")
+    space_key: str = Field(..., min_length=1, description="Confluence space key")
+    api_token: str = Field(..., min_length=1, description="Confluence API token")
+
+
+class ConnectionTestResponse(BaseModel):
+    """Response payload for connection test."""
+
+    ok: bool
+    details: str
+    timestamp: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class ConnectionOut(BaseModel):
     """Response payload for connection (without token)."""
 

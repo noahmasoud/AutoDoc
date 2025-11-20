@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { ConnectionsService, Connection, ConnectionCreate } from '../../services/connections.service';
+import { ConnectionsService, Connection, ConnectionCreate, ConnectionTestRequest } from '../../services/connections.service';
 
 @Component({
   selector: 'app-connections',
@@ -15,6 +15,7 @@ export class ConnectionsComponent implements OnInit {
   isTokenSaved = false;
   existingConnection: Connection | null = null;
   statusMessage: { type: 'success' | 'error' | 'info'; text: string } | null = null;
+  isTesting = false;
 
   constructor(
     private fb: FormBuilder,
@@ -108,11 +109,70 @@ export class ConnectionsComponent implements OnInit {
       return;
     }
 
-    // Test connection functionality will be implemented in Prompt 3
-    this.statusMessage = {
-      type: 'info',
-      text: 'Test connection functionality will be implemented.'
+    const formValue = this.connectionForm.value;
+    const tokenValue = formValue.api_token;
+
+    // If token is masked, we need the user to enter it
+    if (!tokenValue || tokenValue === '••••••••••') {
+      this.statusMessage = {
+        type: 'error',
+        text: 'Please enter your API token to test the connection.'
+      };
+      return;
+    }
+
+    this.isTesting = true;
+    this.statusMessage = null;
+
+    const testRequest: ConnectionTestRequest = {
+      confluence_base_url: formValue.confluence_base_url,
+      space_key: formValue.space_key,
+      api_token: tokenValue
     };
+
+    this.connectionsService.testConnection(testRequest).subscribe({
+      next: (response) => {
+        this.isTesting = false;
+        if (response.ok) {
+          this.statusMessage = {
+            type: 'success',
+            text: response.details || 'Connection OK'
+          };
+        } else {
+          // If token is invalid, clear the token field
+          if (response.details.includes('Token invalid') || response.details.includes('Invalid token')) {
+            this.connectionForm.patchValue({ api_token: '' });
+            this.isTokenSaved = false;
+          }
+          this.statusMessage = {
+            type: 'error',
+            text: response.details || 'Connection test failed'
+          };
+        }
+      },
+      error: (error) => {
+        this.isTesting = false;
+        console.error('Error testing connection:', error);
+        
+        // Handle specific error cases
+        if (error.error?.details) {
+          const details = error.error.details;
+          if (details.includes('Token invalid') || details.includes('Invalid token')) {
+            this.connectionForm.patchValue({ api_token: '' });
+            this.isTokenSaved = false;
+          }
+          this.statusMessage = {
+            type: 'error',
+            text: details
+          };
+        } else {
+          this.statusMessage = {
+            type: 'error',
+            text: error.error?.detail || 'Failed to test connection. Please try again.'
+          };
+        }
+      }
+    });
   }
 
   getControl(name: string) {

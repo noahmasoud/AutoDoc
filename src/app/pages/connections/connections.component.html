@@ -65,11 +65,15 @@
       </div>
 
       <div class="form-actions">
-        <button type="submit" class="btn btn-primary" [disabled]="connectionForm.invalid">
+        <button type="submit" class="btn btn-primary" [disabled]="connectionForm.invalid || isTesting">
           Save Connection
         </button>
-        <button type="button" class="btn btn-secondary" (click)="testConnection()" [disabled]="connectionForm.invalid">
-          Test Connection
+        <button type="button" class="btn btn-secondary" (click)="testConnection()" [disabled]="connectionForm.invalid || isTesting">
+          <span *ngIf="!isTesting">Test Connection</span>
+          <span *ngIf="isTesting" class="spinner-container">
+            <span class="spinner"></span>
+            Testing...
+          </span>
         </button>
       </div>
     </form>

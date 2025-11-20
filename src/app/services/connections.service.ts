@@ -19,6 +19,18 @@ export interface ConnectionCreate {
   api_token: string;
 }
 
+export interface ConnectionTestRequest {
+  confluence_base_url: string;
+  space_key: string;
+  api_token: string;
+}
+
+export interface ConnectionTestResponse {
+  ok: boolean;
+  details: string;
+  timestamp: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -48,6 +60,14 @@ export class ConnectionsService {
    */
   saveConnection(connection: ConnectionCreate): Observable<Connection> {
     return this.http.post<Connection>(this.apiUrl, connection);
+  }
+
+  /**
+   * Test a Confluence connection.
+   * Makes a harmless API call to validate credentials.
+   */
+  testConnection(connection: ConnectionTestRequest): Observable<ConnectionTestResponse> {
+    return this.http.post<ConnectionTestResponse>(`${this.apiUrl}/test`, connection);
   }
 }
 
