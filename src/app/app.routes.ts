@@ -3,20 +3,39 @@ import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { ConnectionsComponent } from './pages/connections/connections.component';
 import { RulesComponent } from './pages/rules/rules.component';
 import { TemplatesComponent } from './pages/templates/templates.component';
-import { AuthComponent } from './auth/auth.component';
+import { LoginComponent } from './pages/login/login.component';
+import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
-  { path: 'dashboard', component: DashboardComponent },
-  { path: 'connections', component: ConnectionsComponent },
-  { path: 'rules', component: RulesComponent },
-  { path: 'templates', component: TemplatesComponent },
-  { path: 'auth', component: AuthComponent },
+  { path: 'login', component: LoginComponent },
+  { 
+    path: 'dashboard', 
+    component: DashboardComponent, 
+    canActivate: [authGuard] 
+  },
+  { 
+    path: 'connections', 
+    component: ConnectionsComponent, 
+    canActivate: [authGuard] 
+  },
+  { 
+    path: 'rules', 
+    component: RulesComponent, 
+    canActivate: [authGuard] 
+  },
+  { 
+    path: 'templates', 
+    component: TemplatesComponent, 
+    canActivate: [authGuard] 
+  },
   {
     path: 'runs/:runId',
     loadChildren: () =>
       import('./pages/run-details/run-details.module').then(
         (m) => m.RunDetailsModule
       ),
+    canActivate: [authGuard]
   },
+  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+  { path: '**', redirectTo: 'dashboard' },
 ];

@@ -49,27 +49,26 @@ class ChangeReport:
     has_breaking_changes: bool = False
 
     def to_dict(self) -> dict[str, Any]:
+        summary = {
+            "total_changes": len(self.added) + len(self.removed) + len(self.modified),
+            "added_count": len(self.added),
+            "removed_count": len(self.removed),
+            "modified_count": len(self.modified),
+            "breaking_count": sum(
+                1
+                for change in self.added + self.removed + self.modified
+                if change.is_breaking
+            ),
+        }
         return {
             "file_path": self.file_path,
             "old_version": self.old_version,
             "new_version": self.new_version,
-            "added": [c.to_dict() for c in self.added],
-            "removed": [c.to_dict() for c in self.removed],
-            "modified": [c.to_dict() for c in self.modified],
+            "added": [change.to_dict() for change in self.added],
+            "removed": [change.to_dict() for change in self.removed],
+            "modified": [change.to_dict() for change in self.modified],
             "has_breaking_changes": self.has_breaking_changes,
-            "summary": {
-                "total_changes": len(self.added)
-                + len(self.removed)
-                + len(self.modified),
-                "added_count": len(self.added),
-                "removed_count": len(self.removed),
-                "modified_count": len(self.modified),
-                "breaking_count": sum(
-                    1
-                    for c in self.added + self.removed + self.modified
-                    if c.is_breaking
-                ),
-            },
+            "summary": summary,
         }
 
 
@@ -99,6 +98,7 @@ class FunctionChangeDetector:
             )
         if old_func and new_func:
             return self._detect_modifications(old_func, new_func)
+
         return None
 
     def _detect_modifications(
@@ -106,22 +106,26 @@ class FunctionChangeDetector:
     ) -> SymbolChange | None:
         breaking_reasons = []
         details = {}
-        old_params = {p.name: p for p in old_func.parameters}
-        new_params = {p.name: p for p in new_func.parameters}
-        removed_params = [name for name in old_params if name not in new_params]
-        if removed_params:
-            breaking_reasons.extend(
-                f"Parameter '{name}' removed" for name in removed_params
-            )
+        old_params = {param.name: param for param in old_func.parameters}
+        new_params = {param.name: param for param in new_func.parameters}
+
+        removed_params = [
+            f"Parameter '{name}' removed"
+            for name in old_params
+            if name not in new_params
+        ]
+        breaking_reasons.extend(removed_params)
+
         for name, new_param in new_params.items():
             if name not in old_params:
                 if new_param.default is None:
                     breaking_reasons.append(f"Required parameter '{name}' added")
                 else:
                     details["optional_parameter_added"] = name
+
         for name, old_param in old_params.items():
             new_param = new_params.get(name)
-            if new_param is None:
+            if not new_param:
                 continue
             old_type = old_param.annotation
             new_type = new_param.annotation
@@ -186,34 +190,40 @@ class ClassChangeDetector:
             )
         if old_class and new_class:
             return self._detect_modifications(old_class, new_class)
+
         return None
 
     def _detect_modifications(
         self, old_class: ClassInfo, new_class: ClassInfo
     ) -> SymbolChange | None:
         breaking_reasons = []
-        details = {}
+        details: dict[str, Any] = {}
+
+        # Base class changes
         if set(old_class.base_classes) != set(new_class.base_classes):
             breaking_reasons.append("Base classes changed")
             details["base_classes"] = {
                 "old": old_class.base_classes,
                 "new": new_class.base_classes,
             }
-        old_methods = {m.name: m for m in old_class.methods}
-        new_methods = {m.name: m for m in new_class.methods}
-        method_changes = []
+
+        old_methods = {method.name: method for method in old_class.methods}
+        new_methods = {method.name: method for method in new_class.methods}
+        method_changes: list[tuple[str, str]] = []
+
         for name, method in old_methods.items():
             if name not in new_methods and method.is_public:
                 breaking_reasons.append(f"Public method '{name}' removed")
                 method_changes.append(("removed", name))
+
         for name, old_method in old_methods.items():
             new_method = new_methods.get(name)
-            if new_method is None:
+            if not new_method:
                 continue
             change = self.func_detector.compare(old_method, new_method)
             if change and change.is_breaking:
                 breaking_reasons.extend(
-                    [f"Method '{name}': {r}" for r in change.breaking_reasons]
+                    [f"Method '{name}': {reason}" for reason in change.breaking_reasons]
                 )
                 method_changes.append(("modified", name))
         if method_changes:
@@ -250,35 +260,43 @@ class ChangeDetector:
             new_version=new_version,
         )
         self._compare_symbols(
-            old_module.functions, new_module.functions, self.func_detector, report
+            old_module.functions,
+            new_module.functions,
+            self.func_detector,
+            report,
         )
         self._compare_symbols(
-            old_module.classes, new_module.classes, self.class_detector, report
+            old_module.classes,
+            new_module.classes,
+            self.class_detector,
+            report,
         )
         all_changes = report.added + report.removed + report.modified
         report.has_breaking_changes = any(c.is_breaking for c in all_changes)
+
         return report
 
     def _compare_symbols(self, old_symbols, new_symbols, detector, report):
-        old_map = {s.name: s for s in old_symbols}
-        new_map = {s.name: s for s in new_symbols}
+        old_map = {symbol.name: symbol for symbol in old_symbols}
+        new_map = {symbol.name: symbol for symbol in new_symbols}
         for name, symbol in new_map.items():
             if name not in old_map:
                 change = detector.compare(None, symbol)
                 if change:
                     report.added.append(change)
+
         for name, symbol in old_map.items():
             if name not in new_map:
                 change = detector.compare(symbol, None)
                 if change:
                     report.removed.append(change)
+
         for name, old_symbol in old_map.items():
             new_symbol = new_map.get(name)
-            if new_symbol is None:
-                continue
-            change = detector.compare(old_symbol, new_symbol)
-            if change:
-                report.modified.append(change)
+            if new_symbol:
+                change = detector.compare(old_symbol, new_symbol)
+                if change:
+                    report.modified.append(change)
 
 
 def detect_changes(

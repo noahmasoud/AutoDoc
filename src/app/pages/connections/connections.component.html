@@ -1,0 +1,131 @@
+<div class="connections-container">
+  <div class="connections-header">
+    <h1>Confluence Connection</h1>
+    <p class="subtitle">Configure your Confluence API connection settings</p>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading && !existingConnection" class="loading-message">
+    <p>Loading connection settings...</p>
+  </div>
+
+  <!-- Connection Form -->
+  <form [formGroup]="connectionForm" (ngSubmit)="saveConnection()" class="connection-form">
+    <!-- Confluence Base URL -->
+    <div class="form-group">
+      <label for="confluence_base_url" class="form-label">
+        Confluence Base URL <span class="required">*</span>
+      </label>
+      <input
+        type="text"
+        id="confluence_base_url"
+        formControlName="confluence_base_url"
+        class="form-input"
+        [class.error]="hasFieldError('confluence_base_url')"
+        placeholder="https://your-domain.atlassian.net"
+      />
+      <div *ngIf="hasFieldError('confluence_base_url')" class="error-message">
+        {{ getFieldError('confluence_base_url') }}
+      </div>
+    </div>
+
+    <!-- Space Key -->
+    <div class="form-group">
+      <label for="space_key" class="form-label">
+        Space Key <span class="required">*</span>
+      </label>
+      <input
+        type="text"
+        id="space_key"
+        formControlName="space_key"
+        class="form-input"
+        [class.error]="hasFieldError('space_key')"
+        placeholder="YOUR_SPACE_KEY"
+      />
+      <div *ngIf="hasFieldError('space_key')" class="error-message">
+        {{ getFieldError('space_key') }}
+      </div>
+    </div>
+
+    <!-- API Token (Password Input with Masking) -->
+    <div class="form-group">
+      <label for="api_token" class="form-label">
+        API Token <span class="required">*</span>
+      </label>
+      <input
+        type="password"
+        id="api_token"
+        formControlName="api_token"
+        class="form-input"
+        [class.error]="hasFieldError('api_token')"
+        placeholder="Enter your API token"
+        (focus)="onTokenFieldFocus()"
+        (blur)="onTokenFieldBlur()"
+        (input)="onTokenInput($event)"
+      />
+      <div *ngIf="hasFieldError('api_token')" class="error-message">
+        {{ getFieldError('api_token') }}
+      </div>
+      <p class="field-hint">
+        Token is encrypted and never displayed after initial entry. 
+        <span *ngIf="isTokenSaved">Enter a new token to update it.</span>
+      </p>
+    </div>
+
+    <!-- Status Messages -->
+    <div *ngIf="statusMessage" class="status-message" [class.success]="statusMessage.type === 'success'" 
+         [class.error]="statusMessage.type === 'error'" [class.info]="statusMessage.type === 'info'">
+      <span class="status-icon">
+        <span *ngIf="statusMessage.type === 'success'">✓</span>
+        <span *ngIf="statusMessage.type === 'error'">✗</span>
+        <span *ngIf="statusMessage.type === 'info'">ℹ</span>
+      </span>
+      <span class="status-text">{{ statusMessage.text }}</span>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="form-actions">
+      <button
+        type="button"
+        (click)="testConnection()"
+        [disabled]="isLoading || isTesting || connectionForm.invalid"
+        class="btn btn-secondary"
+      >
+        <span *ngIf="!isTesting">Test Connection</span>
+        <span *ngIf="isTesting">Testing...</span>
+      </button>
+      <button
+        type="submit"
+        [disabled]="isLoading || isTesting || connectionForm.invalid"
+        class="btn btn-primary"
+      >
+        <span *ngIf="!isLoading">Save Connection</span>
+        <span *ngIf="isLoading">Saving...</span>
+      </button>
+    </div>
+  </form>
+
+  <!-- Connection Info (if exists) -->
+  <div *ngIf="existingConnection && !isLoading" class="connection-info">
+    <h3>Connection Information</h3>
+    <div class="info-grid">
+      <div class="info-item">
+        <span class="info-label">Status:</span>
+        <span class="info-value success-badge">✓ Connected</span>
+      </div>
+      <div class="info-item" *ngIf="existingConnection && existingConnection.created_at">
+        <span class="info-label">Created:</span>
+        <span class="info-value">{{ existingConnection.created_at | date:'medium' }}</span>
+      </div>
+      <div class="info-item" *ngIf="existingConnection && existingConnection.updated_at">
+        <span class="info-label">Last Updated:</span>
+        <span class="info-value">{{ existingConnection.updated_at | date:'medium' }}</span>
+      </div>
+      <div class="info-item" *ngIf="existingConnection && existingConnection.last_used_at">
+        <span class="info-label">Last Used:</span>
+        <span class="info-value">{{ existingConnection.last_used_at | date:'medium' }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
