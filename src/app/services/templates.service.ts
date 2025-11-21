@@ -15,7 +15,7 @@ export interface TemplateSummary {
   providedIn: 'root',
 })
 export class TemplatesService {
-  private apiUrl = `${environment.apiBase}/templates`;
+  private apiUrl = `${environment.apiBase}/v1/templates`;
 
   constructor(private http: HttpClient) {}
 

@@ -2,10 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
 from core.logging import CorrelationIdMiddleware
-from core.security_middleware import SecurityLoggingMiddleware
 from core.errors import install_handlers
 from db.session import engine, Base
-from api.routers import health, runs, rules, templates, patches, diff_parser
+from api.routers import health, runs, rules, templates, patches, diff_parser, auth, connections
 
 
 def create_app() -> FastAPI:
@@ -31,10 +30,6 @@ def create_app() -> FastAPI:
 
     # Observability: correlation-id middleware
     app.add_middleware(CorrelationIdMiddleware)
-    
-    # Security: token masking middleware (FR-28, NFR-9)
-    # Must be added after CORS but before error handlers
-    app.add_middleware(SecurityLoggingMiddleware)
 
     # Global error handlers (problem+json)
     install_handlers(app)
@@ -48,6 +43,10 @@ def create_app() -> FastAPI:
     app.include_router(patches.router, prefix=api_prefix)
     # Register diff parser at /api/diff (without v1 prefix as per FR-3/FR-24)
     app.include_router(diff_parser.router, prefix="/api")
+    # Register auth at /api/login (without v1 prefix for consistency with frontend)
+    app.include_router(auth.router, prefix="/api")
+    # Register connections at /api/connections (without v1 prefix as per requirements)
+    app.include_router(connections.router, prefix="/api")
 
     return app
 
