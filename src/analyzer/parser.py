@@ -6,17 +6,6 @@ from pathlib import Path
 
 @dataclass
 class ParseResult:
-    """
-    Result of parsing a Python file.
-
-    Attributes:
-        success: Whether parsing succeeded
-        file_path: Path to the file that was parsed
-        ast_tree: The parsed AST (None if parsing failed)
-        error: Error message if parsing failed
-        error_line: Line number where error occurred (for syntax errors)
-    """
-
     success: bool
     file_path: str
     ast_tree: ast.AST | None = None
@@ -24,30 +13,11 @@ class ParseResult:
     error_line: int | None = None
 
 
+# parser for Python source files using Python's ast module.
+
+
 class PythonParser:
-    """
-    Parser for Python source files using Python's ast module.
-
-    Handles file I/O, syntax errors, and returns structured results
-    suitable for downstream static analysis.
-
-    Example:
-        >>> parser = PythonParser()
-        >>> result = parser.parse("src/main.py")
-        >>> if result.success:
-        ...     print(f"Parsed {result.file_path} successfully")
-        ... else:
-        ...     print(f"Error: {result.error}")
-    """
-
     def __init__(self, logger: logging.Logger | None = None):
-        """
-        Initialize the parser.
-
-        Args:
-            logger: Optional logger for diagnostic output. If not provided,
-                   creates a logger with the module name.
-        """
         self.logger = logger or logging.getLogger(__name__)
 
     def parse(self, file_path: str) -> ParseResult:
@@ -56,24 +26,6 @@ class PythonParser:
 
         Handles both relative and absolute paths, gracefully handles
         syntax errors, and logs issues without crashing.
-
-        Supports Python 3.11+ syntax including:
-        - Match statements
-        - Exception groups
-        - Type hints and type comments
-
-        Args:
-            file_path: Path to Python file (relative or absolute)
-
-        Returns:
-            ParseResult with success status and either AST or error details
-
-        Example:
-            >>> parser = PythonParser()
-            >>> result = parser.parse("./src/api/main.py")
-            >>> if result.success:
-            ...     # Access the AST
-            ...     tree = result.ast_tree
         """
         success = False
         resolved_path_str = file_path
@@ -125,7 +77,7 @@ class PythonParser:
                             filename=resolved_path_str,
                             type_comments=True,
                         )
-                    except SyntaxError as exc:
+                    except SyntaxError as exc:  # def
                         error_msg = f"Syntax error: {exc.msg}"
                         if exc.text:
                             error_msg += f" | Line content: {exc.text.strip()}"
@@ -156,23 +108,6 @@ class PythonParser:
         )
 
     def _resolve_path(self, file_path: str) -> Path:
-        """
-        Resolve file path to absolute Path object.
-
-        Handles:
-        - Relative paths (./src/main.py, src/main.py)
-        - Absolute paths (/home/user/project/main.py)
-        - Home directory expansion (~/project/main.py)
-
-        Args:
-            file_path: Input file path (relative or absolute)
-
-        Returns:
-            Resolved absolute Path object
-
-        Raises:
-            ValueError: If path is invalid or cannot be resolved
-        """
         try:
             # Create Path object and expand ~ if present
             return Path(file_path).expanduser().resolve()
@@ -180,47 +115,31 @@ class PythonParser:
             raise ValueError(f"Invalid path '{file_path}': {exc!s}") from exc
 
     def _read_file_content(self, path: Path) -> str:
-        """
-        Read file contents with proper encoding handling.
-
-        Reads the file as UTF-8 encoded text, which is the standard
-        for Python source files.
-
-        Args:
-            path: Path object to read
-
-        Returns:
-            File contents as string (may be empty for empty files)
-
-        Raises:
-            FileNotFoundError: If file doesn't exist
-            UnicodeDecodeError: If file is not valid UTF-8
-            IOError: If file can't be read for other reasons
-        """
-        # read_text() will raise appropriate exceptions if there are issues
-        # We use UTF-8 encoding as it's the standard for Python source files
         return path.read_text(encoding="utf-8")
 
 
-# Convenience function for simple use cases
+#  function for simple use cases
 def parse_python_file(
     file_path: str, logger: logging.Logger | None = None
 ) -> ParseResult:
-    """
-    Convenience function to parse a Python file without creating a parser instance.
-
-    Args:
-        file_path: Path to Python file
-        logger: Optional logger
-
-    Returns:
-        ParseResult object
-
-    Example:
-        >>> from analyzer.parser import parse_python_file
-        >>> result = parse_python_file("main.py")
-        >>> if result.success:
-        ...     print("Success!")
-    """
     parser = PythonParser(logger=logger)
     return parser.parse(file_path)
+
+
+def parse_python_code(code: str, filename: str = "<string>") -> ast.Module:
+    """
+    Parse Python source code string and return its AST.
+
+    Simple wrapper for ast.parse() for testing and inline code.
+
+    Args:
+        code: Python source code as string
+        filename: Optional filename for error messages
+
+    Returns:
+        ast.Module object
+
+    Raises:
+        SyntaxError: If code has syntax errors
+    """
+    return ast.parse(code, filename=filename, type_comments=True)

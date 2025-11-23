@@ -1,12 +1,10 @@
 import { NgModule } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ConnectionsComponent } from './connections.component';
 
 @NgModule({
-  declarations: [ConnectionsComponent],
   imports: [
-    CommonModule,
+    ConnectionsComponent, // Import standalone component
     RouterModule.forChild([
       { path: '', component: ConnectionsComponent }
     ])

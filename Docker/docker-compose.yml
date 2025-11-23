@@ -1,8 +1,6 @@
 # AutoDoc Docker Compose Configuration
 # Development and production environment setup
 
-version: '3.8'
-
 # =============================================================================
 # Networks
 # =============================================================================
@@ -87,7 +85,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: ["autodoc", "server"]
+    command: ["server"]
     healthcheck:
       test: ["CMD", "/entrypoint.sh", "health"]
       interval: 30s
@@ -127,7 +125,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: ["autodoc", "server"]
+    command: ["server"]
     healthcheck:
       test: ["CMD", "/entrypoint.sh", "health"]
       interval: 30s
@@ -202,7 +200,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: ["autodoc", "cli"]
+    command: ["cli"]
     profiles:
       - cli
 
@@ -232,7 +230,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: ["autodoc", "worker"]
+    command: ["worker"]
     healthcheck:
       test: ["CMD", "/entrypoint.sh", "health"]
       interval: 60s
