@@ -30,6 +30,10 @@ from services.typescript_parser import (
     TypeScriptParser,
     TypeScriptParserError,
 )
+from services.rule_matcher import (
+    RuleMatch,
+    RuleMatcher,
+)
 
 __all__ = [
     "ArtifactLoadError",
@@ -42,6 +46,8 @@ __all__ = [
     "ConfluenceHTTPError",
     "NodeJSNotFoundError",
     "ParseError",
+    "RuleMatch",
+    "RuleMatcher",
     "TypeScriptAnalyzer",
     "TypeScriptParser",
     "TypeScriptParserError",

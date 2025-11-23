@@ -10,7 +10,10 @@ router = APIRouter(prefix="/rules", tags=["rules"])
 
 @router.get("", response_model=list[RuleOut])
 def list_rules(db: Session = Depends(get_db)):
-    return db.execute(select(Rule).order_by(Rule.id)).scalars().all()
+    """List all rules, ordered by priority (descending), then by ID."""
+    return (
+        db.execute(select(Rule).order_by(Rule.priority.desc(), Rule.id)).scalars().all()
+    )
 
 
 @router.post("", response_model=RuleOut, status_code=201)
