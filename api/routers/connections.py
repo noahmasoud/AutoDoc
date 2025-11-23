@@ -13,7 +13,7 @@ Security requirements (FR-28, NFR-9):
 
 import logging
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from httpx import AsyncClient, HTTPStatusError
@@ -22,13 +22,12 @@ from db.session import get_db
 from db.models import Connection
 from schemas.connections import (
     ConnectionCreate,
-    ConnectionUpdate,
     ConnectionOut,
     ConnectionTestRequest,
     ConnectionTestResponse,
 )
-from core.encryption import encrypt_token, decrypt_token
-from core.token_masking import mask_token, mask_in_dict
+from core.encryption import encrypt_token
+from core.token_masking import mask_in_dict
 
 logger = logging.getLogger(__name__)
 
@@ -163,15 +162,13 @@ async def test_connection(
         return ConnectionTestResponse(success=False, message=error_msg)
 
     except Exception as e:
-        error_msg = f"Connection test failed: {str(e)}"
-        logger.error(
+        error_msg = f"Connection test failed: {e!s}"
+        logger.exception(
             f"Connection test error for {payload.confluence_base_url}",
             extra={"error": error_msg},
-            exc_info=True,
         )
 
         return ConnectionTestResponse(
             success=False,
             message=error_msg,
         )
-

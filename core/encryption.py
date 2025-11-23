@@ -74,5 +74,4 @@ def decrypt_token(encrypted_token: str) -> str:
         decrypted = fernet.decrypt(encrypted_bytes)
         return decrypted.decode()
     except Exception as e:
-        raise ValueError(f"Failed to decrypt token: {str(e)}") from e
-
+        raise ValueError(f"Failed to decrypt token: {e!s}") from e

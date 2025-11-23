@@ -58,4 +58,3 @@ def mask_in_dict(data: dict, keys_to_mask: list[str] | None = None) -> dict:
             masked[key] = mask_token(str(masked[key]))
 
     return masked
-

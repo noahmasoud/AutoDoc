@@ -11,7 +11,7 @@ def section(title, emoji=""):
     print("=" * 50 + "\n")
 
 
-def main():
+def main():  # noqa: PLR0915
     print("\n" + "=" * 50)
     print("AutoDoc: Automated Documentation Pipeline")
     print("Sprint 1 Demo - Analysis Engine")
@@ -47,7 +47,7 @@ Output: JSON file → Ready for backend to generate Confluence docs
     # Version 1.0 - Before
     section("Version 1.0 - Before")
 
-    old_code = '''
+    old_code = """
 # Basic Calculator
 
 class Calculator:
@@ -59,7 +59,7 @@ class Calculator:
 
     def multiply(self, x, y):
         return x * y
-    '''
+    """
     print(old_code)
 
     input("Press Enter to see new version...")
@@ -67,7 +67,7 @@ class Calculator:
     # Version 2.0 - After
     section("Version 2.0 - After")
 
-    new_code = '''
+    new_code = """
 # Advanced calculator with extended operations.
 # Supports basic arithmetic and memory storage.
 
@@ -96,7 +96,7 @@ class Calculator:
     # Returns: Result of base raised to exponent
     def power(self, base: float, exponent: float) -> float:
         return base ** exponent
-'''
+"""
     print(new_code)
 
     input("\nPress Enter to analyze changes...")
@@ -109,9 +109,11 @@ class Calculator:
     new_tree = ast.parse(new_code)
 
     print(
-        f"Old version parsed: {type(old_tree).__name__} with {len(old_tree.body)} top-level elements")
+        f"Old version parsed: {type(old_tree).__name__} with {len(old_tree.body)} top-level elements"
+    )
     print(
-        f"New version parsed: {type(new_tree).__name__} with {len(new_tree.body)} top-level elements")
+        f"New version parsed: {type(new_tree).__name__} with {len(new_tree.body)} top-level elements"
+    )
     print("\nWhy? AST lets us understand code structure programmatically")
 
     input("\nPress Enter for symbol extraction...")
@@ -130,7 +132,8 @@ class Calculator:
         for method in cls.methods:
             params = [p.name for p in method.parameters]
             print(
-                f"    - {method.name}({', '.join(params)}) -> {method.return_type or 'None'}")
+                f"    - {method.name}({', '.join(params)}) -> {method.return_type or 'None'}"
+            )
 
     print("\n--- Version 2.0 ---")
     print(f"Classes: {len(new_module.classes)}")
@@ -138,9 +141,12 @@ class Calculator:
         print(f"  • {cls.name} ({len(cls.methods)} methods)")
         for method in cls.methods:
             params = [
-                f"{p.name}: {p.annotation}" if p.annotation else p.name for p in method.parameters]
+                f"{p.name}: {p.annotation}" if p.annotation else p.name
+                for p in method.parameters
+            ]
             print(
-                f"    - {method.name}({', '.join(params)}) -> {method.return_type or 'None'}")
+                f"    - {method.name}({', '.join(params)}) -> {method.return_type or 'None'}"
+            )
 
     print("\nWhy? Creates structured view of API that can be compared")
 
@@ -227,7 +233,7 @@ Summary:
   • Added: {len(report.added)} symbols
   • Removed: {len(report.removed)} symbols
   • Modified: {len(report.modified)} symbols
-  • Breaking Changes: {'YES' if report.has_breaking_changes else 'NO'}
+  • Breaking Changes: {"YES" if report.has_breaking_changes else "NO"}
     """)
 
     if report.added:
@@ -264,25 +270,37 @@ Summary:
         "file_path": "calculator.py",
         "added": [
             {"symbol": "calculate", "type": "method", "breaking": False},
-            {"symbol": "power", "type": "method", "breaking": False}
+            {"symbol": "power", "type": "method", "breaking": False},
         ],
         "removed": [
-            {"symbol": "add", "type": "method", "breaking": True,
-                "reason": "Method removed from public API"},
-            {"symbol": "subtract", "type": "method", "breaking": True,
-                "reason": "Method removed from public API"}
+            {
+                "symbol": "add",
+                "type": "method",
+                "breaking": True,
+                "reason": "Method removed from public API",
+            },
+            {
+                "symbol": "subtract",
+                "type": "method",
+                "breaking": True,
+                "reason": "Method removed from public API",
+            },
         ],
         "modified": [
-            {"symbol": "multiply", "type": "method", "breaking": False,
-                "reasons": ["Type hints added"]}
+            {
+                "symbol": "multiply",
+                "type": "method",
+                "breaking": False,
+                "reasons": ["Type hints added"],
+            }
         ],
         "summary": {
             "total_changes": 5,
             "added_count": 2,
             "removed_count": 2,
             "modified_count": 1,
-            "breaking_count": 2
-        }
+            "breaking_count": 2,
+        },
     }
 
     print(json.dumps(simulated_output, indent=2))

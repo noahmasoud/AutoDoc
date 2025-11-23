@@ -12,11 +12,11 @@ class ParseResult:
     error: str | None = None
     error_line: int | None = None
 
+
 # parser for Python source files using Python's ast module.
 
 
 class PythonParser:
-
     def __init__(self, logger: logging.Logger | None = None):
         self.logger = logger or logging.getLogger(__name__)
 
@@ -97,8 +97,7 @@ class PythonParser:
                         )
                     else:
                         success = True
-                        self.logger.info(
-                            "Successfully parsed %s", resolved_path)
+                        self.logger.info("Successfully parsed %s", resolved_path)
 
         return ParseResult(
             success=success,
@@ -120,8 +119,9 @@ class PythonParser:
 
 
 #  function for simple use cases
-def parse_python_file(file_path: str, logger:
-                      logging.Logger | None = None) -> ParseResult:
+def parse_python_file(
+    file_path: str, logger: logging.Logger | None = None
+) -> ParseResult:
     parser = PythonParser(logger=logger)
     return parser.parse(file_path)
 
