@@ -9,6 +9,10 @@ from db.models import Run, PythonSymbol
 from schemas.runs import RunCreate, RunOut, RunsPage
 from schemas.symbols import PythonSymbolList
 from services.change_report_generator import generate_change_report
+from services.patch_generator import (
+    PatchGenerationError,
+    generate_patches_for_run,
+)
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
@@ -153,3 +157,47 @@ def list_python_symbols(run_id: int, db: Session = Depends(get_db)):
     ).all()
 
     return {"items": symbols}
+
+
+@router.post("/{run_id}/generate-patches", response_model=dict)
+def generate_patches(
+    run_id: int,
+    db: Session = Depends(get_db),
+):
+    """Generate patches for a run based on file changes and rules.
+
+    This endpoint uses the rule engine to map changed files to Confluence pages
+    and generates patches for documentation updates.
+
+    Args:
+        run_id: The run ID
+        db: Database session
+
+    Returns:
+        Dictionary with patch generation results
+
+    Raises:
+        HTTPException: If the run is not found or patch generation fails
+    """
+    # Verify run exists
+    run = db.get(Run, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    try:
+        patches = generate_patches_for_run(db, run_id)
+
+        return {
+            "run_id": run_id,
+            "patches_generated": len(patches),
+            "patches": [
+                {
+                    "id": patch.id,
+                    "page_id": patch.page_id,
+                    "status": patch.status,
+                }
+                for patch in patches
+            ],
+        }
+    except PatchGenerationError as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
