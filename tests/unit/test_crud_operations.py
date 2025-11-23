@@ -273,12 +273,14 @@ class TestRuleCRUD:
             space_key="DOCS",
             page_id="12345",
             auto_approve=False,
+            priority=0,
         )
         test_session.add(rule)
         test_session.commit()
 
         assert rule.id is not None
         assert rule.name == "test_rule"
+        assert rule.priority == 0
 
     def test_read_rule(self, test_session):
         """Test reading a Rule."""
@@ -288,6 +290,7 @@ class TestRuleCRUD:
             space_key="DOCS",
             page_id="12345",
             auto_approve=True,
+            priority=5,
         )
         test_session.add(rule)
         test_session.commit()
@@ -296,6 +299,7 @@ class TestRuleCRUD:
         retrieved = test_session.get(Rule, rule.id)
         assert retrieved is not None
         assert retrieved.auto_approve is True
+        assert retrieved.priority == 5
 
         # Read by name
         result = test_session.scalar(
@@ -311,6 +315,7 @@ class TestRuleCRUD:
             space_key="DOCS",
             page_id="12345",
             auto_approve=False,
+            priority=0,
         )
         test_session.add(rule)
         test_session.commit()
@@ -318,12 +323,14 @@ class TestRuleCRUD:
         # Update
         rule.auto_approve = True
         rule.selector = "**/*.py"
+        rule.priority = 10
         test_session.commit()
 
         # Verify
         retrieved = test_session.get(Rule, rule.id)
         assert retrieved.auto_approve is True
         assert retrieved.selector == "**/*.py"
+        assert retrieved.priority == 10
 
     def test_delete_rule(self, test_session):
         """Test deleting a Rule."""
@@ -333,6 +340,7 @@ class TestRuleCRUD:
             space_key="DOCS",
             page_id="12345",
             auto_approve=False,
+            priority=0,
         )
         test_session.add(rule)
         test_session.commit()

@@ -161,6 +161,7 @@ class Rule(Base):
         nullable=True,
     )
     auto_approve: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Relationship
     template: Mapped["Template | None"] = relationship(back_populates="rules")
