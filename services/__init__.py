@@ -23,6 +23,10 @@ from services.confluence_client import (
     ConfluenceError,
     ConfluenceHTTPError,
 )
+from services.patch_generator import (
+    PatchGenerationError,
+    generate_patches_for_run,
+)
 from services.rule_engine import (
     InvalidSelectorError,
     InvalidTargetError,
@@ -56,6 +60,7 @@ __all__ = [
     "InvalidTargetError",
     "NodeJSNotFoundError",
     "ParseError",
+    "PatchGenerationError",
     "RuleEngineError",
     "TypeScriptAnalyzer",
     "TypeScriptParser",
@@ -63,6 +68,7 @@ __all__ = [
     "detect_changes",
     "get_breaking_changes_summary",
     "get_changes_for_run",
+    "generate_patches_for_run",
     "get_changes_by_type",
     "is_glob_pattern",
     "load_artifact_from_run",
