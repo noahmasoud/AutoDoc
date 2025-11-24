@@ -21,4 +21,3 @@ from services.rules_engine import match_rule
 )
 def test_match_rule(selector: str, path: str, expected: bool) -> None:
     assert match_rule(selector, path) is expected
-

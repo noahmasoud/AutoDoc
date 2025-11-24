@@ -1,13 +1,9 @@
 """Security middleware for masking sensitive data in logs (FR-28, NFR-9)."""
 
-import json
 import logging
-from typing import Any, Dict
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import StreamingResponse
 
-from core.token_masking import mask_payload
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +25,7 @@ SENSITIVE_FIELDS = [
 class SecurityLoggingMiddleware(BaseHTTPMiddleware):
     """
     Middleware to redact sensitive fields from request/response logs.
-    
+
     Implements FR-28 (token masking) and NFR-9 (secrets never logged).
     """
 
@@ -37,7 +33,7 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
         """Process request and mask sensitive data in logs."""
         # Log request with masked sensitive data
         await self._log_request_safely(request)
-        
+
         response = None
         try:
             response = await call_next(request)
@@ -73,7 +69,9 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
     async def _log_response_safely(self, request: Request, response: Response) -> None:
         """Log response with sensitive fields masked."""
         try:
-            if self._is_sensitive_endpoint(request.url.path) and hasattr(response, "body"):
+            if self._is_sensitive_endpoint(request.url.path) and hasattr(
+                response, "body"
+            ):
                 # For streaming responses, we can't easily read the body
                 # Just log status and headers
                 masked_headers = self._mask_headers(dict(response.headers))
@@ -95,7 +93,7 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
             error_message = str(error)
             # Mask any sensitive data in error messages
             masked_message = self._mask_string(error_message)
-            
+
             logger.error(
                 "Request failed",
                 extra={
@@ -114,7 +112,7 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
         sensitive_paths = ["/connections", "/login", "/auth", "/api-key"]
         return any(sensitive_path in path.lower() for sensitive_path in sensitive_paths)
 
-    def _mask_headers(self, headers: Dict[str, str]) -> Dict[str, str]:
+    def _mask_headers(self, headers: dict[str, str]) -> dict[str, str]:
         """Mask sensitive header values."""
         masked = headers.copy()
         for key in list(masked.keys()):
@@ -128,45 +126,48 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
         masked = text
         # Simple heuristic: mask if contains token-like patterns
         import re
+
         # Mask token patterns (e.g., ATATT...)
-        masked = re.sub(r'ATATT[A-Za-z0-9_-]+', 'ATATT••••••••', masked)
+        masked = re.sub(r"ATATT[A-Za-z0-9_-]+", "ATATT••••••••", masked)
         # Mask other token-like patterns
-        masked = re.sub(r'[A-Za-z0-9_-]{20,}', lambda m: m.group()[:8] + '••••••••' if len(m.group()) > 20 else m.group(), masked)
-        return masked
+        return re.sub(
+            r"[A-Za-z0-9_-]{20,}",
+            lambda m: m.group()[:8] + "••••••••" if len(m.group()) > 20 else m.group(),
+            masked,
+        )
 
 
 def mask_exception_message(exception: Exception) -> str:
     """
     Mask sensitive data in exception messages.
-    
+
     Used in error handlers to ensure tokens never appear in error traces (NFR-9).
-    
+
     Args:
         exception: Exception to mask
-    
+
     Returns:
         Masked exception message
     """
     message = str(exception)
-    
+
     # Mask common sensitive patterns
     import re
-    
+
     # Mask Confluence API token patterns (ATATT...)
-    message = re.sub(r'ATATT[A-Za-z0-9_-]{20,}', 'ATATT••••••••', message)
+    message = re.sub(r"ATATT[A-Za-z0-9_-]{20,}", "ATATT••••••••", message)
     # Mask long alphanumeric strings that might be tokens (20+ chars)
     message = re.sub(
-        r'\b[A-Za-z0-9_-]{20,}\b',
-        lambda m: m.group()[:8] + '••••••••' if len(m.group()) > 20 else m.group(),
-        message
+        r"\b[A-Za-z0-9_-]{20,}\b",
+        lambda m: m.group()[:8] + "••••••••" if len(m.group()) > 20 else m.group(),
+        message,
     )
     # Mask patterns like "token=..." or "api_token=..."
-    message = re.sub(
-        r'(token|api_token|password|secret|api_key|access_token|refresh_token|auth_token)\s*[=:]\s*[A-Za-z0-9_-]{10,}',
-        lambda m: m.group().split('=')[0] + '=••••••••' if '=' in m.group() else m.group().split(':')[0] + ':••••••••',
+    return re.sub(
+        r"(token|api_token|password|secret|api_key|access_token|refresh_token|auth_token)\s*[=:]\s*[A-Za-z0-9_-]{10,}",
+        lambda m: m.group().split("=")[0] + "=••••••••"
+        if "=" in m.group()
+        else m.group().split(":")[0] + ":••••••••",
         message,
-        flags=re.IGNORECASE
+        flags=re.IGNORECASE,
     )
-    
-    return message
-

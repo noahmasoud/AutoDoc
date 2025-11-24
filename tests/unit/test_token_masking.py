@@ -1,6 +1,5 @@
 """Unit tests for token masking (FR-28, NFR-9)."""
 
-import pytest
 from core.token_masking import mask_token, mask_payload, mask_dict_keys
 
 
@@ -46,7 +45,7 @@ class TestMaskPayload:
             "api_token": "ATATT3xFfGF0YOUR_TOKEN_HERE",
         }
         masked = mask_payload(payload)
-        
+
         assert masked["confluence_base_url"] == payload["confluence_base_url"]
         assert masked["space_key"] == payload["space_key"]
         assert masked["api_token"] == "••••••••••"
@@ -64,7 +63,7 @@ class TestMaskPayload:
             },
         }
         masked = mask_payload(payload, deep=True)
-        
+
         assert masked["connection"]["api_token"] == "••••••••••"
         assert masked["connection"]["url"] == payload["connection"]["url"]
         assert masked["user"]["password"] == "••••••••••"
@@ -82,7 +81,7 @@ class TestMaskPayload:
             "normal_field": "normal_value",
         }
         masked = mask_payload(payload)
-        
+
         assert masked["token"] == "••••••••••"
         assert masked["api_token"] == "••••••••••"
         assert masked["password"] == "••••••••••"
@@ -98,7 +97,7 @@ class TestMaskPayload:
             "public_field": "public_value",
         }
         masked = mask_payload(payload, keys=["custom_secret"])
-        
+
         assert masked["custom_secret"] == "••••••••••"
         assert masked["api_token"] == "token_value"  # Not in custom keys
         assert masked["public_field"] == "public_value"
@@ -114,7 +113,6 @@ class TestMaskDictKeys:
             "other_field": "value",
         }
         masked = mask_dict_keys(data, ["api_token"])
-        
+
         assert masked["api_token"] == "••••••••••"
         assert masked["other_field"] == "value"
-
