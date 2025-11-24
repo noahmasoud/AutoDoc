@@ -4,7 +4,16 @@ from core.config import settings
 from core.logging import CorrelationIdMiddleware
 from core.errors import install_handlers
 from db.session import engine, Base
-from api.routers import health, runs, rules, templates, patches, diff_parser, auth, connections
+from api.routers import (
+    health,
+    runs,
+    rules,
+    templates,
+    patches,
+    diff_parser,
+    auth,
+    connections,
+)
 
 
 def create_app() -> FastAPI:

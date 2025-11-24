@@ -1,7 +1,7 @@
 """Utilities for masking sensitive tokens in logs (FR-28)."""
 
 from __future__ import annotations
-from typing import Any, Dict
+from typing import Any
 
 
 def mask_token(token: str | None, visible_chars: int = 0) -> str:
@@ -18,7 +18,9 @@ def mask_token(token: str | None, visible_chars: int = 0) -> str:
     return f"{visible}{'•' * max(10, len(token) - visible_chars)}"
 
 
-def mask_payload(payload: Dict[str, Any], keys: list[str] | None = None) -> Dict[str, Any]:
+def mask_payload(
+    payload: dict[str, Any], keys: list[str] | None = None
+) -> dict[str, Any]:
     """Return a shallow copy of a payload with sensitive fields masked."""
 
     if keys is None:
@@ -32,4 +34,3 @@ def mask_payload(payload: Dict[str, Any], keys: list[str] | None = None) -> Dict
 
 
 __all__ = ["mask_token", "mask_payload"]
-

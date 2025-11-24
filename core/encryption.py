@@ -25,10 +25,10 @@ _SALT = b"autodoc_connection_token_salt"
 def encrypt_token(token: str) -> str:
     """
     Encrypt a token for secure storage.
-    
+
     Args:
         token: Plaintext token to encrypt
-        
+
     Returns:
         Base64-encoded encrypted token
     """
@@ -41,10 +41,10 @@ def encrypt_token(token: str) -> str:
 def decrypt_token(encrypted_token: str) -> str:
     """
     Decrypt a stored token.
-    
+
     Args:
         encrypted_token: Base64-encoded encrypted token
-        
+
     Returns:
         Decrypted plaintext token
     """
@@ -53,4 +53,3 @@ def decrypt_token(encrypted_token: str) -> str:
     fernet = Fernet(key)
     decrypted = fernet.decrypt(encrypted_bytes)
     return decrypted.decode()
-
