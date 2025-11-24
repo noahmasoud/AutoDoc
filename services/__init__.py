@@ -46,6 +46,10 @@ from services.typescript_parser import (
     TypeScriptParser,
     TypeScriptParserError,
 )
+from services.rule_matcher import (
+    RuleMatch,
+    RuleMatcher,
+)
 
 __all__ = [
     "ArtifactLoadError",
@@ -62,6 +66,8 @@ __all__ = [
     "ParseError",
     "PatchGenerationError",
     "RuleEngineError",
+    "RuleMatch",
+    "RuleMatcher",
     "TypeScriptAnalyzer",
     "TypeScriptParser",
     "TypeScriptParserError",

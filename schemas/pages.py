@@ -13,7 +13,7 @@ class ConfluenceLinkModel(BaseModel):
     web_ui: str | None = Field(default=None, alias="webUI")
     api: str | None = Field(default=None)
 
-    model_config = {"allow_population_by_field_name": True}
+    model_config = {"populate_by_name": True}
 
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ class PageVersion(BaseModel):
     when: datetime | None = None
     message: str | None = None
 
-    model_config = {"allow_population_by_field_name": True}
+    model_config = {"populate_by_name": True}
 
 
 class PageBodyStorage(BaseModel):
@@ -53,7 +53,7 @@ class PageCreate(BaseModel):
     parent_id: str | None = Field(default=None, alias="parentId")
     representation: str = "storage"
 
-    model_config = {"allow_population_by_field_name": True}
+    model_config = {"populate_by_name": True}
 
 
 class PageUpdate(BaseModel):
@@ -65,7 +65,7 @@ class PageUpdate(BaseModel):
     minor_edit: bool = Field(default=False, alias="minorEdit")
     message: str | None = None
 
-    model_config = {"allow_population_by_field_name": True}
+    model_config = {"populate_by_name": True}
 
 
 class PageOut(BaseModel):
