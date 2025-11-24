@@ -1,8 +1,4 @@
-"""Encryption utilities for sensitive data storage.
-
-Implements NFR-9: Never store tokens unencrypted.
-Uses Fernet symmetric encryption with the application secret key.
-"""
+"""Token encryption utilities for secure storage (NFR-9)."""
 
 import base64
 from cryptography.fernet import Fernet
@@ -20,30 +16,22 @@ def _derive_key(secret_key: str, salt: bytes) -> bytes:
         iterations=100000,
     )
     key_material = kdf.derive(secret_key.encode())
-    # Fernet requires URL-safe base64-encoded key
     return base64.urlsafe_b64encode(key_material)
 
 
-# Use a fixed salt for consistent encryption (in production, consider using a salt per connection)
-_SALT = b"autodoc_connection_token_salt"  # Fixed salt for this use case
+_SALT = b"autodoc_connection_token_salt"
 
 
 def encrypt_token(token: str) -> str:
     """
-    Encrypt a token for storage.
+    Encrypt a token for secure storage.
 
     Args:
-        token: Plain text token to encrypt
+        token: Plaintext token to encrypt
 
     Returns:
-        Encrypted token as base64 string
-
-    Raises:
-        ValueError: If token is empty or secret key is invalid
+        Base64-encoded encrypted token
     """
-    if not token:
-        raise ValueError("Token cannot be empty")
-
     key = _derive_key(settings.SECRET_KEY, _SALT)
     fernet = Fernet(key)
     encrypted = fernet.encrypt(token.encode())
@@ -55,23 +43,13 @@ def decrypt_token(encrypted_token: str) -> str:
     Decrypt a stored token.
 
     Args:
-        encrypted_token: Base64 encoded encrypted token
+        encrypted_token: Base64-encoded encrypted token
 
     Returns:
-        Decrypted plain text token
-
-    Raises:
-        ValueError: If decryption fails (invalid token or key)
+        Decrypted plaintext token
     """
-    if not encrypted_token:
-        raise ValueError("Encrypted token cannot be empty")
-
-    try:
-        # The encrypted_token is already base64-encoded from encrypt_token
-        encrypted_bytes = base64.urlsafe_b64decode(encrypted_token.encode())
-        key = _derive_key(settings.SECRET_KEY, _SALT)
-        fernet = Fernet(key)
-        decrypted = fernet.decrypt(encrypted_bytes)
-        return decrypted.decode()
-    except Exception as e:
-        raise ValueError(f"Failed to decrypt token: {e!s}") from e
+    encrypted_bytes = base64.urlsafe_b64decode(encrypted_token.encode())
+    key = _derive_key(settings.SECRET_KEY, _SALT)
+    fernet = Fernet(key)
+    decrypted = fernet.decrypt(encrypted_bytes)
+    return decrypted.decode()

@@ -1,60 +1,36 @@
-"""Token masking utilities for logging.
+"""Utilities for masking sensitive tokens in logs (FR-28)."""
 
-Implements FR-28: Mask tokens in all logs.
-Never writes raw token values to logs or console.
-"""
+from __future__ import annotations
+from typing import Any
 
 
 def mask_token(token: str | None, visible_chars: int = 0) -> str:
-    """
-    Mask a token for safe logging.
+    """Return a masked version of a token suitable for logging."""
 
-    Args:
-        token: Token to mask (can be None)
-        visible_chars: Number of characters to show at the start (default: 0)
-
-    Returns:
-        Masked token string (e.g., "••••••••••" or "ab••••••••")
-    """
     if not token:
         return "••••••••••"
 
-    if len(token) <= visible_chars:
+    token = str(token)
+    if visible_chars <= 0 or visible_chars >= len(token):
         return "••••••••••"
 
-    if visible_chars > 0:
-        visible = token[:visible_chars]
-        return f"{visible}{'•' * max(10, len(token) - visible_chars)}"
-
-    return "••••••••••"
+    visible = token[:visible_chars]
+    return f"{visible}{'•' * max(10, len(token) - visible_chars)}"
 
 
-def mask_in_dict(data: dict, keys_to_mask: list[str] | None = None) -> dict:
-    """
-    Create a copy of dict with specified keys masked.
+def mask_payload(
+    payload: dict[str, Any], keys: list[str] | None = None
+) -> dict[str, Any]:
+    """Return a shallow copy of a payload with sensitive fields masked."""
 
-    Args:
-        data: Dictionary to process
-        keys_to_mask: List of keys to mask (default: common token field names)
+    if keys is None:
+        keys = ["token", "api_token", "password", "secret"]
 
-    Returns:
-        New dictionary with masked values
-    """
-    if keys_to_mask is None:
-        keys_to_mask = [
-            "token",
-            "api_token",
-            "password",
-            "secret",
-            "api_key",
-            "access_token",
-            "refresh_token",
-            "encrypted_token",
-        ]
-
-    masked = data.copy()
-    for key in keys_to_mask:
+    masked = payload.copy()
+    for key in keys:
         if key in masked and masked[key] is not None:
             masked[key] = mask_token(str(masked[key]))
-
     return masked
+
+
+__all__ = ["mask_token", "mask_payload"]

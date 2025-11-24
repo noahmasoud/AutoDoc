@@ -2,7 +2,7 @@
 
 Implements:
 - POST /api/login - User login with JWT token generation
-- GET /api/userinfo - Get current user info (protected)
+- GET /api/login/userinfo - Get current user info (protected)
 """
 
 import logging
@@ -90,15 +90,15 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
                 detail="Invalid authentication credentials",
             )
         return username
-    except JWTError as err:
+    except JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
-        ) from err
+        ) from e
 
 
 @router.post("", response_model=LoginResponse)
-def login_endpoint(request: LoginRequest):
+def login(request: LoginRequest):
     """
     Authenticate user and return JWT token.
 

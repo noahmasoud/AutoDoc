@@ -27,7 +27,8 @@ def create_rule(payload: RuleCreate, db: Session = Depends(get_db)):
 
     row = Rule(**payload.model_dump())
     db.add(row)
-    db.flush()
+    db.commit()
+    db.refresh(row)
     return row
 
 
@@ -54,8 +55,8 @@ def update_rule(rule_id: int, payload: RuleUpdate, db: Session = Depends(get_db)
 
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(row, k, v)
-    db.add(row)
-    db.flush()
+    db.commit()
+    db.refresh(row)
     return row
 
 
@@ -65,4 +66,4 @@ def delete_rule(rule_id: int, db: Session = Depends(get_db)):
     if not row:
         raise HTTPException(404, "Rule not found")
     db.delete(row)
-    db.flush()
+    db.commit()
