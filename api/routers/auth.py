@@ -23,7 +23,7 @@ security = HTTPBearer()
 DEV_USERS = {
     "admin": {
         "username": "admin",
-        "password": "admin123",
+        "password": "admin123",  # In production, use bcrypt hashed passwords
         "email": "admin@autodoc.dev",
     },
     "demo": {"username": "demo", "password": "demo123", "email": "demo@autodoc.dev"},
@@ -62,7 +62,7 @@ def create_access_token(username: str) -> str:
     Returns:
         Encoded JWT token
     """
-    expire = datetime.utcnow() + timedelta(hours=24)
+    expire = datetime.utcnow() + timedelta(hours=24)  # Token valid for 24 hours
     to_encode = {"sub": username, "exp": expire, "iat": datetime.utcnow()}
     return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm="HS256")
 
@@ -90,11 +90,11 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
                 detail="Invalid authentication credentials",
             )
         return username
-    except JWTError as err:
+    except JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
-        ) from err
+        ) from e
 
 
 @router.post("", response_model=LoginResponse)
@@ -109,6 +109,7 @@ def login(request: LoginRequest):
 
     In production, this should verify against a database with hashed passwords.
     """
+    # Check if user exists and password matches
     user = DEV_USERS.get(request.username)
 
     if not user or user["password"] != request.password:
@@ -118,6 +119,7 @@ def login(request: LoginRequest):
             detail="Incorrect username or password",
         )
 
+    # Create JWT token
     access_token = create_access_token(request.username)
 
     logger.info(f"Successful login for user: {request.username}")
@@ -130,7 +132,8 @@ def get_current_user(username: str = Depends(verify_token)):
     """
     Get current user information (protected endpoint).
 
-    Requires valid JWT token in Authorization header.
+    Alias of /api/login/userinfo to support legacy clients that call GET /api/login
+    for token validation.
     """
     user = DEV_USERS.get(username)
     if not user:

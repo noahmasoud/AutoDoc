@@ -1,10 +1,36 @@
 import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-templates',
+  standalone: true,
+  imports: [CommonModule],
   template: `
-    <h1>Templates</h1>
-    <p>Placeholder page for Templates (Dev 3).</p>
-  `
+    <div class="page-container">
+      <h2>Templates</h2>
+      <p>Welcome to AutoDoc's Templates page!</p>
+      <p>This page will contain documentation templates for patch generation.</p>
+    </div>
+  `,
+  styles: [`
+    .page-container {
+      padding: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h2 {
+      font-size: 28px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin: 0 0 16px 0;
+    }
+
+    p {
+      color: #666;
+      line-height: 1.6;
+      margin: 8px 0;
+    }
+  `]
 })
 export class TemplatesComponent {}

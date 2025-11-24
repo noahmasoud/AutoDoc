@@ -109,15 +109,13 @@ class FunctionChangeDetector:
         old_params = {p.name: p for p in old_func.parameters}
         new_params = {p.name: p for p in new_func.parameters}
         breaking_reasons.extend(
-            [
-                f"Parameter '{name}' removed"
-                for name in old_params
-                if name not in new_params
-            ]
+            f"Parameter '{name}' removed"
+            for name in old_params
+            if name not in new_params
         )
-        for name, param in new_params.items():
+        for name, new_param in new_params.items():
             if name not in old_params:
-                if param.default is None:
+                if new_param.default is None:
                     breaking_reasons.append(f"Required parameter '{name}' added")
                 else:
                     details["optional_parameter_added"] = name

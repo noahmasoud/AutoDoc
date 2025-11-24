@@ -9,7 +9,7 @@ import { Subscription, filter } from 'rxjs';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './navbar.component.html',
-  styleUrls: ['./navbar.component.css']
+  styleUrl: './navbar.component.css'
 })
 export class NavbarComponent implements OnInit, OnDestroy {
   isAuthenticated = false;
@@ -23,18 +23,21 @@ export class NavbarComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    // Subscribe to auth status changes
     this.authSubscription = this.authService.getAuthStatus().subscribe(
       isAuth => {
         this.isAuthenticated = isAuth;
       }
     );
 
+    // Track current route for active link highlighting
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
     ).subscribe((event: any) => {
       this.currentRoute = event.url;
     });
 
+    // Set initial route
     this.currentRoute = this.router.url;
   }
 
