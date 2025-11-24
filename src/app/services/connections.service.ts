@@ -26,9 +26,8 @@ export interface ConnectionTestRequest {
 }
 
 export interface ConnectionTestResponse {
-  ok: boolean;
-  details: string;
-  timestamp: string;
+  success: boolean;
+  message: string;
 }
 
 @Injectable({
@@ -63,11 +62,10 @@ export class ConnectionsService {
   }
 
   /**
-   * Test a Confluence connection.
-   * Makes a harmless API call to validate credentials.
+   * Test a connection with provided credentials.
    */
-  testConnection(connection: ConnectionTestRequest): Observable<ConnectionTestResponse> {
-    return this.http.post<ConnectionTestResponse>(`${this.apiUrl}/test`, connection);
+  testConnection(testRequest: ConnectionTestRequest): Observable<ConnectionTestResponse> {
+    return this.http.post<ConnectionTestResponse>(`${this.apiUrl}/test`, testRequest);
   }
 }
 

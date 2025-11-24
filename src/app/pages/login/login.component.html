@@ -2,55 +2,64 @@
   <div class="login-card">
     <div class="login-header">
       <h1>AutoDoc</h1>
-      <p class="subtitle">Sign in to continue</p>
+      <p class="subtitle">Sign in to your account</p>
     </div>
 
     <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
-      <div *ngIf="errorMessage" class="error-message">
-        {{ errorMessage }}
-      </div>
-
+      <!-- Username Field -->
       <div class="form-group">
-        <label for="username">Username</label>
+        <label for="username" class="form-label">
+          Username <span class="required">*</span>
+        </label>
         <input
-          id="username"
           type="text"
+          id="username"
           formControlName="username"
+          class="form-input"
+          [class.error]="hasFieldError('username')"
           placeholder="Enter your username"
-          [class.error]="getFieldError('username')"
+          autocomplete="username"
         />
-        <small class="error" *ngIf="getFieldError('username')">
+        <div *ngIf="hasFieldError('username')" class="error-message">
           {{ getFieldError('username') }}
-        </small>
+        </div>
       </div>
 
+      <!-- Password Field -->
       <div class="form-group">
-        <label for="password">Password</label>
+        <label for="password" class="form-label">
+          Password <span class="required">*</span>
+        </label>
         <input
-          id="password"
           type="password"
+          id="password"
           formControlName="password"
+          class="form-input"
+          [class.error]="hasFieldError('password')"
           placeholder="Enter your password"
-          [class.error]="getFieldError('password')"
+          autocomplete="current-password"
         />
-        <small class="error" *ngIf="getFieldError('password')">
+        <div *ngIf="hasFieldError('password')" class="error-message">
           {{ getFieldError('password') }}
-        </small>
+        </div>
       </div>
 
+      <!-- Error Message -->
+      <div *ngIf="errorMessage" class="error-alert">
+        <span class="error-icon">⚠</span>
+        <span>{{ errorMessage }}</span>
+      </div>
+
+      <!-- Submit Button -->
       <button
         type="submit"
-        class="login-button"
         [disabled]="isLoading || loginForm.invalid"
+        class="btn btn-primary btn-full"
       >
         <span *ngIf="!isLoading">Sign In</span>
         <span *ngIf="isLoading">Signing in...</span>
       </button>
     </form>
-
-    <div class="login-footer">
-      <p class="help-text">Use: admin/admin123, demo/demo123, or user/user123</p>
-    </div>
   </div>
 </div>
 

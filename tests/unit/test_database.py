@@ -256,6 +256,7 @@ class TestConstraints:
             space_key="SPACE",
             page_id="page-1",
             auto_approve=False,
+            priority=0,
         )
         test_session.add(rule1)
         test_session.commit()
@@ -266,6 +267,7 @@ class TestConstraints:
             space_key="SPACE",
             page_id="page-2",
             auto_approve=False,
+            priority=0,
         )
         test_session.add(rule2)
 

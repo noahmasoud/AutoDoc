@@ -22,21 +22,25 @@ export class AppComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // Subscribe to auth status to show/hide navbar
     this.authService.getAuthStatus().subscribe(isAuth => {
       this.showNavbar = isAuth;
     });
 
+    // Check current route and auth status on navigation
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
     ).subscribe(() => {
       this.updateNavbarVisibility();
     });
 
+    // Initial check
     this.updateNavbarVisibility();
   }
 
   private updateNavbarVisibility(): void {
     const currentRoute = this.router.url;
+    // Don't show navbar on login page
     this.showNavbar = this.authService.isLoggedIn() && currentRoute !== '/login';
   }
 }

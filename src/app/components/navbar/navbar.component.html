@@ -1,9 +1,11 @@
 <nav class="navbar">
   <div class="navbar-container">
+    <!-- Brand/Logo -->
     <div class="navbar-brand">
       <a routerLink="/dashboard" class="brand-link">AutoDoc</a>
     </div>
 
+    <!-- Navigation Links -->
     <div class="navbar-menu" [class.menu-open]="menuOpen">
       <a 
         routerLink="/dashboard" 
@@ -40,6 +42,7 @@
       </a>
     </div>
 
+    <!-- User Actions -->
     <div class="navbar-actions">
       <button 
         *ngIf="isAuthenticated"
@@ -50,6 +53,7 @@
       </button>
     </div>
 
+    <!-- Mobile Menu Toggle -->
     <button 
       class="menu-toggle"
       (click)="menuOpen = !menuOpen"

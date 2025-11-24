@@ -8,25 +8,25 @@ import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
-  {
-    path: 'dashboard',
-    component: DashboardComponent,
-    canActivate: [authGuard]
+  { 
+    path: 'dashboard', 
+    component: DashboardComponent, 
+    canActivate: [authGuard] 
   },
-  {
-    path: 'connections',
-    component: ConnectionsComponent,
-    canActivate: [authGuard]
+  { 
+    path: 'connections', 
+    component: ConnectionsComponent, 
+    canActivate: [authGuard] 
   },
-  {
-    path: 'rules',
-    component: RulesComponent,
-    canActivate: [authGuard]
+  { 
+    path: 'rules', 
+    component: RulesComponent, 
+    canActivate: [authGuard] 
   },
-  {
-    path: 'templates',
-    component: TemplatesComponent,
-    canActivate: [authGuard]
+  { 
+    path: 'templates', 
+    component: TemplatesComponent, 
+    canActivate: [authGuard] 
   },
   {
     path: 'runs/:runId',
@@ -36,6 +36,6 @@ export const routes: Routes = [
       ),
     canActivate: [authGuard]
   },
-  { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
-  { path: '**', redirectTo: '/dashboard' },
+  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+  { path: '**', redirectTo: 'dashboard' },
 ];
