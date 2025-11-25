@@ -28,21 +28,21 @@ def create_app() -> FastAPI:
     # DB: dev-time auto-create tables (hand off to Alembic os)
     Base.metadata.create_all(bind=engine)
 
-    # CORS for Angular dev
+    # Global error handlers (problem+json) - install before CORS to avoid interfering
+    install_handlers(app)
+
+    # CORS for Angular dev - must be added AFTER error handlers but handles preflight automatically
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=["*"],
         expose_headers=["X-Request-ID"],
     )
 
-    # Observability: correlation-id middleware
+    # Observability: correlation-id middleware (after CORS)
     app.add_middleware(CorrelationIdMiddleware)
-
-    # Global error handlers (problem+json)
-    install_handlers(app)
 
     # API routers under /api/v1
     api_prefix = "/api/v1"

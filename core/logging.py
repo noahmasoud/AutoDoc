@@ -14,7 +14,6 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
         cid = request.headers.get("X-Request_ID") or str(uuid4())
         request.state.correlation_id = cid
 
-        response = None
         try:
             logger.info(
                 {
@@ -24,16 +23,32 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
                     "path": request.url.path,
                 },
             )
-            return await call_next(request)
+            response = await call_next(request)
+            # Add correlation ID to response headers
+            response.headers["X-Request-ID"] = cid
+            return response
+        except Exception as exc:
+            elapsed = round((time.time() - start) * 1000, 2)
+            logger.exception(
+                "Request error",
+                extra={
+                    "event": "request.error",
+                    "cid": cid,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "error": str(exc),
+                    "ms": elapsed,
+                },
+            )
+            raise
         finally:
             elapsed = round((time.time() - start) * 1000, 2)
-            if response is not None:
-                response.headers["X-Request-ID"] = cid
             logger.info(
                 {
                     "event": "request.end",
                     "cid": cid,
-                    "status": getattr(response, "status_code", 500),
+                    "method": request.method,
+                    "path": request.url.path,
                     "ms": elapsed,
                 },
             )

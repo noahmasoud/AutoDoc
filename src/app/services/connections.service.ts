@@ -19,17 +19,6 @@ export interface ConnectionCreate {
   api_token: string;
 }
 
-export interface ConnectionTestRequest {
-  confluence_base_url: string;
-  space_key: string;
-  api_token: string;
-}
-
-export interface ConnectionTestResponse {
-  success: boolean;
-  message: string;
-}
-
 @Injectable({
   providedIn: 'root'
 })
@@ -59,13 +48,6 @@ export class ConnectionsService {
    */
   saveConnection(connection: ConnectionCreate): Observable<Connection> {
     return this.http.post<Connection>(this.apiUrl, connection);
-  }
-
-  /**
-   * Test a connection with provided credentials.
-   */
-  testConnection(testRequest: ConnectionTestRequest): Observable<ConnectionTestResponse> {
-    return this.http.post<ConnectionTestResponse>(`${this.apiUrl}/test`, testRequest);
   }
 }
 

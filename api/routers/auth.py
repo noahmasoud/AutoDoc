@@ -2,7 +2,7 @@
 
 Implements:
 - POST /api/login - User login with JWT token generation
-- GET /api/userinfo - Get current user info (protected)
+- GET /api/login/userinfo - Get current user info (protected)
 """
 
 import logging
@@ -98,7 +98,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
 
 
 @router.post("", response_model=LoginResponse)
-def login_endpoint(request: LoginRequest):
+def login(request: LoginRequest):
     """
     Authenticate user and return JWT token.
 

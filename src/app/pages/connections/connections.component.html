@@ -1,131 +1,135 @@
-<div class="connections-container">
-  <div class="connections-header">
+<div class="connections-page">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <div class="page-header">
     <h1>Confluence Connection</h1>
-    <p class="subtitle">Configure your Confluence API connection settings</p>
+    <p class="subtitle">Configure your Confluence connection settings</p>
   </div>
 
-  <!-- Loading State -->
-  <div *ngIf="isLoading && !existingConnection" class="loading-message">
+  <div *ngIf="isLoading" class="loading-state" role="status" aria-label="Loading connection" aria-live="polite">
+    <mat-spinner diameter="50" aria-hidden="true"></mat-spinner>
     <p>Loading connection settings...</p>
   </div>
 
-  <!-- Connection Form -->
-  <form [formGroup]="connectionForm" (ngSubmit)="saveConnection()" class="connection-form">
-    <!-- Confluence Base URL -->
-    <div class="form-group">
-      <label for="confluence_base_url" class="form-label">
-        Confluence Base URL <span class="required">*</span>
-      </label>
-      <input
-        type="text"
-        id="confluence_base_url"
-        formControlName="confluence_base_url"
-        class="form-input"
-        [class.error]="hasFieldError('confluence_base_url')"
-        placeholder="https://your-domain.atlassian.net"
-      />
-      <div *ngIf="hasFieldError('confluence_base_url')" class="error-message">
-        {{ getFieldError('confluence_base_url') }}
+  <div *ngIf="!isLoading" id="main-content">
+    <div class="connection-form-card">
+    <form [formGroup]="connectionForm" (ngSubmit)="saveConnection()" class="connection-form" role="form" aria-label="Confluence connection configuration form">
+      <div class="form-group">
+        <label for="confluence_base_url" class="required">
+          Confluence Base URL
+        </label>
+        <input
+          id="confluence_base_url"
+          type="url"
+          formControlName="confluence_base_url"
+          placeholder="https://your-domain.atlassian.net"
+          [class.error]="hasError('confluence_base_url')"
+          [attr.aria-invalid]="hasError('confluence_base_url') ? 'true' : 'false'"
+          [attr.aria-describedby]="hasError('confluence_base_url') ? 'confluence-url-error' : null"
+          autocomplete="url"
+          aria-required="true"
+        />
+        <small
+          class="error"
+          *ngIf="hasError('confluence_base_url')"
+          id="confluence-url-error"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ getErrorMessage('confluence_base_url') }}
+        </small>
       </div>
-    </div>
 
-    <!-- Space Key -->
-    <div class="form-group">
-      <label for="space_key" class="form-label">
-        Space Key <span class="required">*</span>
-      </label>
-      <input
-        type="text"
-        id="space_key"
-        formControlName="space_key"
-        class="form-input"
-        [class.error]="hasFieldError('space_key')"
-        placeholder="YOUR_SPACE_KEY"
-      />
-      <div *ngIf="hasFieldError('space_key')" class="error-message">
-        {{ getFieldError('space_key') }}
+      <div class="form-group">
+        <label for="space_key" class="required">
+          Space Key
+        </label>
+        <input
+          id="space_key"
+          type="text"
+          formControlName="space_key"
+          placeholder="SPACE"
+          [class.error]="hasError('space_key')"
+          [attr.aria-invalid]="hasError('space_key') ? 'true' : 'false'"
+          [attr.aria-describedby]="hasError('space_key') ? 'space-key-error' : null"
+          aria-required="true"
+        />
+        <small
+          class="error"
+          *ngIf="hasError('space_key')"
+          id="space-key-error"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ getErrorMessage('space_key') }}
+        </small>
       </div>
-    </div>
 
-    <!-- API Token (Password Input with Masking) -->
-    <div class="form-group">
-      <label for="api_token" class="form-label">
-        API Token <span class="required">*</span>
-      </label>
-      <input
-        type="password"
-        id="api_token"
-        formControlName="api_token"
-        class="form-input"
-        [class.error]="hasFieldError('api_token')"
-        placeholder="Enter your API token"
-        (focus)="onTokenFieldFocus()"
-        (blur)="onTokenFieldBlur()"
-        (input)="onTokenInput($event)"
-      />
-      <div *ngIf="hasFieldError('api_token')" class="error-message">
-        {{ getFieldError('api_token') }}
+      <div class="form-group">
+        <label for="api_token" class="required">
+          API Token
+        </label>
+        <input
+          id="api_token"
+          type="password"
+          formControlName="api_token"
+          [placeholder]="isTokenSaved ? '•••••••••• (saved)' : 'Enter your API token'"
+          [class.error]="hasError('api_token')"
+          [attr.aria-invalid]="hasError('api_token') ? 'true' : 'false'"
+          [attr.aria-describedby]="hasError('api_token') ? 'api-token-error api-token-help' : (isTokenSaved ? 'api-token-help' : null)"
+          autocomplete="off"
+          aria-required="true"
+        />
+        <small
+          class="error"
+          *ngIf="hasError('api_token')"
+          id="api-token-error"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ getErrorMessage('api_token') }}
+        </small>
+        <small
+          class="help-text"
+          *ngIf="isTokenSaved"
+          id="api-token-help"
+        >
+          Enter a new token to update it.
+        </small>
       </div>
-      <p class="field-hint">
-        Token is encrypted and never displayed after initial entry. 
-        <span *ngIf="isTokenSaved">Enter a new token to update it.</span>
-      </p>
-    </div>
 
-    <!-- Status Messages -->
-    <div *ngIf="statusMessage" class="status-message" [class.success]="statusMessage.type === 'success'" 
-         [class.error]="statusMessage.type === 'error'" [class.info]="statusMessage.type === 'info'">
-      <span class="status-icon">
-        <span *ngIf="statusMessage.type === 'success'">✓</span>
-        <span *ngIf="statusMessage.type === 'error'">✗</span>
-        <span *ngIf="statusMessage.type === 'info'">ℹ</span>
-      </span>
-      <span class="status-text">{{ statusMessage.text }}</span>
-    </div>
-
-    <!-- Action Buttons -->
-    <div class="form-actions">
-      <button
-        type="button"
-        (click)="testConnection()"
-        [disabled]="isLoading || isTesting || connectionForm.invalid"
-        class="btn btn-secondary"
-      >
-        <span *ngIf="!isTesting">Test Connection</span>
-        <span *ngIf="isTesting">Testing...</span>
-      </button>
-      <button
-        type="submit"
-        [disabled]="isLoading || isTesting || connectionForm.invalid"
-        class="btn btn-primary"
-      >
-        <span *ngIf="!isLoading">Save Connection</span>
-        <span *ngIf="isLoading">Saving...</span>
-      </button>
-    </div>
-  </form>
-
-  <!-- Connection Info (if exists) -->
-  <div *ngIf="existingConnection && !isLoading" class="connection-info">
-    <h3>Connection Information</h3>
-    <div class="info-grid">
-      <div class="info-item">
-        <span class="info-label">Status:</span>
-        <span class="info-value success-badge">✓ Connected</span>
+      <div class="form-actions">
+        <button
+          type="submit" 
+          class="btn btn-primary" 
+          [disabled]="connectionForm.invalid || isSaving"
+          [attr.aria-busy]="isSaving"
+          aria-label="Save Confluence connection settings"
+        >
+          <span *ngIf="!isSaving" aria-hidden="false">Save Connection</span>
+          <span *ngIf="isSaving" class="button-loading" aria-hidden="true">
+            <mat-spinner diameter="16" class="inline-spinner" aria-hidden="true"></mat-spinner>
+            <span class="sr-only">Saving connection, please wait</span>
+            Saving...
+          </span>
+        </button>
+        <button 
+          type="button" 
+          class="btn btn-secondary" 
+          (click)="testConnection()" 
+          [disabled]="connectionForm.invalid || isTesting"
+          [attr.aria-busy]="isTesting"
+          aria-label="Test Confluence connection"
+        >
+          <span *ngIf="!isTesting" aria-hidden="false">Test Connection</span>
+          <span *ngIf="isTesting" class="button-loading" aria-hidden="true">
+            <mat-spinner diameter="16" class="inline-spinner" aria-hidden="true"></mat-spinner>
+            <span class="sr-only">Testing connection, please wait</span>
+            Testing...
+          </span>
+        </button>
       </div>
-      <div class="info-item" *ngIf="existingConnection && existingConnection.created_at">
-        <span class="info-label">Created:</span>
-        <span class="info-value">{{ existingConnection.created_at | date:'medium' }}</span>
-      </div>
-      <div class="info-item" *ngIf="existingConnection && existingConnection.updated_at">
-        <span class="info-label">Last Updated:</span>
-        <span class="info-value">{{ existingConnection.updated_at | date:'medium' }}</span>
-      </div>
-      <div class="info-item" *ngIf="existingConnection && existingConnection.last_used_at">
-        <span class="info-label">Last Used:</span>
-        <span class="info-value">{{ existingConnection.last_used_at | date:'medium' }}</span>
-      </div>
-    </div>
+    </form>
+  </div>
   </div>
 </div>
 

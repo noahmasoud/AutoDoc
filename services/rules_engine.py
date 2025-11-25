@@ -56,4 +56,3 @@ def match_rule(selector: str, file_path: str) -> bool:
 
 
 __all__ = ["match_rule"]
-
