@@ -28,8 +28,8 @@
           autocomplete="url"
           aria-required="true"
         />
-        <small 
-          class="error" 
+        <small
+          class="error"
           *ngIf="hasError('confluence_base_url')"
           id="confluence-url-error"
           role="alert"
@@ -53,8 +53,8 @@
           [attr.aria-describedby]="hasError('space_key') ? 'space-key-error' : null"
           aria-required="true"
         />
-        <small 
-          class="error" 
+        <small
+          class="error"
           *ngIf="hasError('space_key')"
           id="space-key-error"
           role="alert"
@@ -79,8 +79,8 @@
           autocomplete="off"
           aria-required="true"
         />
-        <small 
-          class="error" 
+        <small
+          class="error"
           *ngIf="hasError('api_token')"
           id="api-token-error"
           role="alert"
@@ -88,8 +88,8 @@
         >
           {{ getErrorMessage('api_token') }}
         </small>
-        <small 
-          class="help-text" 
+        <small
+          class="help-text"
           *ngIf="isTokenSaved"
           id="api-token-help"
         >
@@ -98,7 +98,7 @@
       </div>
 
       <div class="form-actions">
-        <button 
+        <button
           type="submit" 
           class="btn btn-primary" 
           [disabled]="connectionForm.invalid || isSaving"
