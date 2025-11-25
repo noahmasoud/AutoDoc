@@ -1,7 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import {
   ChangeReportService,
   ChangeReport,
@@ -10,6 +9,7 @@ import {
 } from '../../services/change-report.service';
 import { MockChangeReportService } from '../../services/mock-change-report.service';
 import { FileDiff } from '../../models/change-report.model';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-run-details',
@@ -37,7 +37,7 @@ export class RunDetailsComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private changeReportService: ChangeReportService,
     private mockChangeReportService: MockChangeReportService,
-    private snackBar: MatSnackBar
+    private toastService: ToastService
   ) {}
 
   ngOnInit(): void {
@@ -105,15 +105,7 @@ export class RunDetailsComponent implements OnInit, OnDestroy {
         this.report = data;
         this.parseReportData();
         this.applyFilter();
-        this.snackBar.open(
-          'Backend unavailable. Displaying mock data for offline development.',
-          'Close',
-          {
-            duration: 5000,
-            horizontalPosition: 'end',
-            verticalPosition: 'top',
-          }
-        );
+        this.toastService.info('Backend unavailable. Displaying mock data for offline development.');
       },
       error: (err: Error) => {
         this.loading = false;
@@ -204,11 +196,7 @@ export class RunDetailsComponent implements OnInit, OnDestroy {
   }
 
   showError(message: string): void {
-    this.snackBar.open(message, 'Close', {
-      duration: 5000,
-      horizontalPosition: 'end',
-      verticalPosition: 'top',
-    });
+    this.toastService.error(message);
   }
 
   getSeverityColor(severity?: string): string {

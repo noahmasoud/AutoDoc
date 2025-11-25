@@ -1,6 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { ConnectionsService } from '../../services/connections.service';
 import { RulesService } from '../../services/rules.service';
 import { TemplatesService } from '../../services/templates.service';
@@ -8,7 +11,7 @@ import { TemplatesService } from '../../services/templates.service';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, MatProgressSpinnerModule],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css']
 })
@@ -32,49 +35,42 @@ export class DashboardComponent implements OnInit {
   loadDashboardData(): void {
     this.isLoading = true;
 
-    // Load connection
-    this.connectionsService.getConnection().subscribe({
-      next: (connection) => {
-        if (connection) {
+    // Load all data in parallel using forkJoin
+    forkJoin({
+      connection: this.connectionsService.getConnection().pipe(
+        catchError(() => of(null))
+      ),
+      rules: this.rulesService.listRules().pipe(
+        catchError(() => of([]))
+      ),
+      templates: this.templatesService.listTemplates().pipe(
+        catchError(() => of([]))
+      )
+    }).subscribe({
+      next: (results) => {
+        // Process connection
+        if (results.connection) {
           this.connectionStatus = 'configured';
-          this.connectionUrl = connection.confluence_base_url;
+          this.connectionUrl = results.connection.confluence_base_url;
         } else {
           this.connectionStatus = 'not-configured';
         }
+
+        // Process rules
+        this.rulesCount = Array.isArray(results.rules) ? results.rules.length : 0;
+
+        // Process templates
+        this.templatesCount = Array.isArray(results.templates) ? results.templates.length : 0;
+
+        this.isLoading = false;
       },
       error: () => {
+        // On error, set defaults
         this.connectionStatus = 'not-configured';
-      }
-    });
-
-    // Load rules count
-    this.rulesService.listRules().subscribe({
-      next: (rules) => {
-        this.rulesCount = rules.length;
-        this.checkLoadingComplete();
-      },
-      error: () => {
         this.rulesCount = 0;
-        this.checkLoadingComplete();
-      }
-    });
-
-    // Load templates count
-    this.templatesService.listTemplates().subscribe({
-      next: (templates) => {
-        this.templatesCount = templates.length;
-        this.checkLoadingComplete();
-      },
-      error: () => {
         this.templatesCount = 0;
-        this.checkLoadingComplete();
+        this.isLoading = false;
       }
     });
-  }
-
-  private checkLoadingComplete(): void {
-    // Simple check - all three services have responded
-    // In a real app, you might use forkJoin or similar
-    this.isLoading = false;
   }
 }
