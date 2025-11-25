@@ -4,7 +4,28 @@ nav { background:#fff; border-bottom:1px solid #e0e0e0; padding:8px 16px; displa
 .brand { font-weight:700; font-size:1.1rem; }
 
 html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+body { 
+  margin: 0; 
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Page transition animations */
+router-outlet + * {
+  animation: fadeInPage 0.4s ease-out;
+}
+
+@keyframes fadeInPage {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 /* Toast Notification Styles */
 .toast-success {
@@ -56,13 +77,43 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   min-height: 40px;
   line-height: 1.5;
   text-decoration: none;
   /* Accessibility */
   outline: none;
   position: relative;
+  overflow: hidden;
+}
+
+/* Button ripple effect */
+.btn::before,
+.btn-primary::before,
+.btn-secondary::before,
+.btn-danger::before,
+.btn-small::before,
+.login-button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn:active::before,
+.btn-primary:active::before,
+.btn-secondary:active::before,
+.btn-danger:active::before,
+.btn-small:active::before,
+.login-button:active::before {
+  width: 300px;
+  height: 300px;
 }
 
 /* Focus styles for keyboard navigation */
@@ -188,7 +239,7 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   border-radius: 6px;
   font-size: 14px;
   font-family: inherit;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background-color: white;
   color: #333;
   /* Accessibility */
@@ -268,11 +319,31 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   justify-content: center;
   padding: 60px 20px;
   color: #666;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .loading-state p {
   margin-top: 16px;
   font-size: 14px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .button-loading {
