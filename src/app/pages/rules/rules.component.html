@@ -1,49 +1,114 @@
 <div class="rules-page">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
   <div class="page-header">
     <h1>Rules Management</h1>
-    <button *ngIf="!editingRule" (click)="startCreate()" class="btn-primary">Create New Rule</button>
-  </div>
-
-  <div *ngIf="errorMessage" class="alert alert-error">
-    {{ errorMessage }}
-  </div>
-
-  <div *ngIf="successMessage" class="alert alert-success">
-    {{ successMessage }}
+    <button 
+      *ngIf="!editingRule" 
+      (click)="startCreate()" 
+      class="btn-primary"
+      aria-label="Create a new rule"
+    >
+      Create New Rule
+    </button>
   </div>
 
   <!-- Rule Form -->
-  <div *ngIf="editingRule !== null || isCreating" class="rule-form-card">
+  <div *ngIf="editingRule !== null || isCreating" class="rule-form-card" id="main-content">
     <h2>{{ editingRule ? 'Edit Rule' : 'Create New Rule' }}</h2>
-    <form [formGroup]="ruleForm" (ngSubmit)="saveRule()">
+    <form [formGroup]="ruleForm" (ngSubmit)="saveRule()" role="form" [attr.aria-label]="editingRule ? 'Edit rule form' : 'Create new rule form'">
       <div class="form-group">
-        <label>Name *</label>
-        <input type="text" formControlName="name" />
-        <small class="error" *ngIf="getFieldError('name')">{{ getFieldError('name') }}</small>
+        <label for="rule-name" class="required">Name</label>
+        <input 
+          id="rule-name"
+          type="text" 
+          formControlName="name"
+          [attr.aria-invalid]="getFieldError('name') ? 'true' : 'false'"
+          [attr.aria-describedby]="getFieldError('name') ? 'name-error' : null"
+          aria-required="true"
+        />
+        <small 
+          class="error" 
+          *ngIf="getFieldError('name')"
+          id="name-error"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ getFieldError('name') }}
+        </small>
       </div>
 
       <div class="form-group">
-        <label>Selector * (glob or regex:pattern)</label>
-        <input type="text" formControlName="selector" placeholder="e.g., src/api/** or regex:^src/.*\\.py$" />
-        <small class="error" *ngIf="getFieldError('selector')">{{ getFieldError('selector') }}</small>
-        <small class="help-text">Use glob patterns or prefix with "regex:" for regex patterns</small>
+        <label for="rule-selector" class="required">Selector (glob or regex:pattern)</label>
+        <input 
+          id="rule-selector"
+          type="text" 
+          formControlName="selector" 
+          placeholder="e.g., src/api/** or regex:^src/.*\\.py$"
+          [attr.aria-invalid]="getFieldError('selector') ? 'true' : 'false'"
+          [attr.aria-describedby]="getFieldError('selector') ? 'selector-error selector-help' : 'selector-help'"
+          aria-required="true"
+        />
+        <small 
+          class="error" 
+          *ngIf="getFieldError('selector')"
+          id="selector-error"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ getFieldError('selector') }}
+        </small>
+        <small class="help-text" id="selector-help">Use glob patterns or prefix with "regex:" for regex patterns</small>
       </div>
 
       <div class="form-group">
-        <label>Space Key *</label>
-        <input type="text" formControlName="space_key" />
-        <small class="error" *ngIf="getFieldError('space_key')">{{ getFieldError('space_key') }}</small>
+        <label for="rule-space-key" class="required">Space Key</label>
+        <input 
+          id="rule-space-key"
+          type="text" 
+          formControlName="space_key"
+          [attr.aria-invalid]="getFieldError('space_key') ? 'true' : 'false'"
+          [attr.aria-describedby]="getFieldError('space_key') ? 'space-key-error' : null"
+          aria-required="true"
+        />
+        <small 
+          class="error" 
+          *ngIf="getFieldError('space_key')"
+          id="space-key-error"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ getFieldError('space_key') }}
+        </small>
       </div>
 
       <div class="form-group">
-        <label>Page ID *</label>
-        <input type="text" formControlName="page_id" />
-        <small class="error" *ngIf="getFieldError('page_id')">{{ getFieldError('page_id') }}</small>
+        <label for="rule-page-id" class="required">Page ID</label>
+        <input 
+          id="rule-page-id"
+          type="text" 
+          formControlName="page_id"
+          [attr.aria-invalid]="getFieldError('page_id') ? 'true' : 'false'"
+          [attr.aria-describedby]="getFieldError('page_id') ? 'page-id-error' : null"
+          aria-required="true"
+        />
+        <small 
+          class="error" 
+          *ngIf="getFieldError('page_id')"
+          id="page-id-error"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ getFieldError('page_id') }}
+        </small>
       </div>
 
       <div class="form-group">
-        <label>Template</label>
-        <select formControlName="template_id">
+        <label for="rule-template">Template</label>
+        <select 
+          id="rule-template"
+          formControlName="template_id"
+          aria-label="Select a template (optional)"
+        >
           <option [value]="null">None</option>
           <option *ngFor="let template of templates" [value]="template.id">
             {{ template.name }}
@@ -52,17 +117,39 @@
       </div>
 
       <div class="form-group">
-        <label>
-          <input type="checkbox" formControlName="auto_approve" />
+        <label for="rule-auto-approve">
+          <input 
+            id="rule-auto-approve"
+            type="checkbox" 
+            formControlName="auto_approve"
+            aria-label="Auto-approve patches"
+          />
           Auto-approve patches
         </label>
       </div>
 
       <div class="form-actions">
-        <button type="submit" [disabled]="isSubmitting || ruleForm.invalid" class="btn-primary">
-          {{ isSubmitting ? 'Saving...' : (editingRule ? 'Update' : 'Create') }}
+        <button 
+          type="submit" 
+          [disabled]="isSubmitting || ruleForm.invalid" 
+          class="btn-primary"
+          [attr.aria-busy]="isSubmitting"
+          [attr.aria-label]="editingRule ? 'Update rule' : 'Create rule'"
+        >
+          <span *ngIf="!isSubmitting" aria-hidden="false">{{ editingRule ? 'Update' : 'Create' }}</span>
+          <span *ngIf="isSubmitting" class="button-loading" aria-hidden="true">
+            <mat-spinner diameter="16" class="inline-spinner" aria-hidden="true"></mat-spinner>
+            <span class="sr-only">Saving rule, please wait</span>
+            Saving...
+          </span>
         </button>
-        <button type="button" (click)="cancelEdit()" [disabled]="isSubmitting" class="btn-secondary">
+        <button 
+          type="button" 
+          (click)="cancelEdit()" 
+          [disabled]="isSubmitting" 
+          class="btn-secondary"
+          aria-label="Cancel editing rule"
+        >
           Cancel
         </button>
       </div>
@@ -70,17 +157,44 @@
   </div>
 
   <!-- Rules List -->
-  <div class="rules-list">
+  <div class="rules-list" [attr.aria-label]="'Rules list with ' + rules.length + ' rules'">
     <h2>Existing Rules ({{ rules.length }})</h2>
-    <div *ngIf="rules.length === 0" class="empty-state">
+    
+    <div *ngIf="isLoading" class="loading-state" role="status" aria-label="Loading rules" aria-live="polite">
+      <mat-spinner diameter="40" aria-hidden="true"></mat-spinner>
+      <p>Loading rules...</p>
+    </div>
+
+    <div *ngIf="!isLoading && rules.length === 0" class="empty-state" role="status" aria-live="polite">
       <p>No rules configured. Create your first rule to get started.</p>
     </div>
-    <div *ngFor="let rule of rules" class="rule-card">
+    <ng-container *ngIf="!isLoading">
+      <div *ngFor="let rule of rules; trackBy: trackByRuleId" class="rule-card" [attr.aria-label]="'Rule: ' + rule.name">
       <div class="rule-header">
         <h3>{{ rule.name }}</h3>
         <div class="rule-actions">
-          <button (click)="startEdit(rule)" class="btn-small">Edit</button>
-          <button (click)="deleteRule(rule)" class="btn-small btn-danger">Delete</button>
+          <button 
+            (click)="startEdit(rule)" 
+            [disabled]="isDeleting[rule.id]" 
+            class="btn-small"
+            [attr.aria-label]="'Edit rule ' + rule.name"
+          >
+            Edit
+          </button>
+          <button 
+            (click)="deleteRule(rule)" 
+            [disabled]="isDeleting[rule.id]" 
+            class="btn-small btn-danger"
+            [attr.aria-busy]="isDeleting[rule.id]"
+            [attr.aria-label]="'Delete rule ' + rule.name"
+          >
+            <span *ngIf="!isDeleting[rule.id]" aria-hidden="false">Delete</span>
+            <span *ngIf="isDeleting[rule.id]" class="button-loading" aria-hidden="true">
+              <mat-spinner diameter="16" class="inline-spinner" aria-hidden="true"></mat-spinner>
+              <span class="sr-only">Deleting rule, please wait</span>
+              Deleting...
+            </span>
+          </button>
         </div>
       </div>
       <div class="rule-details">
@@ -91,6 +205,7 @@
         <div><strong>Auto-approve:</strong> {{ rule.auto_approve ? 'Yes' : 'No' }}</div>
       </div>
     </div>
+    </ng-container>
   </div>
 </div>
 

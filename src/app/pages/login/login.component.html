@@ -1,39 +1,56 @@
 <div class="login-container">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
   <div class="login-card">
     <div class="login-header">
       <h1>AutoDoc</h1>
       <p class="subtitle">Sign in to continue</p>
     </div>
 
-    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
-      <div *ngIf="errorMessage" class="error-message">
-        {{ errorMessage }}
-      </div>
-
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form" id="main-content" role="form" aria-label="Login form">
       <div class="form-group">
-        <label for="username">Username</label>
+        <label for="username" class="required">Username</label>
         <input
           id="username"
           type="text"
           formControlName="username"
           placeholder="Enter your username"
           [class.error]="getFieldError('username')"
+          [attr.aria-invalid]="getFieldError('username') ? 'true' : 'false'"
+          [attr.aria-describedby]="getFieldError('username') ? 'username-error' : null"
+          autocomplete="username"
+          aria-required="true"
         />
-        <small class="error" *ngIf="getFieldError('username')">
+        <small 
+          class="error" 
+          *ngIf="getFieldError('username')"
+          id="username-error"
+          role="alert"
+          aria-live="polite"
+        >
           {{ getFieldError('username') }}
         </small>
       </div>
 
       <div class="form-group">
-        <label for="password">Password</label>
+        <label for="password" class="required">Password</label>
         <input
           id="password"
           type="password"
           formControlName="password"
           placeholder="Enter your password"
           [class.error]="getFieldError('password')"
+          [attr.aria-invalid]="getFieldError('password') ? 'true' : 'false'"
+          [attr.aria-describedby]="getFieldError('password') ? 'password-error' : null"
+          autocomplete="current-password"
+          aria-required="true"
         />
-        <small class="error" *ngIf="getFieldError('password')">
+        <small 
+          class="error" 
+          *ngIf="getFieldError('password')"
+          id="password-error"
+          role="alert"
+          aria-live="polite"
+        >
           {{ getFieldError('password') }}
         </small>
       </div>
@@ -41,10 +58,16 @@
       <button
         type="submit"
         class="login-button"
-        [disabled]="isLoading || loginForm.invalid"
+        [disabled]="isLoading || !loginForm.get('username')?.value?.trim() || !loginForm.get('password')?.value?.trim()"
+        [attr.aria-busy]="isLoading"
+        aria-label="Sign in to AutoDoc"
       >
-        <span *ngIf="!isLoading">Sign In</span>
-        <span *ngIf="isLoading">Signing in...</span>
+        <span *ngIf="!isLoading" aria-hidden="false">Sign In</span>
+        <span *ngIf="isLoading" class="button-loading" aria-hidden="true">
+          <mat-spinner diameter="16" class="inline-spinner" aria-hidden="true"></mat-spinner>
+          <span class="sr-only">Signing in, please wait</span>
+          Signing in...
+        </span>
       </button>
     </form>
 

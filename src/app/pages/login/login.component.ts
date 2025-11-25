@@ -1,31 +1,33 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, MatProgressSpinnerModule],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })
 export class LoginComponent implements OnInit {
   loginForm: FormGroup;
   isLoading = false;
-  errorMessage: string | null = null;
   returnUrl = '/dashboard';
 
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private toastService: ToastService
   ) {
     this.loginForm = this.fb.group({
-      username: ['', [Validators.required, Validators.minLength(1)]],
-      password: ['', [Validators.required, Validators.minLength(1)]]
+      username: ['', [Validators.required]],
+      password: ['', [Validators.required]]
     });
   }
 
@@ -43,23 +45,32 @@ export class LoginComponent implements OnInit {
     }
 
     this.isLoading = true;
-    this.errorMessage = null;
 
     const { username, password } = this.loginForm.value;
 
     this.authService.login(username, password).subscribe({
       next: () => {
+        this.toastService.success('Login successful!');
         this.router.navigate([this.returnUrl]);
       },
       error: (error) => {
         this.isLoading = false;
+        console.error('Login error details:', error);
+        let errorMessage = 'Login failed. Please try again.';
+        
         if (error.status === 401) {
-          this.errorMessage = 'Invalid username or password. Please try again.';
+          errorMessage = 'Invalid username or password. Please try again.';
+        } else if (error.status === 400) {
+          const detail = error.error?.detail || error.error?.message || JSON.stringify(error.error);
+          errorMessage = `Bad Request: ${detail}. Please check your input.`;
+          console.error('400 Bad Request details:', error.error);
         } else if (error.status === 0 || error.status === undefined) {
-          this.errorMessage = 'Unable to connect to server. Please ensure the backend is running on http://localhost:8000';
+          errorMessage = 'Unable to connect to server. Please ensure the backend is running on http://localhost:8000';
         } else {
-          this.errorMessage = error.error?.detail || error.error?.message || 'Login failed. Please try again.';
+          errorMessage = error.error?.detail || error.error?.message || `Login failed (${error.status}). Please try again.`;
         }
+        
+        this.toastService.error(errorMessage);
       }
     });
   }
