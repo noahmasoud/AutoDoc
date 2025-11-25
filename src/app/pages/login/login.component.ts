@@ -1,13 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, MatProgressSpinnerModule],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })
@@ -53,12 +54,18 @@ export class LoginComponent implements OnInit {
       },
       error: (error) => {
         this.isLoading = false;
+        console.error('Login error details:', error);
         if (error.status === 401) {
           this.errorMessage = 'Invalid username or password. Please try again.';
+        } else if (error.status === 400) {
+          // Show detailed error for 400 Bad Request
+          const detail = error.error?.detail || error.error?.message || JSON.stringify(error.error);
+          this.errorMessage = `Bad Request: ${detail}. Please check your input.`;
+          console.error('400 Bad Request details:', error.error);
         } else if (error.status === 0 || error.status === undefined) {
           this.errorMessage = 'Unable to connect to server. Please ensure the backend is running on http://localhost:8000';
         } else {
-          this.errorMessage = error.error?.detail || error.error?.message || 'Login failed. Please try again.';
+          this.errorMessage = error.error?.detail || error.error?.message || `Login failed (${error.status}). Please try again.`;
         }
       }
     });

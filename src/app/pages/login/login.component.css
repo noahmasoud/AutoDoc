@@ -114,3 +114,13 @@
   margin: 0;
 }
 
+.button-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-spinner {
+  display: inline-block;
+}
+

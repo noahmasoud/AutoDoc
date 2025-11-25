@@ -170,3 +170,28 @@
   color: #666;
 }
 
+/* Loading States */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.loading-state p {
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+.button-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-spinner {
+  display: inline-block;
+}
+

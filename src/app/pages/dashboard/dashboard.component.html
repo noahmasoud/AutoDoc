@@ -4,8 +4,8 @@
     <p class="subtitle">Welcome to AutoDoc - Your automated documentation assistant</p>
   </div>
 
-  <div *ngIf="isLoading" class="loading-state">
-    <div class="spinner"></div>
+  <div *ngIf="isLoading" class="loading-state" role="status" aria-label="Loading dashboard">
+    <mat-spinner diameter="50"></mat-spinner>
     <p>Loading dashboard...</p>
   </div>
 

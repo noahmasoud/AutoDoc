@@ -30,6 +30,10 @@ def problem(
 def install_handlers(app):
     @app.exception_handler(RequestValidationError)
     async def validation_handler(request: Request, exc: RequestValidationError):
+        # Skip error handling for OPTIONS requests (CORS preflight)
+        if request.method == "OPTIONS":
+            from fastapi.responses import Response
+            return Response(status_code=200)
         return problem(
             422,
             "Validation error",
@@ -40,6 +44,10 @@ def install_handlers(app):
 
     @app.exception_handler(StarletteHTTPException)
     async def http_handler(request: Request, exc: StarletteHTTPException):
+        # Skip error handling for OPTIONS requests (CORS preflight)
+        if request.method == "OPTIONS":
+            from fastapi.responses import Response
+            return Response(status_code=200)
         return problem(
             exc.status_code,
             exc.detail or "HTTP error",

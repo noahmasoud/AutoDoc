@@ -1,13 +1,16 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { RulesService, Rule, RuleRequest } from '../../services/rules.service';
 import { TemplatesService, TemplateSummary } from '../../services/templates.service';
 
 @Component({
   selector: 'app-rules',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, MatProgressSpinnerModule],
   templateUrl: './rules.component.html',
   styleUrls: ['./rules.component.css']
 })
@@ -18,6 +21,8 @@ export class RulesComponent implements OnInit {
   editingRule: Rule | null = null;
   isCreating = false;
   isSubmitting = false;
+  isLoading = false;
+  isDeleting: { [key: number]: boolean } = {};
   errorMessage: string | null = null;
   successMessage: string | null = null;
 
@@ -42,24 +47,29 @@ export class RulesComponent implements OnInit {
   }
 
   loadRules(): void {
+    this.isLoading = true;
     this.rulesService.listRules().subscribe({
       next: (rules) => {
         this.rules = rules;
+        this.isLoading = false;
       },
       error: (error) => {
         console.error('Error loading rules:', error);
         this.errorMessage = 'Failed to load rules';
+        this.isLoading = false;
       }
     });
   }
 
   loadTemplates(): void {
-    this.templatesService.listTemplates().subscribe({
+    this.templatesService.listTemplates().pipe(
+      catchError((error) => {
+        console.error('Error loading templates:', error);
+        return of([]);
+      })
+    ).subscribe({
       next: (templates) => {
         this.templates = templates;
-      },
-      error: (error) => {
-        console.error('Error loading templates:', error);
       }
     });
   }
@@ -137,14 +147,19 @@ export class RulesComponent implements OnInit {
       return;
     }
 
+    this.isDeleting[rule.id] = true;
+    this.clearMessages();
+
     this.rulesService.deleteRule(rule.id).subscribe({
       next: () => {
         this.successMessage = 'Rule deleted successfully';
+        this.isDeleting[rule.id] = false;
         this.loadRules();
       },
       error: (error) => {
         console.error('Error deleting rule:', error);
         this.errorMessage = 'Failed to delete rule';
+        this.isDeleting[rule.id] = false;
       }
     });
   }

@@ -4,7 +4,13 @@
     <p class="subtitle">Configure your Confluence connection settings</p>
   </div>
 
-  <div *ngIf="statusMessage" class="status-message" 
+  <div *ngIf="isLoading" class="loading-state" role="status" aria-label="Loading connection">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Loading connection settings...</p>
+  </div>
+
+  <div *ngIf="!isLoading">
+    <div *ngIf="statusMessage" class="status-message" 
        [class.success]="statusMessage.type === 'success'"
        [class.error]="statusMessage.type === 'error'"
        [class.info]="statusMessage.type === 'info'">
@@ -65,14 +71,23 @@
       </div>
 
       <div class="form-actions">
-        <button type="submit" class="btn btn-primary" [disabled]="connectionForm.invalid">
-          Save Connection
+        <button type="submit" class="btn btn-primary" [disabled]="connectionForm.invalid || isSaving">
+          <span *ngIf="!isSaving">Save Connection</span>
+          <span *ngIf="isSaving" class="button-loading">
+            <mat-spinner diameter="16" class="inline-spinner"></mat-spinner>
+            Saving...
+          </span>
         </button>
-        <button type="button" class="btn btn-secondary" (click)="testConnection()" [disabled]="connectionForm.invalid">
-          Test Connection
+        <button type="button" class="btn btn-secondary" (click)="testConnection()" [disabled]="connectionForm.invalid || isTesting">
+          <span *ngIf="!isTesting">Test Connection</span>
+          <span *ngIf="isTesting" class="button-loading">
+            <mat-spinner diameter="16" class="inline-spinner"></mat-spinner>
+            Testing...
+          </span>
         </button>
       </div>
     </form>
+  </div>
   </div>
 </div>
 

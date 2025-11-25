@@ -44,7 +44,10 @@
         [disabled]="isLoading || loginForm.invalid"
       >
         <span *ngIf="!isLoading">Sign In</span>
-        <span *ngIf="isLoading">Signing in...</span>
+        <span *ngIf="isLoading" class="button-loading">
+          <mat-spinner diameter="16" class="inline-spinner"></mat-spinner>
+          Signing in...
+        </span>
       </button>
     </form>
 
