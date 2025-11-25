@@ -1,19 +1,20 @@
 <div class="dashboard-container">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
   <div class="dashboard-header">
     <h1>Dashboard</h1>
     <p class="subtitle">Welcome to AutoDoc - Your automated documentation assistant</p>
   </div>
 
-  <div *ngIf="isLoading" class="loading-state" role="status" aria-label="Loading dashboard">
-    <mat-spinner diameter="50"></mat-spinner>
+  <div *ngIf="isLoading" class="loading-state" role="status" aria-label="Loading dashboard" aria-live="polite">
+    <mat-spinner diameter="50" aria-hidden="true"></mat-spinner>
     <p>Loading dashboard...</p>
   </div>
 
-  <div *ngIf="!isLoading" class="dashboard-content">
+  <div *ngIf="!isLoading" class="dashboard-content" id="main-content">
     <!-- Statistics Cards -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon connection-icon">
+    <div class="stats-grid" role="region" aria-label="Dashboard statistics">
+      <div class="stat-card" role="article" aria-label="Connection status">
+        <div class="stat-icon connection-icon" aria-hidden="true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
             <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
@@ -29,8 +30,8 @@
         </div>
       </div>
 
-      <div class="stat-card">
-        <div class="stat-icon rules-icon">
+      <div class="stat-card" role="article" aria-label="Rules count">
+        <div class="stat-icon rules-icon" aria-hidden="true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
@@ -46,8 +47,8 @@
         </div>
       </div>
 
-      <div class="stat-card">
-        <div class="stat-icon templates-icon">
+      <div class="stat-card" role="article" aria-label="Templates count">
+        <div class="stat-icon templates-icon" aria-hidden="true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
@@ -64,11 +65,11 @@
     </div>
 
     <!-- Quick Actions -->
-    <div class="quick-actions-section">
+    <div class="quick-actions-section" role="region" aria-label="Quick actions">
       <h2>Quick Actions</h2>
       <div class="actions-grid">
-        <a routerLink="/connections" class="action-card" [class.priority]="connectionStatus === 'not-configured'">
-          <div class="action-icon">
+        <a routerLink="/connections" class="action-card" [class.priority]="connectionStatus === 'not-configured'" aria-label="Configure Confluence connection">
+          <div class="action-icon" aria-hidden="true">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
             </svg>
@@ -80,8 +81,8 @@
           </div>
         </a>
 
-        <a routerLink="/rules" class="action-card">
-          <div class="action-icon">
+        <a routerLink="/rules" class="action-card" aria-label="Manage documentation rules">
+          <div class="action-icon" aria-hidden="true">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
               <polyline points="14 2 14 8 20 8"></polyline>
@@ -93,8 +94,8 @@
           </div>
         </a>
 
-        <a routerLink="/templates" class="action-card">
-          <div class="action-icon">
+        <a routerLink="/templates" class="action-card" aria-label="Manage documentation templates">
+          <div class="action-icon" aria-hidden="true">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
               <polyline points="14 2 14 8 20 8"></polyline>
@@ -109,33 +110,33 @@
     </div>
 
     <!-- Getting Started Guide -->
-    <div class="getting-started-section" *ngIf="connectionStatus === 'not-configured' || rulesCount === 0">
+    <div class="getting-started-section" *ngIf="connectionStatus === 'not-configured' || rulesCount === 0" role="region" aria-label="Getting started guide">
       <h2>Getting Started</h2>
       <div class="guide-steps">
-        <div class="guide-step" *ngIf="connectionStatus === 'not-configured'">
-          <div class="step-number">1</div>
+        <div class="guide-step" *ngIf="connectionStatus === 'not-configured'" role="article" aria-label="Step 1: Configure Confluence connection">
+          <div class="step-number" aria-hidden="true">1</div>
           <div class="step-content">
             <h3>Configure Confluence Connection</h3>
             <p>Set up your Confluence base URL, space key, and API token to connect AutoDoc to your Confluence instance.</p>
-            <a routerLink="/connections" class="step-link">Configure Connection →</a>
+            <a routerLink="/connections" class="step-link" aria-label="Go to configure Confluence connection">Configure Connection →</a>
           </div>
         </div>
 
-        <div class="guide-step" *ngIf="connectionStatus === 'configured' && rulesCount === 0">
-          <div class="step-number">2</div>
+        <div class="guide-step" *ngIf="connectionStatus === 'configured' && rulesCount === 0" role="article" aria-label="Step 2: Create your first rule">
+          <div class="step-number" aria-hidden="true">2</div>
           <div class="step-content">
             <h3>Create Your First Rule</h3>
             <p>Define rules that map code changes to Confluence documentation pages. Rules use glob patterns or regex to match file paths.</p>
-            <a routerLink="/rules" class="step-link">Create Rule →</a>
+            <a routerLink="/rules" class="step-link" aria-label="Go to create a rule">Create Rule →</a>
           </div>
         </div>
 
-        <div class="guide-step" *ngIf="connectionStatus === 'configured' && rulesCount > 0 && templatesCount === 0">
-          <div class="step-number">3</div>
+        <div class="guide-step" *ngIf="connectionStatus === 'configured' && rulesCount > 0 && templatesCount === 0" role="article" aria-label="Step 3: Create templates">
+          <div class="step-number" aria-hidden="true">3</div>
           <div class="step-content">
             <h3>Add Documentation Templates</h3>
             <p>Create templates to standardize how documentation is generated from code changes.</p>
-            <a routerLink="/templates" class="step-link">Create Template →</a>
+            <a routerLink="/templates" class="step-link" aria-label="Go to create a template">Create Template →</a>
           </div>
         </div>
       </div>

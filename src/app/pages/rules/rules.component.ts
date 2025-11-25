@@ -173,4 +173,8 @@ export class RulesComponent implements OnInit {
     }
     return '';
   }
+
+  trackByRuleId(index: number, rule: Rule): number {
+    return rule.id;
+  }
 }

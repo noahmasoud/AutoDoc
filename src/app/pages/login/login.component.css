@@ -38,70 +38,7 @@
   gap: 20px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group label {
-  margin-bottom: 8px;
-  font-weight: 500;
-  color: #333;
-}
-
-.form-group input {
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-.form-group input.error {
-  border-color: #dc3545;
-}
-
-.form-group small.error {
-  color: #dc3545;
-  font-size: 12px;
-  margin-top: 4px;
-}
-
-.error-message {
-  background-color: #fee;
-  color: #c33;
-  padding: 12px;
-  border-radius: 6px;
-  border: 1px solid #fcc;
-  font-size: 14px;
-}
-
-.login-button {
-  padding: 12px;
-  background-color: #667eea;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 16px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  margin-top: 8px;
-}
-
-.login-button:hover:not(:disabled) {
-  background-color: #5568d3;
-}
-
-.login-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+/* Component-specific styles only - shared styles are in global styles.css */
 
 .login-footer {
   margin-top: 24px;
@@ -114,13 +51,5 @@
   margin: 0;
 }
 
-.button-loading {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.inline-spinner {
-  display: inline-block;
-}
+/* Loading states are now in global styles.css */
 
