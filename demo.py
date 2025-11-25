@@ -11,7 +11,7 @@ def section(title, emoji=""):
     print("=" * 50 + "\n")
 
 
-def main():  # noqa: PLR0915
+def main():
     print("\n" + "=" * 50)
     print("AutoDoc: Automated Documentation Pipeline")
     print("Sprint 1 Demo - Analysis Engine")

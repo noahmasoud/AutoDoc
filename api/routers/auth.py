@@ -90,11 +90,11 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
                 detail="Invalid authentication credentials",
             )
         return username
-    except JWTError as e:
+    except JWTError as err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
-        ) from e
+        ) from err
 
 
 @router.post("", response_model=LoginResponse)

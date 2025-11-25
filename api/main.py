@@ -12,8 +12,8 @@ from api.routers import (
     patches,
     diff_parser,
     pages,
-    auth,
     connections,
+    auth,
 )
 
 

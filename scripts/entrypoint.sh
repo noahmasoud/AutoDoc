@@ -285,9 +285,9 @@ run_application() {
             # Start FastAPI server
             log_info "Starting FastAPI server..."
             if [ "$timeout" -gt 0 ]; then
-                execute_with_timeout "$timeout" python3 -m uvicorn autodoc.api.main:app --host 0.0.0.0 --port 8000
+                execute_with_timeout "$timeout" python3 -m uvicorn api.main:app --host 0.0.0.0 --port 8000
             else
-                python3 -m uvicorn autodoc.api.main:app --host 0.0.0.0 --port 8000
+                python3 -m uvicorn api.main:app --host 0.0.0.0 --port 8000
             fi
             ;;
         "cli")

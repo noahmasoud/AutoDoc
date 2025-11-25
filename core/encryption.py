@@ -48,8 +48,15 @@ def decrypt_token(encrypted_token: str) -> str:
     Returns:
         Decrypted plaintext token
     """
-    encrypted_bytes = base64.urlsafe_b64decode(encrypted_token.encode())
-    key = _derive_key(settings.SECRET_KEY, _SALT)
-    fernet = Fernet(key)
-    decrypted = fernet.decrypt(encrypted_bytes)
-    return decrypted.decode()
+    if not encrypted_token:
+        raise ValueError("Encrypted token cannot be empty")
+
+    try:
+        # The encrypted_token is already base64-encoded from encrypt_token
+        encrypted_bytes = base64.urlsafe_b64decode(encrypted_token.encode())
+        key = _derive_key(settings.SECRET_KEY, _SALT)
+        fernet = Fernet(key)
+        decrypted = fernet.decrypt(encrypted_bytes)
+        return decrypted.decode()
+    except Exception as e:
+        raise ValueError(f"Failed to decrypt token: {e!s}") from e

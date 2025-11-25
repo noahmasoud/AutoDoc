@@ -1,8 +1,6 @@
 # AutoDoc Docker Compose Configuration
 # Development and production environment setup
 
-version: '3.8'
-
 # =============================================================================
 # Networks
 # =============================================================================

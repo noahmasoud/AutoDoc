@@ -243,6 +243,15 @@ ignore = [
     "I001",  # unsorted-imports
     "PERF403",  # manual-dict-comprehension
     "PLW2901",  # redefined-loop-name
+    "Q000",  # allow single-quoted strings
+    "UP006",  # allow legacy typing.List style annotations
+    "UP035",  # allow typing extensions imports
+    "UP037",  # allow quoted annotations for compatibility
+    "UP045",  # allow Optional[...] syntax
+    "PERF401",  # allow manual list comprehension assignments
+    "SIM117",  # allow multiple context managers without parentheses
+    "TRY400",  # allow raising arbitrary exceptions in legacy code
+    "PLC0206",  # allow direct dict index access patterns
     "PT011",  # pytest-raises-too-broad (test pattern)
     "RUF022",  # unsorted-dunder-all
     "TRY301",  # raise-within-try
@@ -254,12 +263,15 @@ ignore = [
 "__init__.py" = ["F401"]
 "tests/**/*.py" = ["S101", "PLR2004", "S106", "S108", "TID252", "SLF001"]
 "src/analyzer/change_detector.py" = ["Q000", "UP006", "UP035", "UP045", "PLC0206", "PERF401"]
-
-[tool.ruff.format]
-exclude = ["src/analyzer/change_detector.py"]
+"demo.py" = ["PLR0915"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["autodoc", "api", "cli", "core", "db", "schemas", "services"]
+
+[tool.ruff.format]
+exclude = [
+    "src/analyzer/change_detector.py",
+]
 
 # MyPy configuration
 [tool.mypy]
