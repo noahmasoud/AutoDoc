@@ -10,14 +10,7 @@
   </div>
 
   <div *ngIf="!isLoading">
-    <div *ngIf="statusMessage" class="status-message" 
-       [class.success]="statusMessage.type === 'success'"
-       [class.error]="statusMessage.type === 'error'"
-       [class.info]="statusMessage.type === 'info'">
-    <span class="status-text">{{ statusMessage.text }}</span>
-  </div>
-
-  <div class="connection-form-card">
+    <div class="connection-form-card">
     <form [formGroup]="connectionForm" (ngSubmit)="saveConnection()" class="connection-form">
       <div class="form-group">
         <label for="confluence_base_url">

@@ -4,14 +4,6 @@
     <button *ngIf="!editingRule" (click)="startCreate()" class="btn-primary">Create New Rule</button>
   </div>
 
-  <div *ngIf="errorMessage" class="alert alert-error">
-    {{ errorMessage }}
-  </div>
-
-  <div *ngIf="successMessage" class="alert alert-success">
-    {{ successMessage }}
-  </div>
-
   <!-- Rule Form -->
   <div *ngIf="editingRule !== null || isCreating" class="rule-form-card">
     <h2>{{ editingRule ? 'Edit Rule' : 'Create New Rule' }}</h2>

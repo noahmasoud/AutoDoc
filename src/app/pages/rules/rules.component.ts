@@ -6,6 +6,7 @@ import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { RulesService, Rule, RuleRequest } from '../../services/rules.service';
 import { TemplatesService, TemplateSummary } from '../../services/templates.service';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-rules',
@@ -23,13 +24,12 @@ export class RulesComponent implements OnInit {
   isSubmitting = false;
   isLoading = false;
   isDeleting: { [key: number]: boolean } = {};
-  errorMessage: string | null = null;
-  successMessage: string | null = null;
 
   constructor(
     private fb: FormBuilder,
     private rulesService: RulesService,
-    private templatesService: TemplatesService
+    private templatesService: TemplatesService,
+    private toastService: ToastService
   ) {
     this.ruleForm = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(1)]],
@@ -55,7 +55,7 @@ export class RulesComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error loading rules:', error);
-        this.errorMessage = 'Failed to load rules';
+        this.toastService.error('Failed to load rules. Please try again.');
         this.isLoading = false;
       }
     });
@@ -78,7 +78,6 @@ export class RulesComponent implements OnInit {
     this.editingRule = null;
     this.isCreating = true;
     this.ruleForm.reset({ auto_approve: false, template_id: null });
-    this.clearMessages();
   }
 
   startEdit(rule: Rule): void {
@@ -92,14 +91,12 @@ export class RulesComponent implements OnInit {
       template_id: rule.template_id,
       auto_approve: rule.auto_approve
     });
-    this.clearMessages();
   }
 
   cancelEdit(): void {
     this.editingRule = null;
     this.isCreating = false;
     this.ruleForm.reset({ auto_approve: false, template_id: null });
-    this.clearMessages();
   }
 
   saveRule(): void {
@@ -109,7 +106,6 @@ export class RulesComponent implements OnInit {
     }
 
     this.isSubmitting = true;
-    this.clearMessages();
 
     const formValue = this.ruleForm.value;
     const ruleData: RuleRequest = {
@@ -127,7 +123,8 @@ export class RulesComponent implements OnInit {
 
     operation.subscribe({
       next: () => {
-        this.successMessage = this.editingRule ? 'Rule updated successfully' : 'Rule created successfully';
+        const message = this.editingRule ? 'Rule updated successfully' : 'Rule created successfully';
+        this.toastService.success(message);
         this.loadRules();
         this.editingRule = null;
         this.isCreating = false;
@@ -136,7 +133,8 @@ export class RulesComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error saving rule:', error);
-        this.errorMessage = error.error?.detail || 'Failed to save rule';
+        const errorMsg = error.error?.detail || 'Failed to save rule';
+        this.toastService.error(errorMsg);
         this.isSubmitting = false;
       }
     });
@@ -148,25 +146,19 @@ export class RulesComponent implements OnInit {
     }
 
     this.isDeleting[rule.id] = true;
-    this.clearMessages();
 
     this.rulesService.deleteRule(rule.id).subscribe({
       next: () => {
-        this.successMessage = 'Rule deleted successfully';
+        this.toastService.success('Rule deleted successfully');
         this.isDeleting[rule.id] = false;
         this.loadRules();
       },
       error: (error) => {
         console.error('Error deleting rule:', error);
-        this.errorMessage = 'Failed to delete rule';
+        this.toastService.error('Failed to delete rule');
         this.isDeleting[rule.id] = false;
       }
     });
-  }
-
-  clearMessages(): void {
-    this.errorMessage = null;
-    this.successMessage = null;
   }
 
   getFieldError(fieldName: string): string {

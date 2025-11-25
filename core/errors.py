@@ -33,6 +33,7 @@ def install_handlers(app):
         # Skip error handling for OPTIONS requests (CORS preflight)
         if request.method == "OPTIONS":
             from fastapi.responses import Response
+
             return Response(status_code=200)
         return problem(
             422,
@@ -47,6 +48,7 @@ def install_handlers(app):
         # Skip error handling for OPTIONS requests (CORS preflight)
         if request.method == "OPTIONS":
             from fastapi.responses import Response
+
             return Response(status_code=200)
         return problem(
             exc.status_code,

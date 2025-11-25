@@ -27,15 +27,16 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
             # Add correlation ID to response headers
             response.headers["X-Request-ID"] = cid
             return response
-        except Exception as e:
+        except Exception as exc:
             elapsed = round((time.time() - start) * 1000, 2)
-            logger.error(
-                {
+            logger.exception(
+                "Request error",
+                extra={
                     "event": "request.error",
                     "cid": cid,
                     "method": request.method,
                     "path": request.url.path,
-                    "error": str(e),
+                    "error": str(exc),
                     "ms": elapsed,
                 },
             )

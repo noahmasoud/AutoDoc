@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ConnectionsService, Connection, ConnectionCreate } from '../../services/connections.service';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-connections',
@@ -15,14 +16,14 @@ export class ConnectionsComponent implements OnInit {
   connectionForm: FormGroup;
   isTokenSaved = false;
   existingConnection: Connection | null = null;
-  statusMessage: { type: 'success' | 'error' | 'info'; text: string } | null = null;
   isLoading = false;
   isSaving = false;
   isTesting = false;
 
   constructor(
     private fb: FormBuilder,
-    private connectionsService: ConnectionsService
+    private connectionsService: ConnectionsService,
+    private toastService: ToastService
   ) {
     this.connectionForm = this.fb.group({
       confluence_base_url: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/i)]],
@@ -60,10 +61,7 @@ export class ConnectionsComponent implements OnInit {
   saveConnection(): void {
     if (this.connectionForm.invalid) {
       this.connectionForm.markAllAsTouched();
-      this.statusMessage = {
-        type: 'error',
-        text: 'Please fill in all required fields correctly.'
-      };
+      this.toastService.error('Please fill in all required fields correctly.');
       return;
     }
 
@@ -72,10 +70,7 @@ export class ConnectionsComponent implements OnInit {
     // Only send token if it's not the masked value
     const tokenValue = formValue.api_token;
     if (!tokenValue || tokenValue === '••••••••••') {
-      this.statusMessage = {
-        type: 'info',
-        text: 'Please enter a new token to update the connection.'
-      };
+      this.toastService.info('Please enter a new token to update the connection.');
       return;
     }
 
@@ -89,20 +84,15 @@ export class ConnectionsComponent implements OnInit {
     this.connectionsService.saveConnection(connectionData).subscribe({
       next: (connection) => {
         this.existingConnection = connection;
-        this.statusMessage = {
-          type: 'success',
-          text: 'Connection saved successfully.'
-        };
+        this.toastService.success('Connection saved successfully.');
         this.isTokenSaved = true;
         this.connectionForm.patchValue({ api_token: '••••••••••' });
         this.isSaving = false;
       },
       error: (error) => {
         console.error('Error saving connection:', error);
-        this.statusMessage = {
-          type: 'error',
-          text: error.error?.detail || 'Failed to save connection. Please try again.'
-        };
+        const errorMsg = error.error?.detail || 'Failed to save connection. Please try again.';
+        this.toastService.error(errorMsg);
         this.isSaving = false;
       }
     });
@@ -111,24 +101,17 @@ export class ConnectionsComponent implements OnInit {
   testConnection(): void {
     if (this.connectionForm.invalid) {
       this.connectionForm.markAllAsTouched();
-      this.statusMessage = {
-        type: 'error',
-        text: 'Please fill in all required fields correctly.'
-      };
+      this.toastService.error('Please fill in all required fields correctly.');
       return;
     }
 
     this.isTesting = true;
-    this.statusMessage = null;
 
     // Test connection functionality will be implemented in Prompt 3
     // For now, simulate a test
     setTimeout(() => {
       this.isTesting = false;
-      this.statusMessage = {
-        type: 'info',
-        text: 'Test connection functionality will be implemented.'
-      };
+      this.toastService.info('Test connection functionality will be implemented.');
     }, 1000);
   }
 
