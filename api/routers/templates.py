@@ -3,7 +3,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from db.session import get_db
 from db.models import Template
-from schemas.templates import TemplateCreate, TemplateUpdate, TemplateOut
+from schemas.templates import (
+    TemplateCreate,
+    TemplateUpdate,
+    TemplateOut,
+    TemplatePreviewRequest,
+    TemplatePreviewResponse,
+)
+from autodoc.templates.engine import TemplateEngine
 
 router = APIRouter(prefix="/templates", tags=["templates"])
 
@@ -52,3 +59,49 @@ def delete_template(template_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Template not found")
     db.delete(row)
     db.flush()
+
+
+@router.post("/preview", response_model=TemplatePreviewResponse)
+def preview_template(request: TemplatePreviewRequest, db: Session = Depends(get_db)):
+    """Preview a template with variable substitution.
+
+    Per FR-20: Template preview functionality for testing templates
+    before saving or applying them.
+
+    Args:
+        request: Preview request with template and variables
+        db: Database session
+
+    Returns:
+        Rendered template content
+
+    Raises:
+        HTTPException: If template_id is provided but template not found
+        ValueError: If template format is invalid
+    """
+    engine = TemplateEngine()
+
+    # If template_id is provided, load from database
+    if request.template_id:
+        template = db.get(Template, request.template_id)
+        if not template:
+            raise HTTPException(404, "Template not found")
+        template_body = template.body
+        template_format = template.format
+    elif request.template_body and request.template_format:
+        # Use provided template body and format
+        template_body = request.template_body
+        template_format = request.template_format
+    else:
+        raise HTTPException(
+            400,
+            "Either template_id or both template_body and template_format must be provided",
+        )
+
+    # Render template
+    try:
+        rendered = engine.render(template_body, request.variables, template_format)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+    return TemplatePreviewResponse(rendered=rendered, template_id=request.template_id)
