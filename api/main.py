@@ -26,7 +26,10 @@ def create_app() -> FastAPI:
     )
 
     # DB: dev-time auto-create tables (hand off to Alembic os)
-    Base.metadata.create_all(bind=engine)
+    # Skip for in-memory SQLite (used in tests) to avoid conflicts with test fixtures
+    db_url = str(engine.url)
+    if ":memory:" not in db_url:
+        Base.metadata.create_all(bind=engine)
 
     # Global error handlers (problem+json) - install before CORS to avoid interfering
     install_handlers(app)

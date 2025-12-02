@@ -24,7 +24,8 @@ def list_templates(db: Session = Depends(get_db)):
 def create_template(payload: TemplateCreate, db: Session = Depends(get_db)):
     row = Template(**payload.model_dump())
     db.add(row)
-    db.flush()
+    db.commit()
+    db.refresh(row)
     return row
 
 

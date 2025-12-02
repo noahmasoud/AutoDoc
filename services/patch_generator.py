@@ -6,20 +6,14 @@ and generate patches for documentation updates using templates (FR-10).
 
 import logging
 from collections import defaultdict
+from typing import Any
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 
-from db.models import Change, Patch, Rule, Run, Template
+from db.models import Change, Patch, PythonSymbol, Rule, Run
 from services.change_persister import get_changes_for_run
-from services.rule_engine import (
-    InvalidTargetError,
-    resolve_target_page,
-)
-from services.template_engine import (
-    TemplateEngine,
-    TemplateEngineError,
-    TemplateValidationError,
-)
+from services.rule_engine import resolve_target_page
+from autodoc.templates.engine import TemplateEngine
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +101,7 @@ def generate_patches_for_run(  # noqa: PLR0915
         for change in changes:
             changes_by_file[change.file_path].append(change)
 
-        # Group by target page (rule.page_id)
+        # Group by target page (rule.page_id) - multiple files can map to same page
         changes_by_page: dict[tuple[str, Rule], list[Change]] = defaultdict(list)
         files_without_rules = []
 
@@ -124,10 +118,26 @@ def generate_patches_for_run(  # noqa: PLR0915
                     )
                     continue
 
+                # Group changes by page_id and rule
+                page_id = matching_rule.page_id
+                changes_by_page[(page_id, matching_rule)].extend(file_changes)
+
+            except Exception as e:
+                logger.exception(
+                    f"Error processing file {file_path}: {e}",
+                    extra={"run_id": run_id, "file_path": file_path},
+                )
+                files_without_rules.append(file_path)
+                continue
+
+        # Step 3: Generate one patch per page (combining all files for that page)
+        patches_created = []
+        for (page_id, rule), page_changes in changes_by_page.items():
+            try:
                 # Generate patch content
-                # Use template if available, otherwise fall back to simple generation
-                diff_before = _generate_before_content(file_changes)
-                diff_after = _generate_after_content(file_changes, matching_rule, db)
+                # Use template engine if rule has an associated template
+                diff_before = _generate_before_content(page_changes)
+                diff_after = _generate_after_content(page_changes, rule, run)
 
                 # Create patch record
                 patch = Patch(
@@ -509,6 +519,12 @@ def _build_template_variables(changes: list[Change], rule: Rule, run: Run) -> di
         }
         changes_data.append(change_data)
 
+    # Build a string representation of changes for templates that expect {{changes.all}}
+    # This is a workaround for templates that can't iterate over lists
+    changes_str = "\n".join(
+        [f"- {c['symbol']} ({c['change_type']})" for c in changes_data]
+    )
+
     # Build variables context
     variables = {
         "file_path": file_path,
@@ -522,8 +538,11 @@ def _build_template_variables(changes: list[Change], rule: Rule, run: Run) -> di
             "branch": run.branch,
             "commit_sha": run.commit_sha,
         },
-        "changes": changes_data,
+        "changes": {
+            "all": changes_str,  # String representation for {{changes.all}}
+        },
         "change_count": len(changes),
+        "files": file_path,  # Single file path as string
     }
 
     # Add individual change data if there's only one change

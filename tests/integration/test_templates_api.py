@@ -1,19 +1,31 @@
 """Integration tests for template API endpoints."""
 
+import tempfile
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from api.main import create_app
-from db.models import Base, Template
-from db.session import get_db
+from db.models import Template
+from db.session import Base, get_db
 
 
 @pytest.fixture
 def test_engine():
-    """Create an in-memory SQLite database for testing."""
-    engine = create_engine("sqlite:///:memory:")
+    """Create a temporary file-based SQLite database for testing."""
+    # Use a temporary file instead of in-memory for better compatibility
+    import os
+
+    fd, db_path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)  # Close the file descriptor
+
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+    )
 
     # Enable foreign keys for SQLite
     @event.listens_for(engine, "connect")
@@ -25,12 +37,13 @@ def test_engine():
     Base.metadata.create_all(engine)
     yield engine
     Base.metadata.drop_all(engine)
+    Path(db_path).unlink(missing_ok=True)
 
 
 @pytest.fixture
 def test_session(test_engine):
     """Create a test database session."""
-    Session = sessionmaker(bind=test_engine)
+    Session = sessionmaker(bind=test_engine, autocommit=False, autoflush=False)
     session = Session()
     yield session
     session.rollback()
