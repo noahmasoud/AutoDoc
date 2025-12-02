@@ -222,3 +222,150 @@ class TestTemplateEngineEdgeCases:
         result = TemplateEngine.render(template, "Markdown", variables)
         assert "42" in result
         assert "99.99" in result
+
+
+class TestTemplateEngineStructuredErrors:
+    """Tests for structured error handling (FR-24, NFR-3, NFR-4).
+
+    Tests the new exception types with structured error information:
+    - MissingVariableError (missing required variable)
+    - TemplateSyntaxError (invalid placeholder syntax)
+    - UnsupportedFormatError (invalid format enum)
+    """
+
+    def test_missing_required_variable_strict_mode(self):
+        """Test MissingVariableError when required variable is missing in strict mode."""
+        from autodoc.templates.engine import (
+            MissingVariableError,
+            TemplateEngine,
+        )
+
+        template = "Hello {{name}}, your age is {{age}}"
+        variables = {"name": "Alice"}
+
+        with pytest.raises(MissingVariableError) as exc_info:
+            TemplateEngine.render(template, "Markdown", variables, strict_mode=True)
+
+        # Verify structured error information
+        error = exc_info.value
+        assert error.code == "MISSING_VARIABLE"
+        assert "age" in error.message or error.variable == "age"
+        assert error.variable == "age"
+
+        # Verify error can be converted to dict for storage/logging
+        error_dict = error.to_dict()
+        assert error_dict["code"] == "MISSING_VARIABLE"
+        assert error_dict["variable"] == "age"
+        assert "message" in error_dict
+
+    def test_invalid_placeholder_syntax(self):
+        """Test TemplateSyntaxError for invalid placeholder syntax."""
+        from autodoc.templates.engine import (
+            TemplateEngine,
+            TemplateSyntaxError,
+        )
+
+        # Test mismatched braces
+        template = "Hello {{name}, your age is {{age}}"
+
+        with pytest.raises(TemplateSyntaxError) as exc_info:
+            TemplateEngine.render(template, "Markdown", {"name": "Alice"})
+
+        error = exc_info.value
+        assert error.code == "TEMPLATE_SYNTAX_ERROR"
+        assert "Mismatched placeholder braces" in error.message
+
+        # Verify error can be converted to dict
+        error_dict = error.to_dict()
+        assert error_dict["code"] == "TEMPLATE_SYNTAX_ERROR"
+        assert "message" in error_dict
+
+        # Test nested placeholders (invalid)
+        invalid_template = "Hello {{{{name}}}}"
+
+        with pytest.raises(TemplateSyntaxError) as exc_info2:
+            TemplateEngine.render(invalid_template, "Markdown", {"name": "Alice"})
+
+        error2 = exc_info2.value
+        assert error2.code == "TEMPLATE_SYNTAX_ERROR"
+        assert "nested placeholder" in error2.message.lower()
+
+    def test_invalid_format_enum(self):
+        """Test UnsupportedFormatError for invalid format enum."""
+        from autodoc.templates.engine import (
+            TemplateEngine,
+            UnsupportedFormatError,
+        )
+
+        template = "Hello {{name}}"
+        variables = {"name": "World"}
+
+        with pytest.raises(UnsupportedFormatError) as exc_info:
+            TemplateEngine.render(template, "InvalidFormat", variables)
+
+        error = exc_info.value
+        assert error.code == "UNSUPPORTED_FORMAT"
+        assert "Invalid template format" in error.message
+        assert "InvalidFormat" in error.message
+
+        # Verify error can be converted to dict
+        error_dict = error.to_dict()
+        assert error_dict["code"] == "UNSUPPORTED_FORMAT"
+        assert error_dict["message"] == error.message
+
+        # Test with template_id for better error reporting
+        with pytest.raises(UnsupportedFormatError) as exc_info2:
+            TemplateEngine.render(
+                template, "AnotherInvalidFormat", variables, template_id=123
+            )
+
+        error2 = exc_info2.value
+        assert error2.template_id == 123
+        error_dict2 = error2.to_dict()
+        assert error_dict2["template_id"] == 123
+
+    def test_error_structured_information(self):
+        """Test that all error types provide structured information via to_dict()."""
+        from autodoc.templates.engine import (
+            MissingVariableError,
+            TemplateSyntaxError,
+            UnsupportedFormatError,
+        )
+
+        # Test MissingVariableError structured info
+        missing_error = MissingVariableError(
+            "Required variable 'test_var' is missing",
+            template_id=1,
+            variable="test_var",
+        )
+        missing_dict = missing_error.to_dict()
+        assert missing_dict == {
+            "code": "MISSING_VARIABLE",
+            "message": "Required variable 'test_var' is missing",
+            "template_id": 1,
+            "variable": "test_var",
+        }
+
+        # Test TemplateSyntaxError structured info
+        syntax_error = TemplateSyntaxError(
+            "Invalid placeholder syntax",
+            template_id=2,
+            variable="bad_var",
+        )
+        syntax_dict = syntax_error.to_dict()
+        assert syntax_dict == {
+            "code": "TEMPLATE_SYNTAX_ERROR",
+            "message": "Invalid placeholder syntax",
+            "template_id": 2,
+            "variable": "bad_var",
+        }
+
+        # Test UnsupportedFormatError structured info
+        format_error = UnsupportedFormatError(
+            "Invalid format: BadFormat",
+            template_id=3,
+            format="BadFormat",
+        )
+        format_dict = format_error.to_dict()
+        assert format_dict["code"] == "UNSUPPORTED_FORMAT"
+        assert format_dict["template_id"] == 3
