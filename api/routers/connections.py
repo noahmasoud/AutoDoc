@@ -48,7 +48,8 @@ def save_connection(
     logger.info("Saving connection", extra={"payload": safe_payload})
 
     # Check if connection already exists
-    existing = db.execute(select(Connection)).scalar_one_or_none()
+    # Only one connection is allowed, so get the first one if any exist
+    existing = db.execute(select(Connection).limit(1)).scalar_one_or_none()
 
     if existing:
         # Update existing connection
@@ -77,7 +78,8 @@ def get_connection(db: Session = Depends(get_db)) -> ConnectionOut | None:
 
     Never returns the token value (security requirement).
     """
-    connection = db.execute(select(Connection)).scalar_one_or_none()
+    # Only one connection is allowed, so get the first one if any exist
+    connection = db.execute(select(Connection).limit(1)).scalar_one_or_none()
     if not connection:
         return None
     return ConnectionOut.model_validate(connection)

@@ -1,4 +1,8 @@
-"""Service for persisting detected changes to the database."""
+"""Service for persisting detected changes to the database.
+
+After changes are saved, automatically triggers patch generation
+as part of the CI pipeline workflow (after static analysis, before review/approval).
+"""
 
 import logging
 from sqlalchemy.orm import Session
@@ -80,6 +84,43 @@ def save_changes_to_database(
             f"Successfully saved {len(change_records)} changes",
             extra={"run_id": run_id},
         )
+
+        # Wire patch generation into CI pipeline: after static analysis, before review/approval
+        # This implements the workflow where patches are automatically generated
+        # after analyzer findings are persisted (FR-10, Section 4.3)
+        # Use lazy import to avoid circular dependency
+        try:
+            from services.patch_generator import (
+                PatchGenerationError,
+                generate_patches_for_run,
+            )
+
+            logger.info(
+                f"Triggering patch generation for run {run_id} after changes saved",
+                extra={"run_id": run_id},
+            )
+            patches = generate_patches_for_run(db, run_id)
+            logger.info(
+                f"Successfully generated {len(patches)} patches for run {run_id}",
+                extra={
+                    "run_id": run_id,
+                    "patch_count": len(patches),
+                },
+            )
+        except PatchGenerationError as e:
+            # Log error but don't fail the change persistence
+            # Patch generation failures should not prevent changes from being saved
+            logger.warning(
+                f"Patch generation failed for run {run_id}: {e}",
+                extra={"run_id": run_id},
+                exc_info=True,
+            )
+        except ImportError:
+            # If patch_generator is not available, log but don't fail
+            logger.warning(
+                f"Patch generator not available for run {run_id}",
+                extra={"run_id": run_id},
+            )
 
         return change_records
 

@@ -1,7 +1,7 @@
 """Service for generating patches from file changes using rule engine.
 
 This module integrates the rule engine to map changed files to Confluence pages
-and generate patches for documentation updates.
+and generate patches for documentation updates using templates (FR-10).
 """
 
 import logging
@@ -9,7 +9,7 @@ from collections import defaultdict
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 
-from db.models import Change, Patch, Rule, Run
+from db.models import Change, Patch, PythonSymbol, Rule, Run, Template
 from services.change_persister import get_changes_for_run
 from services.rule_engine import (
     InvalidTargetError,
@@ -28,14 +28,14 @@ def generate_patches_for_run(  # noqa: PLR0915
     db: Session,
     run_id: int,
 ) -> list[Patch]:
-    """Generate patches for a run based on file changes and rules.
+    """Generate patches for a run based on analyzer findings and mapping rules.
 
-    This function:
-    1. Retrieves all changes for the run
-    2. Gets all active rules from the database
-    3. Maps each changed file to a Confluence page using the rule engine
-    4. Generates patch content for each file/page mapping
-    5. Saves patches to the database
+    This function implements FR-10: Generate patches using templates (Markdown or Storage Format).
+    It:
+    1. Loads analyzer findings (Change and PythonSymbol records) for the run
+    2. Applies mapping rules (FR-9) to group changes by target Confluence page
+    3. Builds context objects for each rule and invokes TemplateEngine.render
+    4. Persists generated patches and associates them with the run and pages
 
     Args:
         db: Database session
@@ -58,8 +58,14 @@ def generate_patches_for_run(  # noqa: PLR0915
             extra={"run_id": run_id},
         )
 
-        # Get all changes for this run
+        # Step 1: Load analyzer findings for the run
         changes = get_changes_for_run(db, run_id)
+        python_symbols = (
+            db.execute(select(PythonSymbol).where(PythonSymbol.run_id == run_id))
+            .scalars()
+            .all()
+        )
+
         if not changes:
             logger.info(
                 f"No changes found for run {run_id}, no patches to generate",
@@ -82,27 +88,28 @@ def generate_patches_for_run(  # noqa: PLR0915
             return []
 
         logger.info(
-            f"Found {len(changes)} changes and {len(rules)} rules",
+            f"Found {len(changes)} changes, {len(python_symbols)} Python symbols, and {len(rules)} rules",
             extra={
                 "run_id": run_id,
                 "change_count": len(changes),
+                "symbol_count": len(python_symbols),
                 "rule_count": len(rules),
             },
         )
 
-        # Group changes by file path (multiple symbols can change in same file)
+        # Step 2: Apply mapping rules to group changes by target Confluence page
+        # Group changes by file path first
         changes_by_file: dict[str, list[Change]] = defaultdict(list)
         for change in changes:
             changes_by_file[change.file_path].append(change)
 
-        # Generate patches for each unique file
-        patches_created = []
-        files_with_patches = set()
+        # Group by target page (rule.page_id)
+        changes_by_page: dict[tuple[str, Rule], list[Change]] = defaultdict(list)
         files_without_rules = []
 
         for file_path, file_changes in changes_by_file.items():
             try:
-                # Use rule engine to resolve target page
+                # Use rule engine to resolve target page (FR-9)
                 matching_rule = resolve_target_page(file_path, list(rules))
 
                 if not matching_rule:
@@ -121,38 +128,32 @@ def generate_patches_for_run(  # noqa: PLR0915
                 # Create patch record
                 patch = Patch(
                     run_id=run_id,
-                    page_id=matching_rule.page_id,
+                    page_id=page_id,
                     diff_before=diff_before,
                     diff_after=diff_after,
                     status="Proposed",
                 )
                 db.add(patch)
                 patches_created.append(patch)
-                files_with_patches.add(file_path)
 
                 logger.info(
-                    f"Generated patch for file {file_path} -> page {matching_rule.page_id}",
+                    f"Generated patch for page {page_id} using rule {rule.name}",
                     extra={
                         "run_id": run_id,
-                        "file_path": file_path,
-                        "page_id": matching_rule.page_id,
-                        "rule_id": matching_rule.id,
-                        "rule_name": matching_rule.name,
+                        "page_id": page_id,
+                        "rule_id": rule.id,
+                        "rule_name": rule.name,
+                        "template_id": rule.template_id,
+                        "change_count": len(page_changes),
                     },
                 )
 
-            except InvalidTargetError as e:
-                logger.warning(
-                    f"Invalid target configuration for file {file_path}: {e}",
-                    extra={"run_id": run_id, "file_path": file_path},
-                )
-                continue
             except Exception as e:
                 logger.exception(
-                    f"Error generating patch for file {file_path}: {e}",
-                    extra={"run_id": run_id, "file_path": file_path},
+                    f"Error generating patch for page {page_id}: {e}",
+                    extra={"run_id": run_id, "page_id": page_id},
                 )
-                # Continue with other files even if one fails
+                # Continue with other pages even if one fails
                 continue
 
         # Commit all patches at once
@@ -168,7 +169,6 @@ def generate_patches_for_run(  # noqa: PLR0915
                 extra={
                     "run_id": run_id,
                     "patch_count": len(patches_created),
-                    "files_with_patches": len(files_with_patches),
                     "files_without_rules": len(files_without_rules),
                 },
             )
@@ -202,6 +202,103 @@ def generate_patches_for_run(  # noqa: PLR0915
             extra={"run_id": run_id},
         )
         raise PatchGenerationError(f"Failed to generate patches: {e}") from e
+
+
+def _build_patch_context(
+    run: Run,
+    rule: Rule,
+    changes: list[Change],
+    python_symbols: list[PythonSymbol],
+) -> dict[str, Any]:
+    """Build context object for template rendering from analyzer findings.
+
+    Args:
+        run: The Run database record
+        rule: The matching Rule
+        changes: List of Change records for this patch
+        python_symbols: List of PythonSymbol records for the run
+
+    Returns:
+        Dictionary with context variables for template rendering
+    """
+    # Group changes by type
+    added_changes = [c for c in changes if c.change_type == "added"]
+    removed_changes = [c for c in changes if c.change_type == "removed"]
+    modified_changes = [c for c in changes if c.change_type == "modified"]
+
+    # Get Python symbols for changed files
+    changed_files = {c.file_path for c in changes}
+    relevant_symbols = [s for s in python_symbols if s.file_path in changed_files]
+
+    # Build context
+    context: dict[str, Any] = {
+        "run": {
+            "id": run.id,
+            "repo": run.repo,
+            "branch": run.branch,
+            "commit_sha": run.commit_sha,
+            "status": run.status,
+        },
+        "rule": {
+            "id": rule.id,
+            "name": rule.name,
+            "selector": rule.selector,
+            "space_key": rule.space_key,
+            "page_id": rule.page_id,
+        },
+        "changes": {
+            "all": [
+                {
+                    "file_path": c.file_path,
+                    "symbol": c.symbol,
+                    "change_type": c.change_type,
+                    "signature_before": c.signature_before,
+                    "signature_after": c.signature_after,
+                }
+                for c in changes
+            ],
+            "added": [
+                {
+                    "file_path": c.file_path,
+                    "symbol": c.symbol,
+                    "signature_after": c.signature_after,
+                }
+                for c in added_changes
+            ],
+            "removed": [
+                {
+                    "file_path": c.file_path,
+                    "symbol": c.symbol,
+                    "signature_before": c.signature_before,
+                }
+                for c in removed_changes
+            ],
+            "modified": [
+                {
+                    "file_path": c.file_path,
+                    "symbol": c.symbol,
+                    "signature_before": c.signature_before,
+                    "signature_after": c.signature_after,
+                }
+                for c in modified_changes
+            ],
+        },
+        "symbols": [
+            {
+                "file_path": s.file_path,
+                "symbol_name": s.symbol_name,
+                "qualified_name": s.qualified_name,
+                "symbol_type": s.symbol_type,
+                "docstring": s.docstring,
+                "lineno": s.lineno,
+                "metadata": s.symbol_metadata,
+            }
+            for s in relevant_symbols
+        ],
+        "files": list(changed_files),
+    }
+
+    return context
 
 
 def _generate_before_content(changes: list[Change]) -> str:
