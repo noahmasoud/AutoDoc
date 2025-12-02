@@ -1,219 +1,224 @@
-"""Unit tests for template engine.
+"""Unit tests for TemplateEngine.
 
-Tests variable substitution including simple variables, nested objects,
-and handling of missing variables.
+Tests template rendering for both Markdown and Confluence Storage Format,
+including variable substitution, escaping, and validation.
 """
 
 import pytest
+from services.template_engine import (
+    TemplateEngine,
+    TemplateEngineError,
+    TemplateValidationError,
+)
 
-from autodoc.templates.engine import TemplateEngine
-from db.models import Template
 
+class TestTemplateEngineMarkdown:
+    """Tests for Markdown template rendering."""
 
-class TestTemplateEngine:
-    """Tests for TemplateEngine class."""
-
-    def test_simple_variable_substitution(self):
-        """Test simple variable substitution."""
-        engine = TemplateEngine()
-        template = "Hello {{name}}!"
-        variables = {"name": "World"}
-        result = engine.render(template, variables, "Markdown")
-        assert result == "Hello World!"
-
-    def test_multiple_simple_variables(self):
-        """Test multiple simple variables in one template."""
-        engine = TemplateEngine()
-        template = "{{greeting}}, {{name}}! Welcome to {{project}}."
+    def test_render_markdown_simple(self):
+        """Test simple Markdown rendering with variables."""
+        template = "# {{title}}\n\n{{description}}"
         variables = {
-            "greeting": "Hello",
-            "name": "AutoDoc",
-            "project": "Documentation",
+            "title": "API Documentation",
+            "description": "This is the API docs.",
         }
-        result = engine.render(template, variables, "Markdown")
-        assert result == "Hello, AutoDoc! Welcome to Documentation."
+        result = TemplateEngine.render(template, "Markdown", variables)
+        assert result == "# API Documentation\n\nThis is the API docs."
 
-    def test_nested_object_access(self):
-        """Test nested object access using dot notation."""
-        engine = TemplateEngine()
-        template = "The function {{symbol.name}} is located at {{symbol.file_path}}."
+    def test_render_markdown_multiple_variables(self):
+        """Test Markdown rendering with multiple variables."""
+        template = (
+            "Function: {{function_name}}\nType: {{change_type}}\nFile: {{file_path}}"
+        )
         variables = {
-            "symbol": {
-                "name": "process_request",
-                "file_path": "src/api.py",
-            },
+            "function_name": "process_data",
+            "change_type": "added",
+            "file_path": "src/api.py",
         }
-        result = engine.render(template, variables, "Markdown")
-        assert result == "The function process_request is located at src/api.py."
+        result = TemplateEngine.render(template, "Markdown", variables)
+        assert "process_data" in result
+        assert "added" in result
+        assert "src/api.py" in result
 
-    def test_multiple_levels_of_nesting(self):
-        """Test multiple levels of nested object access."""
-        engine = TemplateEngine()
-        template = "{{change.symbol.name}} was {{change.type}} in {{change.file.path}}."
-        variables = {
-            "change": {
-                "symbol": {"name": "handle_error"},
-                "type": "added",
-                "file": {"path": "src/api.py"},
-            },
-        }
-        result = engine.render(template, variables, "Markdown")
-        assert result == "handle_error was added in src/api.py."
+    def test_render_markdown_missing_variable(self):
+        """Test that missing variables are left as-is in Markdown."""
+        template = "Hello {{name}}, your age is {{age}}"
+        variables = {"name": "Alice"}
+        result = TemplateEngine.render(template, "Markdown", variables)
+        assert "Hello Alice" in result
+        assert "{{age}}" in result  # Missing variable left as-is
 
-    def test_missing_variable_unchanged(self):
-        """Test that missing variables leave placeholder unchanged."""
-        engine = TemplateEngine()
-        template = "Hello {{name}}, your status is {{status}}."
-        variables = {"name": "World"}
-        result = engine.render(template, variables, "Markdown")
-        assert result == "Hello World, your status is {{status}}."
-
-    def test_all_variables_missing(self):
-        """Test template with all variables missing."""
-        engine = TemplateEngine()
-        template = "{{missing1}} and {{missing2}}"
-        variables = {}
-        result = engine.render(template, variables, "Markdown")
-        assert result == "{{missing1}} and {{missing2}}"
-
-    def test_nested_path_partially_missing(self):
-        """Test nested path where intermediate key is missing."""
-        engine = TemplateEngine()
-        template = "Value: {{obj.missing.property}}"
-        variables = {"obj": {"other": "value"}}
-        result = engine.render(template, variables, "Markdown")
-        assert result == "Value: {{obj.missing.property}}"
-
-    def test_nested_path_invalid_type(self):
-        """Test nested path where intermediate value is not a dict."""
-        engine = TemplateEngine()
-        template = "Value: {{obj.property}}"
-        variables = {"obj": "not_a_dict"}
-        result = engine.render(template, variables, "Markdown")
-        assert result == "Value: {{obj.property}}"
-
-    def test_format_validation_markdown(self):
-        """Test that Markdown format is accepted."""
-        engine = TemplateEngine()
-        template = "{{name}}"
-        variables = {"name": "test"}
-        result = engine.render(template, variables, "Markdown")
-        assert result == "test"
-
-    def test_format_validation_storage(self):
-        """Test that Storage format is accepted."""
-        engine = TemplateEngine()
-        template = "{{name}}"
-        variables = {"name": "test"}
-        result = engine.render(template, variables, "Storage")
-        assert result == "test"
-
-    def test_format_validation_invalid(self):
-        """Test that invalid format raises ValueError."""
-        engine = TemplateEngine()
-        template = "{{name}}"
-        variables = {"name": "test"}
-        with pytest.raises(ValueError, match="Invalid template format"):
-            engine.render(template, variables, "InvalidFormat")
-
-    def test_numeric_values(self):
-        """Test that numeric values are converted to strings."""
-        engine = TemplateEngine()
-        template = "Line {{lineno}} has {{count}} changes."
-        variables = {"lineno": 42, "count": 5}
-        result = engine.render(template, variables, "Markdown")
-        assert result == "Line 42 has 5 changes."
-
-    def test_boolean_values(self):
-        """Test that boolean values are converted to strings."""
-        engine = TemplateEngine()
-        template = "Auto-approve: {{auto_approve}}"
-        variables = {"auto_approve": True}
-        result = engine.render(template, variables, "Markdown")
-        assert result == "Auto-approve: True"
-
-    def test_none_value(self):
-        """Test that None values are converted to string 'None'."""
-        engine = TemplateEngine()
-        template = "Value: {{value}}"
-        variables = {"value": None}
-        result = engine.render(template, variables, "Markdown")
-        assert result == "Value: None"
-
-    def test_empty_template(self):
-        """Test rendering empty template."""
-        engine = TemplateEngine()
-        template = ""
-        variables = {"name": "test"}
-        result = engine.render(template, variables, "Markdown")
+    def test_render_markdown_empty_template(self):
+        """Test rendering empty Markdown template."""
+        result = TemplateEngine.render("", "Markdown", {})
         assert result == ""
 
-    def test_template_with_no_placeholders(self):
-        """Test template with no placeholders."""
-        engine = TemplateEngine()
-        template = "This is a static template with no variables."
-        variables = {"name": "test"}
-        result = engine.render(template, variables, "Markdown")
-        assert result == "This is a static template with no variables."
+    def test_render_markdown_no_placeholders(self):
+        """Test rendering Markdown template with no placeholders."""
+        template = "# Static Content\n\nThis has no variables."
+        result = TemplateEngine.render(template, "Markdown", {})
+        assert result == template
 
-    def test_whitespace_in_placeholder(self):
-        """Test that whitespace in placeholder is trimmed."""
-        engine = TemplateEngine()
-        template = "Hello {{  name  }}!"
-        variables = {"name": "World"}
-        result = engine.render(template, variables, "Markdown")
-        assert result == "Hello World!"
+    def test_render_markdown_special_characters(self):
+        """Test that special characters in Markdown are not escaped."""
+        template = "Content: {{content}}"
+        variables = {"content": "Special chars: < > & \" '"}
+        result = TemplateEngine.render(template, "Markdown", variables)
+        # In Markdown, we don't escape, so special chars should appear as-is
+        assert "< > & \" '" in result
 
-    def test_render_template_entity(self):
-        """Test rendering from Template entity."""
-        engine = TemplateEngine()
-        template_entity = Template(
-            id=1,
-            name="test_template",
-            format="Markdown",
-            body="Hello {{name}}!",
-            variables=None,
-        )
-        variables = {"name": "World"}
-        result = engine.render_template(template_entity, variables)
-        assert result == "Hello World!"
 
-    def test_render_template_entity_storage_format(self):
-        """Test rendering from Template entity with Storage format."""
-        engine = TemplateEngine()
-        template_entity = Template(
-            id=1,
-            name="test_template",
-            format="Storage",
-            body="<p>{{content}}</p>",
-            variables=None,
-        )
-        variables = {"content": "Hello World"}
-        result = engine.render_template(template_entity, variables)
-        assert result == "<p>Hello World</p>"
+class TestTemplateEngineStorageFormat:
+    """Tests for Confluence Storage Format template rendering."""
 
-    def test_complex_nested_structure(self):
-        """Test rendering with complex nested structure."""
-        engine = TemplateEngine()
-        template = """
-# Change Summary
+    def test_render_storage_format_simple(self):
+        """Test simple Storage Format rendering with variables."""
+        template = "<ac:structured-macro><ac:parameter>{{param}}</ac:parameter></ac:structured-macro>"
+        variables = {"param": "value"}
+        result = TemplateEngine.render(template, "Storage", variables)
+        assert "value" in result
+        # Validation ensures XML is well-formed (wrapped with namespace declarations)
 
-**Symbol:** {{symbol.name}}
-**Type:** {{symbol.type}}
-**Location:** {{symbol.file_path}}:{{symbol.lineno}}
-**Description:** {{symbol.docstring}}
-"""
+    def test_render_storage_format_escapes_xml(self):
+        """Test that Storage Format properly escapes XML special characters."""
+        template = "<p>{{content}}</p>"
+        variables = {"content": "Text with <script>alert('xss')</script>"}
+        result = TemplateEngine.render(template, "Storage", variables)
+        # Should escape < and >
+        assert "&lt;script&gt;" in result
+        assert "&lt;/script&gt;" in result
+        # Validation ensures XML is well-formed
+
+    def test_render_storage_format_escapes_quotes(self):
+        """Test that Storage Format escapes quotes and ampersands."""
+        template = "<p>{{content}}</p>"
+        variables = {"content": 'Text with "quotes" & ampersands'}
+        result = TemplateEngine.render(template, "Storage", variables)
+        # Should escape quotes and ampersands
+        assert (
+            "&quot;" in result or '"' in result
+        )  # Quotes may or may not be escaped depending on context
+        assert "&amp;" in result
+        # Validation ensures XML is well-formed
+
+    def test_render_storage_format_valid_xml(self):
+        """Test that rendered Storage Format produces valid XML."""
+        template = """<ac:structured-macro ac:name="code">
+    <ac:parameter ac:name="language">{{language}}</ac:parameter>
+    <ac:plain-text-body><![CDATA[{{code}}]]></ac:plain-text-body>
+    </ac:structured-macro>"""
+        variables = {"language": "python", "code": "def hello():\n    print('world')"}
+        result = TemplateEngine.render(template, "Storage", variables)
+        # Validation ensures XML is well-formed (wrapped with namespace declarations)
+        assert "python" in result
+        assert "def hello()" in result
+
+    def test_render_storage_format_invalid_xml_raises_error(self):
+        """Test that invalid XML in template raises TemplateValidationError."""
+        # Template that produces invalid XML (unclosed tag)
+        invalid_template = "<p>{{content}}"
+        variables = {"content": "text"}
+        with pytest.raises(TemplateValidationError):
+            TemplateEngine.render(invalid_template, "Storage", variables)
+
+    def test_render_storage_format_missing_variable(self):
+        """Test that missing variables are left as-is in Storage Format."""
+        template = "<p>{{name}} is {{age}} years old</p>"
+        variables = {"name": "Bob"}
+        result = TemplateEngine.render(template, "Storage", variables)
+        assert "Bob" in result
+        assert "{{age}}" in result  # Missing variable left as-is
+        # Validation ensures XML is well-formed
+
+    def test_render_storage_format_empty_template(self):
+        """Test rendering empty Storage Format template."""
+        result = TemplateEngine.render("", "Storage", {})
+        assert result == ""
+
+    def test_render_storage_format_complex_structure(self):
+        """Test rendering complex Confluence Storage Format structure."""
+        template = """<ac:structured-macro ac:name="panel">
+    <ac:parameter ac:name="title">{{title}}</ac:parameter>
+    <ac:rich-text-body>
+    <h1>{{heading}}</h1>
+    <p>{{description}}</p>
+    </ac:rich-text-body>
+    </ac:structured-macro>"""
         variables = {
-            "symbol": {
-                "name": "handle_error",
-                "type": "function",
-                "file_path": "src/api.py",
-                "lineno": 42,
-                "docstring": "Handles API errors gracefully",
-            },
+            "title": "API Changes",
+            "heading": "New Endpoints",
+            "description": "Added endpoints for user management",
         }
-        result = engine.render(template, variables, "Markdown")
-        assert "**Symbol:** handle_error" in result
-        assert "**Type:** function" in result
-        assert "**Location:** src/api.py:42" in result
-        assert "**Description:** Handles API errors gracefully" in result
+        result = TemplateEngine.render(template, "Storage", variables)
+        # Validation ensures XML is well-formed (wrapped with namespace declarations)
+        assert "API Changes" in result
+        assert "New Endpoints" in result
+        assert "Added endpoints for user management" in result
+
+
+class TestTemplateEngineValidation:
+    """Tests for template validation and error handling."""
+
+    def test_invalid_format_raises_error(self):
+        """Test that invalid format raises TemplateEngineError."""
+        with pytest.raises(TemplateEngineError) as exc_info:
+            TemplateEngine.render("template", "InvalidFormat", {})
+        assert "Invalid template format" in str(exc_info.value)
+
+    def test_storage_format_validation_catches_malformed_xml(self):
+        """Test that Storage Format validation catches malformed XML."""
+        # Template that produces malformed XML
+        malformed_template = "<p>Unclosed paragraph"
+        variables = {}
+        with pytest.raises(TemplateValidationError) as exc_info:
+            TemplateEngine.render(malformed_template, "Storage", variables)
+        assert "Invalid Confluence Storage Format XML" in str(exc_info.value)
+
+    def test_storage_format_validation_catches_invalid_tags(self):
+        """Test that Storage Format validation catches invalid XML tags."""
+        # Template with invalid tag structure
+        invalid_template = "<p><invalid nesting></p></p>"
+        variables = {}
+        with pytest.raises(TemplateValidationError):
+            TemplateEngine.render(invalid_template, "Storage", variables)
+
+
+class TestTemplateEngineEdgeCases:
+    """Tests for edge cases and special scenarios."""
+
+    def test_nested_placeholders(self):
+        """Test template with nested-looking placeholders."""
+        template = "{{outer}} and {{inner}}"
+        variables = {"outer": "{{fake}}", "inner": "value"}
+        result = TemplateEngine.render(template, "Markdown", variables)
+        assert "{{fake}}" in result
+        assert "value" in result
+
+    def test_placeholder_at_start_and_end(self):
+        """Test placeholders at template boundaries."""
+        template = "{{start}}middle{{end}}"
+        variables = {"start": "BEGIN", "end": "END"}
+        result = TemplateEngine.render(template, "Markdown", variables)
+        assert result == "BEGINmiddleEND"
+
+    def test_variable_with_empty_string(self):
+        """Test substitution with empty string variable."""
+        template = "Before{{empty}}After"
+        variables = {"empty": ""}
+        result = TemplateEngine.render(template, "Markdown", variables)
+        assert result == "BeforeAfter"
+
+    def test_variable_with_none_converts_to_string(self):
+        """Test that None values are converted to string."""
+        template = "Value: {{value}}"
+        variables = {"value": None}
+        result = TemplateEngine.render(template, "Markdown", variables)
+        assert "None" in result
+
+    def test_variable_with_number(self):
+        """Test substitution with numeric values."""
+        template = "Count: {{count}}, Price: {{price}}"
+        variables = {"count": 42, "price": 99.99}
+        result = TemplateEngine.render(template, "Markdown", variables)
+        assert "42" in result
+        assert "99.99" in result

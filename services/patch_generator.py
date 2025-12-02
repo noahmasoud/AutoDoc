@@ -9,13 +9,17 @@ from collections import defaultdict
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 
-from db.models import Change, Patch, PythonSymbol, Rule, Run, Template
+from db.models import Change, Patch, Rule, Run, Template
 from services.change_persister import get_changes_for_run
 from services.rule_engine import (
     InvalidTargetError,
     resolve_target_page,
 )
-from autodoc.templates.engine import TemplateEngine
+from services.template_engine import (
+    TemplateEngine,
+    TemplateEngineError,
+    TemplateValidationError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -121,9 +125,9 @@ def generate_patches_for_run(  # noqa: PLR0915
                     continue
 
                 # Generate patch content
-                # Use template engine if rule has an associated template
+                # Use template if available, otherwise fall back to simple generation
                 diff_before = _generate_before_content(file_changes)
-                diff_after = _generate_after_content(file_changes, matching_rule, run)
+                diff_after = _generate_after_content(file_changes, matching_rule, db)
 
                 # Create patch record
                 patch = Patch(
@@ -321,11 +325,119 @@ def _generate_before_content(changes: list[Change]) -> str:
     return "\n".join(lines)
 
 
-def _generate_after_content(changes: list[Change], rule: Rule, run: Run) -> str:
+def _generate_after_content(changes: list[Change], rule: Rule, db: Session) -> str:
     """Generate 'after' content for a patch.
 
-    Uses template engine if rule has an associated template, otherwise
-    falls back to hardcoded format.
+    Uses template if available, otherwise falls back to simple markdown generation.
+
+    Args:
+        changes: List of changes for a file
+        rule: The matching rule for this file
+        db: Database session for loading template
+
+    Returns:
+        String representation of the after state
+    """
+    # Try to use template if rule has one
+    if rule.template_id:
+        try:
+            template = db.get(Template, rule.template_id)
+            if template:
+                variables = _extract_template_variables(changes, rule)
+                try:
+                    return TemplateEngine.render(
+                        template.body, template.format, variables
+                    )
+                except (TemplateEngineError, TemplateValidationError) as e:
+                    logger.warning(
+                        f"Template rendering failed for rule {rule.id}, "
+                        f"template {rule.template_id}: {e}. Falling back to simple generation.",
+                        extra={
+                            "rule_id": rule.id,
+                            "template_id": rule.template_id,
+                            "error": str(e),
+                        },
+                    )
+                    # Fall through to simple generation
+        except Exception as e:
+            logger.warning(
+                f"Error loading template {rule.template_id} for rule {rule.id}: {e}. "
+                "Falling back to simple generation.",
+                extra={"rule_id": rule.id, "template_id": rule.template_id},
+            )
+            # Fall through to simple generation
+
+    # Fallback to simple markdown generation
+    return _generate_simple_after_content(changes, rule)
+
+
+def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
+    """Extract variables from changes for template rendering.
+
+    Args:
+        changes: List of changes for a file
+        rule: The matching rule
+
+    Returns:
+        Dictionary of variables for template substitution
+    """
+    file_path = changes[0].file_path if changes else ""
+
+    # Group changes by type
+    added_changes = [c for c in changes if c.change_type == "added"]
+    modified_changes = [c for c in changes if c.change_type == "modified"]
+    removed_changes = [c for c in changes if c.change_type == "removed"]
+
+    # Extract symbol names
+    added_symbols = [c.symbol for c in added_changes]
+    modified_symbols = [c.symbol for c in modified_changes]
+    removed_symbols = [c.symbol for c in removed_changes]
+
+    # Build variables dictionary
+    variables = {
+        "file_path": file_path,
+        "rule_name": rule.name,
+        "page_id": rule.page_id,
+        "space_key": rule.space_key,
+        "change_count": len(changes),
+        "added_count": len(added_changes),
+        "modified_count": len(modified_changes),
+        "removed_count": len(removed_changes),
+        "added_symbols": ", ".join(added_symbols) if added_symbols else "",
+        "modified_symbols": ", ".join(modified_symbols) if modified_symbols else "",
+        "removed_symbols": ", ".join(removed_symbols) if removed_symbols else "",
+    }
+
+    # Add detailed change information
+    change_details = []
+    for change in changes:
+        detail = {
+            "symbol": change.symbol,
+            "type": change.change_type,
+        }
+        if change.signature_before:
+            detail["signature_before"] = str(change.signature_before)
+        if change.signature_after:
+            detail["signature_after"] = str(change.signature_after)
+        change_details.append(detail)
+
+    variables["changes"] = change_details
+
+    # Add first change details for simple templates
+    if changes:
+        first_change = changes[0]
+        variables["symbol"] = first_change.symbol
+        variables["change_type"] = first_change.change_type
+        if first_change.signature_after:
+            variables["signature"] = str(first_change.signature_after)
+        elif first_change.signature_before:
+            variables["signature"] = str(first_change.signature_before)
+
+    return variables
+
+
+def _generate_simple_after_content(changes: list[Change], rule: Rule) -> str:
+    """Generate simple 'after' content for a patch (fallback).
 
     Args:
         changes: List of changes for a file
