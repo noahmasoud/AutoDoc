@@ -7,7 +7,10 @@ from typing import Any
 
 
 def generate_change_report(
-    run_id: str, diffs: dict[str, Any], findings: dict[str, Any]
+    run_id: str,
+    diffs: dict[str, Any],
+    findings: dict[str, Any],
+    is_dry_run: bool = False,
 ) -> str:
     """Generate a change report JSON file for a run.
 
@@ -15,6 +18,7 @@ def generate_change_report(
         run_id: The run identifier
         diffs: Dictionary containing diff summary data
         findings: Dictionary containing analyzer findings
+        is_dry_run: Whether this is a dry-run (default: False)
 
     Returns:
         Path to the generated JSON file (absolute path as string)
@@ -30,6 +34,7 @@ def generate_change_report(
     report = {
         "run_id": run_id,
         "timestamp": datetime.now(UTC).isoformat(),
+        "is_dry_run": is_dry_run,
         "diff_summary": diffs,
         "analyzer_findings": findings,
     }

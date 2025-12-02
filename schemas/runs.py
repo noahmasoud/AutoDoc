@@ -27,6 +27,19 @@ class RunOut(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @property
+    def display_status(self) -> str:
+        """Get display-friendly status that includes dry-run indication."""
+        base_status = self.status
+        if self.is_dry_run:
+            return f"{base_status} (Dry Run)"
+        return base_status
+
+    @property
+    def run_type_label(self) -> str:
+        """Get a label indicating the run type for UI display."""
+        return "Dry Run" if self.is_dry_run else "Normal Run"
+
 
 class RunsPage(BaseModel):
     items: list[RunOut]
