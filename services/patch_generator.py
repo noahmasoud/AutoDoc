@@ -6,9 +6,7 @@ and generate patches for documentation updates using templates (FR-10).
 
 import logging
 from collections import defaultdict
-from typing import Any
-
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 
 from db.models import Change, Patch, PythonSymbol, Rule, Run, Template
@@ -17,10 +15,7 @@ from services.rule_engine import (
     InvalidTargetError,
     resolve_target_page,
 )
-from services.template_engine import (
-    InvalidTemplateError,
-    TemplateEngine,
-)
+from autodoc.templates.engine import TemplateEngine
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +73,13 @@ def generate_patches_for_run(  # noqa: PLR0915
             )
             return []
 
-        # Get all active rules from database
-        rules = db.execute(select(Rule)).scalars().all()
+        # Get all active rules from database with template relationship loaded
+        rules = (
+            db.execute(select(Rule).options(joinedload(Rule.template)))
+            .unique()
+            .scalars()
+            .all()
+        )
         if not rules:
             logger.warning(
                 "No rules found in database, cannot generate patches",
@@ -120,69 +120,10 @@ def generate_patches_for_run(  # noqa: PLR0915
                     )
                     continue
 
-                # Group by (page_id, rule) tuple
-                changes_by_page[(matching_rule.page_id, matching_rule)].extend(
-                    file_changes
-                )
-
-            except InvalidTargetError as e:
-                logger.warning(
-                    f"Invalid target configuration for file {file_path}: {e}",
-                    extra={"run_id": run_id, "file_path": file_path},
-                )
-                files_without_rules.append(file_path)
-                continue
-
-        # Step 3: Build context objects and invoke TemplateEngine.render
-        template_engine = TemplateEngine()
-        patches_created = []
-
-        for (page_id, rule), page_changes in changes_by_page.items():
-            try:
-                # Get template if rule has one
-                template: Template | None = None
-                if rule.template_id:
-                    template = db.get(Template, rule.template_id)
-                    if not template:
-                        logger.warning(
-                            f"Template {rule.template_id} not found for rule {rule.name}, using default",
-                            extra={
-                                "run_id": run_id,
-                                "rule_id": rule.id,
-                                "template_id": rule.template_id,
-                            },
-                        )
-
-                # Build context object from analyzer findings
-                context = _build_patch_context(
-                    run=run,
-                    rule=rule,
-                    changes=page_changes,
-                    python_symbols=python_symbols,
-                )
-
-                # Get current page content for diff_before
-                # For now, we'll use a simple summary; in production, fetch from Confluence
-                diff_before = _generate_before_content(page_changes)
-
-                # Generate diff_after using template if available
-                if template:
-                    try:
-                        template_engine.validate_template(template)
-                        diff_after = template_engine.render(template, context)
-                    except InvalidTemplateError as e:
-                        logger.warning(
-                            f"Template rendering failed for rule {rule.name}, using default: {e}",
-                            extra={
-                                "run_id": run_id,
-                                "rule_id": rule.id,
-                                "template_id": rule.template_id,
-                            },
-                        )
-                        diff_after = _generate_after_content(page_changes, rule)
-                else:
-                    # No template, use default content generation
-                    diff_after = _generate_after_content(page_changes, rule)
+                # Generate patch content
+                # Use template engine if rule has an associated template
+                diff_before = _generate_before_content(file_changes)
+                diff_after = _generate_after_content(file_changes, matching_rule, run)
 
                 # Create patch record
                 patch = Patch(
@@ -380,16 +321,35 @@ def _generate_before_content(changes: list[Change]) -> str:
     return "\n".join(lines)
 
 
-def _generate_after_content(changes: list[Change], rule: Rule) -> str:
+def _generate_after_content(changes: list[Change], rule: Rule, run: Run) -> str:
     """Generate 'after' content for a patch.
+
+    Uses template engine if rule has an associated template, otherwise
+    falls back to hardcoded format.
 
     Args:
         changes: List of changes for a file
         rule: The matching rule for this file
+        run: The run entity for metadata
 
     Returns:
         String representation of the after state
     """
+    # If rule has a template, use template engine
+    if rule.template_id and rule.template:
+        try:
+            engine = TemplateEngine()
+            variables = _build_template_variables(changes, rule, run)
+            return engine.render_template(rule.template, variables)
+        except Exception as e:
+            logger.warning(
+                f"Failed to render template for rule {rule.id}: {e}. "
+                "Falling back to default format.",
+                extra={"rule_id": rule.id, "template_id": rule.template_id},
+            )
+            # Fall through to default format
+
+    # Default hardcoded format (fallback or when no template)
     lines = ["# After Changes", ""]
     lines.append(f"**File:** `{changes[0].file_path}`")
     lines.append(f"**Target Page:** {rule.page_id}")
@@ -411,3 +371,57 @@ def _generate_after_content(changes: list[Change], rule: Rule) -> str:
     lines.append("*This patch was automatically generated by AutoDoc*")
 
     return "\n".join(lines)
+
+
+def _build_template_variables(changes: list[Change], rule: Rule, run: Run) -> dict:
+    """Build variable context for template rendering.
+
+    Args:
+        changes: List of changes for a file
+        rule: The matching rule
+        run: The run entity
+
+    Returns:
+        Dictionary of variables for template substitution
+    """
+    file_path = changes[0].file_path if changes else ""
+
+    # Build changes list with structured data
+    changes_data = []
+    for change in changes:
+        change_data = {
+            "symbol": change.symbol,
+            "change_type": change.change_type,
+            "signature_before": change.signature_before,
+            "signature_after": change.signature_after,
+        }
+        changes_data.append(change_data)
+
+    # Build variables context
+    variables = {
+        "file_path": file_path,
+        "rule": {
+            "name": rule.name,
+            "page_id": rule.page_id,
+            "space_key": rule.space_key,
+        },
+        "run": {
+            "repo": run.repo,
+            "branch": run.branch,
+            "commit_sha": run.commit_sha,
+        },
+        "changes": changes_data,
+        "change_count": len(changes),
+    }
+
+    # Add individual change data if there's only one change
+    if len(changes) == 1:
+        change = changes[0]
+        variables["symbol"] = change.symbol
+        variables["change_type"] = change.change_type
+        if change.signature_before:
+            variables["signature_before"] = change.signature_before
+        if change.signature_after:
+            variables["signature_after"] = change.signature_after
+
+    return variables
