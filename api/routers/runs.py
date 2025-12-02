@@ -60,9 +60,20 @@ def get_run(run_id: int, db: Session = Depends(get_db)):
 
 @router.post("", response_model=RunOut, status_code=201)
 def create_run(payload: RunCreate, db: Session = Depends(get_db)):
-    row = Run(**payload.model_dump(exclude_unset=True))
+    from datetime import datetime, UTC
+    import uuid
+
+    # Set defaults for optional fields
+    run_data = payload.model_dump(exclude_unset=True)
+    if run_data.get("started_at") is None:
+        run_data["started_at"] = datetime.now(UTC)
+    if run_data.get("correlation_id") is None:
+        run_data["correlation_id"] = str(uuid.uuid4())
+
+    row = Run(**run_data)
     db.add(row)
-    db.flush()
+    db.commit()
+    db.refresh(row)
     return row
 
 
