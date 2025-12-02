@@ -246,6 +246,21 @@ def generate_patches_for_run(  # noqa: PLR0915
                     extra={"run_id": run_id},
                 )
 
+        # Export patches as JSON artifact (especially important for dry-run mode)
+        # This allows patches to be downloaded from CI/CD even when not applied
+        if patches_created:
+            try:
+                from services.patches_artifact_exporter import export_patches_artifact
+
+                export_patches_artifact(db, run_id)
+            except Exception as e:
+                # Log but don't fail patch generation if export fails
+                logger.warning(
+                    f"Failed to export patches artifact for run {run_id}: {e}",
+                    extra={"run_id": run_id},
+                    exc_info=True,
+                )
+
         return patches_created
 
     except PatchGenerationError:

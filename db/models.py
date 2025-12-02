@@ -44,6 +44,7 @@ class Run(Base):
         default="Awaiting Review",
     )
     correlation_id: Mapped[str] = mapped_column(Text, nullable=False)
+    is_dry_run: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Relationships with cascade delete
     changes: Mapped[list["Change"]] = relationship(
