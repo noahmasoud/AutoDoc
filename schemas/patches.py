@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 from pydantic import BaseModel
 
 
@@ -21,6 +22,7 @@ class PatchUpdate(BaseModel):
     approved_by: str | None = None
     applied_at: datetime | None = None
     status: str | None = None
+    error_message: dict[str, Any] | None = None
 
 
 class PatchOut(PatchBase):
@@ -28,5 +30,6 @@ class PatchOut(PatchBase):
     approved_by: str | None
     applied_at: datetime | None
     status: str
+    error_message: dict[str, Any] | None = None
 
     model_config = {"from_attributes": True}

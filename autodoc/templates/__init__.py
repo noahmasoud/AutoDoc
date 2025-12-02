@@ -4,6 +4,24 @@ Provides template rendering with variable substitution for generating
 Confluence documentation patches.
 """
 
-from autodoc.templates.engine import TemplateEngine
+from autodoc.templates.engine import (
+    MissingVariableError,
+    TemplateEngine,
+    TemplateError,
+    TemplateSyntaxError,
+    UnsupportedFormatError,
+)
 
-__all__ = ["TemplateEngine"]
+# Alias for backwards compatibility
+TemplateEngineError = TemplateError
+TemplateValidationError = TemplateSyntaxError
+
+__all__ = [
+    "MissingVariableError",
+    "TemplateEngine",
+    "TemplateEngineError",
+    "TemplateError",
+    "TemplateSyntaxError",
+    "TemplateValidationError",
+    "UnsupportedFormatError",
+]

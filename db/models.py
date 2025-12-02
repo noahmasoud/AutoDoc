@@ -223,13 +223,16 @@ class Patch(Base):
         nullable=False,
         default="Proposed",
     )
+    error_message: Mapped[dict | None] = mapped_column(
+        JSON, nullable=True
+    )  # Structured error info for ERROR status patches (FR-24, NFR-3, NFR-4)
 
     # Relationship
     run: Mapped["Run"] = relationship(back_populates="patches")
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('Proposed', 'Approved', 'Rejected', 'Applied', 'RolledBack')",
+            "status IN ('Proposed', 'Approved', 'Rejected', 'Applied', 'RolledBack', 'ERROR')",
             name="check_patch_status",
         ),
     )

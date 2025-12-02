@@ -10,7 +10,13 @@ from schemas.templates import (
     TemplatePreviewRequest,
     TemplatePreviewResponse,
 )
-from autodoc.templates.engine import TemplateEngine
+from autodoc.templates.engine import (
+    MissingVariableError,
+    TemplateEngine,
+    TemplateError,
+    TemplateSyntaxError,
+    UnsupportedFormatError,
+)
 
 router = APIRouter(prefix="/templates", tags=["templates"])
 
@@ -101,8 +107,15 @@ def preview_template(request: TemplatePreviewRequest, db: Session = Depends(get_
 
     # Render template
     try:
-        rendered = engine.render(template_body, request.variables, template_format)
-    except ValueError as e:
+        rendered = TemplateEngine.render(
+            template_body, template_format, request.variables
+        )
+    except (
+        UnsupportedFormatError,
+        TemplateSyntaxError,
+        MissingVariableError,
+        TemplateError,
+    ) as e:
         raise HTTPException(400, str(e)) from e
 
     return TemplatePreviewResponse(rendered=rendered, template_id=request.template_id)
