@@ -1,14 +1,17 @@
-"""Template engine for rendering Confluence documentation templates.
+"""Template engine for rendering Markdown and Confluence Storage Format templates.
 
-This module provides functionality to render templates with placeholders,
-supporting both Markdown and Confluence Storage Format as specified in FR-10.
+This module provides template rendering functionality that supports both Markdown
+and Confluence Storage Format (XML-based) templates with proper escaping and validation.
+
+Per FR-10: Template-driven generation of content patches.
+Per NFR-10: Output sanitization to prevent script injection.
 """
 
 import logging
 import re
+import xml.etree.ElementTree as ET
+from html import escape as html_escape
 from typing import Any
-
-from db.models import Template
 
 logger = logging.getLogger(__name__)
 
@@ -17,138 +20,147 @@ class TemplateEngineError(Exception):
     """Base exception for template engine errors."""
 
 
-class InvalidTemplateError(TemplateEngineError):
-    """Raised when a template is invalid or cannot be rendered."""
+class TemplateValidationError(TemplateEngineError):
+    """Raised when template validation fails."""
 
 
 class TemplateEngine:
-    """Engine for rendering templates with variable substitution."""
+    """Engine for rendering templates in Markdown or Confluence Storage Format.
 
-    # Pattern to match template variables: {{variable_name}} or {{variable.name}}
-    VARIABLE_PATTERN = re.compile(r"\{\{([a-zA-Z0-9_.]+)\}\}")
+    Supports placeholder substitution with proper escaping based on format.
+    """
 
-    def __init__(self):
-        """Initialize the template engine."""
+    # Pattern for placeholder variables: {{variable_name}}
+    PLACEHOLDER_PATTERN = re.compile(r"\{\{(\w+)\}\}")
 
+    @classmethod
     def render(
-        self,
-        template: Template,
-        context: dict[str, Any],
+        cls,
+        template_body: str,
+        format: str,  # noqa: A002
+        variables: dict[str, Any],
     ) -> str:
-        """Render a template with the provided context.
-
-        Supports variable substitution using {{variable_name}} syntax.
-        Variables can be nested using dot notation: {{variable.nested.property}}
+        """Render a template with variable substitution.
 
         Args:
-            template: The Template database record to render
-            context: Dictionary of variables to substitute in the template
+            template_body: The template body with {{variable}} placeholders
+            format: Template format - "Markdown" or "Storage"
+            variables: Dictionary of variable values to substitute
 
         Returns:
-            Rendered template string with variables substituted
+            Rendered template string
 
         Raises:
-            InvalidTemplateError: If template rendering fails
+            TemplateEngineError: If rendering fails
+            TemplateValidationError: If Storage Format output is invalid XML
         """
-        try:
-            if not template:
-                raise InvalidTemplateError("Template cannot be None")
-
-            if not template.body:
-                raise InvalidTemplateError("Template body cannot be empty")
-
-            # Start with the template body
-            rendered = template.body
-
-            # Find all variables in the template
-            variables = self.VARIABLE_PATTERN.findall(rendered)
-
-            # Substitute each variable
-            for var_name in variables:
-                value = self._get_context_value(context, var_name)
-                placeholder = f"{{{{{var_name}}}}}"
-                rendered = rendered.replace(placeholder, str(value))
-
-            logger.debug(
-                f"Rendered template '{template.name}' (format: {template.format})",
-                extra={
-                    "template_id": template.id,
-                    "template_name": template.name,
-                    "template_format": template.format,
-                    "variables_found": len(variables),
-                },
+        if format not in ("Markdown", "Storage"):
+            raise TemplateEngineError(
+                f"Invalid template format: {format}. Must be 'Markdown' or 'Storage'"
             )
 
-            return rendered
+        # Perform placeholder substitution
+        rendered = cls._substitute_placeholders(template_body, variables, format)
 
-        except InvalidTemplateError:
-            raise
-        except Exception as e:
-            logger.exception(
-                f"Error rendering template '{template.name}': {e}",
-                extra={
-                    "template_id": template.id if template else None,
-                    "template_name": template.name if template else None,
-                },
-            )
-            raise InvalidTemplateError(f"Failed to render template: {e}") from e
+        # Validate Storage Format output
+        if format == "Storage":
+            cls._validate_storage_format(rendered)
 
-    def _get_context_value(self, context: dict[str, Any], var_path: str) -> Any:
-        """Get a value from context using dot notation.
+        return rendered
+
+    @classmethod
+    def _substitute_placeholders(
+        cls,
+        template_body: str,
+        variables: dict[str, Any],
+        format: str,  # noqa: A002
+    ) -> str:
+        """Substitute placeholders in template body with variable values.
 
         Args:
-            context: The context dictionary
-            var_path: Variable path, e.g., "variable" or "variable.nested.property"
+            template_body: Template body with {{variable}} placeholders
+            variables: Dictionary of variable values
+            format: Template format for escaping
 
         Returns:
-            The value from context, or empty string if not found
+            Template with placeholders replaced
         """
-        parts = var_path.split(".")
-        current = context
 
-        for part in parts:
-            if isinstance(current, dict):
-                current = current.get(part)
-                if current is None:
-                    logger.warning(
-                        f"Variable '{var_path}' not found in context, using empty string",
-                        extra={"var_path": var_path, "missing_part": part},
-                    )
-                    return ""
-            elif hasattr(current, part):
-                current = getattr(current, part)
-            else:
+        def replace_placeholder(match: re.Match[str]) -> str:
+            var_name = match.group(1)
+            if var_name not in variables:
                 logger.warning(
-                    f"Variable '{var_path}' not found in context, using empty string",
-                    extra={"var_path": var_path, "missing_part": part},
+                    f"Placeholder '{{{{{var_name}}}}}' not found in variables, leaving as-is",
+                    extra={"variable": var_name},
                 )
-                return ""
+                return match.group(0)  # Return original placeholder
 
-        return current if current is not None else ""
+            value = str(variables[var_name])
 
-    def validate_template(self, template: Template) -> bool:
-        """Validate that a template can be rendered.
+            # Escape based on format
+            if format == "Storage":
+                # For Storage Format, escape XML/HTML characters
+                return cls._escape_storage_format(value)
+            # For Markdown, treat as plain text (no escaping needed for basic substitution)
+            return value
 
-        Checks that the template has a body and that the format is valid.
+        return cls.PLACEHOLDER_PATTERN.sub(replace_placeholder, template_body)
+
+    @classmethod
+    def _escape_storage_format(cls, value: str) -> str:
+        """Escape a value for safe inclusion in Confluence Storage Format XML.
+
+        Escapes XML/HTML special characters to prevent script injection (NFR-10).
 
         Args:
-            template: The Template to validate
+            value: Value to escape
 
         Returns:
-            True if template is valid
+            Escaped value safe for XML/HTML
+        """
+        # Use HTML escaping which handles: <, >, &, ", '
+        return html_escape(value)
+
+    @classmethod
+    def _validate_storage_format(cls, rendered: str) -> None:
+        """Validate that rendered Storage Format output is well-formed XML.
+
+        Args:
+            rendered: Rendered template output
 
         Raises:
-            InvalidTemplateError: If template is invalid
+            TemplateValidationError: If XML is not well-formed, with friendly error message
         """
-        if not template:
-            raise InvalidTemplateError("Template cannot be None")
+        # Allow empty strings (valid for empty templates)
+        if not rendered.strip():
+            return
 
-        if not template.body:
-            raise InvalidTemplateError("Template body cannot be empty")
-
-        if template.format not in ("Markdown", "Storage"):
-            raise InvalidTemplateError(
-                f"Invalid template format: {template.format}. Must be 'Markdown' or 'Storage'"
+        try:
+            # Confluence Storage Format uses namespaces (ac:, ri:, etc.)
+            # We need to handle namespace prefixes. Try wrapping in a root element
+            # with namespace declarations for validation
+            wrapped_xml = (
+                '<root xmlns:ac="http://atlassian.com/content" '
+                'xmlns:ri="http://atlassian.com/rich">'
+                f"{rendered}</root>"
             )
-
-        return True
+            ET.fromstring(wrapped_xml)
+        except ET.ParseError as e:
+            # If wrapping fails, try parsing directly (might work for simple XML)
+            try:
+                ET.fromstring(rendered)
+            except ET.ParseError:
+                # Provide a friendly error message
+                error_msg = (
+                    f"Invalid Confluence Storage Format XML: {e!s}. "
+                    "Please ensure your template produces valid XML and that all "
+                    "variable values are properly escaped."
+                )
+                raise TemplateValidationError(error_msg) from e
+        except Exception as e:
+            # Catch any other XML parsing errors
+            error_msg = (
+                f"Error validating Storage Format XML: {e!s}. "
+                "Please check your template syntax."
+            )
+            raise TemplateValidationError(error_msg) from e

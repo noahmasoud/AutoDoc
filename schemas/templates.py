@@ -1,12 +1,15 @@
 from pydantic import BaseModel, Field
+from typing import Literal
 
 
 class TemplateBase(BaseModel):
     name: str
-    format: str = Field(..., description="Template format: 'Markdown' or 'Storage'")
-    body: str = Field(..., description="Template body with placeholders")
+    format: Literal["Markdown", "Storage"] = Field(
+        description="Template format: 'Markdown' for markdown templates, 'Storage' for Confluence Storage Format"
+    )
+    body: str = Field(description="Template body/content with placeholder variables")
     variables: dict | None = Field(
-        None, description="Documented variables (metadata only)"
+        default=None, description="Optional variables documentation/metadata"
     )
 
 
@@ -16,7 +19,7 @@ class TemplateCreate(TemplateBase):
 
 class TemplateUpdate(BaseModel):
     name: str | None = None
-    format: str | None = None
+    format: Literal["Markdown", "Storage"] | None = None
     body: str | None = None
     variables: dict | None = None
 

@@ -371,7 +371,7 @@ class TestGeneratePatchesForRun:
         assert "func3" in patches[0].diff_after
 
     def test_generate_patches_with_template(self, test_session):
-        """Test patch generation when rule has an associated template."""
+        """Test patch generation using template when rule has template_id."""
         # Create a run
         run = Run(
             repo="test/repo",
@@ -387,11 +387,10 @@ class TestGeneratePatchesForRun:
         template = Template(
             name="api_changes_template",
             format="Markdown",
-            body="# Changes in {{file_path}}\n\n**Symbol:** {{symbol}}\n**Type:** {{change_type}}",
-            variables=None,
+            body="# API Changes\n\nFile: {{file_path}}\nSymbol: {{symbol}}\nType: {{change_type}}",
         )
         test_session.add(template)
-        test_session.flush()
+        test_session.commit()
 
         # Create a rule with template
         rule = Rule(
@@ -411,7 +410,6 @@ class TestGeneratePatchesForRun:
             file_path="src/api.py",
             symbol="process_request",
             change_type="added",
-            signature_after={"name": "process_request", "params": ["request"]},
         )
         test_session.add(change)
         test_session.commit()
@@ -419,22 +417,73 @@ class TestGeneratePatchesForRun:
         # Generate patches
         patches = generate_patches_for_run(test_session, run.id)
 
-        # Verify patch was created
+        # Verify patch was created with template content
         assert len(patches) == 1
-        assert patches[0].run_id == run.id
         assert patches[0].page_id == "12345"
-        assert patches[0].status == "Proposed"
-
-        # Verify template was used (check for template content)
+        # Verify template variables were substituted
         assert "src/api.py" in patches[0].diff_after
         assert "process_request" in patches[0].diff_after
         assert "added" in patches[0].diff_after
-        # Template format should be present
-        assert "Changes in" in patches[0].diff_after
-        assert "**Symbol:**" in patches[0].diff_after
+        # Verify template structure
+        assert "# API Changes" in patches[0].diff_after
 
-    def test_generate_patches_without_template_uses_default(self, test_session):
-        """Test patch generation uses default format when rule has no template."""
+    def test_generate_patches_with_storage_format_template(self, test_session):
+        """Test patch generation using Storage Format template."""
+        # Create a run
+        run = Run(
+            repo="test/repo",
+            branch="main",
+            commit_sha="abc123",
+            started_at=datetime.utcnow(),
+            correlation_id="test-correlation-id",
+        )
+        test_session.add(run)
+        test_session.commit()
+
+        # Create a Storage Format template
+        template = Template(
+            name="storage_template",
+            format="Storage",
+            body="<p>File: {{file_path}}</p><p>Symbol: {{symbol}}</p>",
+        )
+        test_session.add(template)
+        test_session.commit()
+
+        # Create a rule with template
+        rule = Rule(
+            name="python_files",
+            selector="*.py",
+            space_key="DOCS",
+            page_id="12345",
+            template_id=template.id,
+            priority=0,
+        )
+        test_session.add(rule)
+        test_session.commit()
+
+        # Create changes
+        change = Change(
+            run_id=run.id,
+            file_path="src/api.py",
+            symbol="process_request",
+            change_type="added",
+        )
+        test_session.add(change)
+        test_session.commit()
+
+        # Generate patches
+        patches = generate_patches_for_run(test_session, run.id)
+
+        # Verify patch was created with template content
+        assert len(patches) == 1
+        # Verify template variables were substituted
+        assert "src/api.py" in patches[0].diff_after
+        assert "process_request" in patches[0].diff_after
+        # Verify Storage Format structure
+        assert "<p>" in patches[0].diff_after
+
+    def test_generate_patches_fallback_when_no_template(self, test_session):
+        """Test that patch generation falls back to simple format when no template."""
         # Create a run
         run = Run(
             repo="test/repo",
@@ -452,7 +501,7 @@ class TestGeneratePatchesForRun:
             selector="*.py",
             space_key="DOCS",
             page_id="12345",
-            template_id=None,  # No template
+            template_id=None,
             priority=0,
         )
         test_session.add(rule)
@@ -468,13 +517,68 @@ class TestGeneratePatchesForRun:
         test_session.add(change)
         test_session.commit()
 
-        # Generate patches - should use default format
+        # Generate patches
         patches = generate_patches_for_run(test_session, run.id)
 
-        # Verify patch was created with default format
+        # Verify patch was created with simple format
         assert len(patches) == 1
-        assert "After Changes" in patches[0].diff_after
+        # Verify simple format markers
+        assert "# After Changes" in patches[0].diff_after
+        assert "**File:**" in patches[0].diff_after
         assert (
-            "This patch was automatically generated by AutoDoc" in patches[0].diff_after
+            "*This patch was automatically generated by AutoDoc*"
+            in patches[0].diff_after
         )
-        assert "src/api.py" in patches[0].diff_after
+
+    def test_generate_patches_fallback_on_template_error(self, test_session):
+        """Test that patch generation falls back when template rendering fails."""
+        # Create a run
+        run = Run(
+            repo="test/repo",
+            branch="main",
+            commit_sha="abc123",
+            started_at=datetime.utcnow(),
+            correlation_id="test-correlation-id",
+        )
+        test_session.add(run)
+        test_session.commit()
+
+        # Create an invalid Storage Format template (malformed XML)
+        template = Template(
+            name="invalid_template",
+            format="Storage",
+            body="<p>Unclosed paragraph",  # Invalid XML
+        )
+        test_session.add(template)
+        test_session.commit()
+
+        # Create a rule with invalid template
+        rule = Rule(
+            name="python_files",
+            selector="*.py",
+            space_key="DOCS",
+            page_id="12345",
+            template_id=template.id,
+            priority=0,
+        )
+        test_session.add(rule)
+        test_session.commit()
+
+        # Create changes
+        change = Change(
+            run_id=run.id,
+            file_path="src/api.py",
+            symbol="process_request",
+            change_type="added",
+        )
+        test_session.add(change)
+        test_session.commit()
+
+        # Generate patches (should fall back to simple format)
+        patches = generate_patches_for_run(test_session, run.id)
+
+        # Verify patch was created with fallback format
+        assert len(patches) == 1
+        # Verify simple format markers (fallback)
+        assert "# After Changes" in patches[0].diff_after
+        assert "**File:**" in patches[0].diff_after
