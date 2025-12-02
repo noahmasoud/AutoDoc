@@ -5,6 +5,7 @@ from pydantic import BaseModel
 class RunCreate(BaseModel):
     status: str | None = "created"
     description: str | None = None
+    is_dry_run: bool = False
 
 
 class RunOut(BaseModel):
@@ -12,6 +13,7 @@ class RunOut(BaseModel):
     status: str
     description: str | None = None
     created_at: datetime
+    is_dry_run: bool = False
 
     model_config = {"from_attributes": True}
 
