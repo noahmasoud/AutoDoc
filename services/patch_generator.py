@@ -10,10 +10,20 @@ from typing import Any
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 
-from db.models import Change, Patch, PythonSymbol, Rule, Run
+from db.models import Change, Patch, PythonSymbol, Rule, Run, Template
 from services.change_persister import get_changes_for_run
 from services.rule_engine import resolve_target_page
-from autodoc.templates.engine import TemplateEngine
+from autodoc.templates.engine import (
+    MissingVariableError,
+    TemplateEngine,
+    TemplateError,
+    TemplateSyntaxError,
+    UnsupportedFormatError,
+)
+
+# Aliases for backwards compatibility
+TemplateEngineError = TemplateError
+TemplateValidationError = TemplateSyntaxError
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +147,7 @@ def generate_patches_for_run(  # noqa: PLR0915
                 # Generate patch content
                 # Use template engine if rule has an associated template
                 diff_before = _generate_before_content(page_changes)
-                diff_after = _generate_after_content(page_changes, rule, run)
+                diff_after = _generate_after_content(page_changes, rule, db)
 
                 # Create patch record
                 patch = Patch(
@@ -161,6 +171,37 @@ def generate_patches_for_run(  # noqa: PLR0915
                         "change_count": len(page_changes),
                     },
                 )
+
+            except (
+                TemplateError,
+                TemplateSyntaxError,
+                MissingVariableError,
+                UnsupportedFormatError,
+            ) as e:
+                # Template rendering error - create ERROR patch with structured error info
+                logger.warning(
+                    f"Template rendering failed for rule {rule.id}, template {rule.template_id}: {e}. "
+                    f"Creating ERROR patch for page {page_id}.",
+                    extra={
+                        "run_id": run_id,
+                        "page_id": page_id,
+                        "rule_id": rule.id,
+                        "template_id": rule.template_id,
+                        "error_code": e.code,
+                    },
+                )
+
+                # Create ERROR patch with structured error information
+                error_patch = Patch(
+                    run_id=run_id,
+                    page_id=page_id,
+                    diff_before=_generate_before_content(page_changes),
+                    diff_after="",  # No content for error patches
+                    status="ERROR",
+                    error_message=e.to_dict(),  # Store structured error info (FR-24)
+                )
+                db.add(error_patch)
+                patches_created.append(error_patch)
 
             except Exception as e:
                 logger.exception(
@@ -340,6 +381,9 @@ def _generate_after_content(changes: list[Change], rule: Rule, db: Session) -> s
 
     Uses template if available, otherwise falls back to simple markdown generation.
 
+    Template rendering errors (syntax errors, missing variables, invalid format) are
+    raised as structured exceptions to be caught and converted to ERROR patches (FR-24).
+
     Args:
         changes: List of changes for a file
         rule: The matching rule for this file
@@ -347,6 +391,12 @@ def _generate_after_content(changes: list[Change], rule: Rule, db: Session) -> s
 
     Returns:
         String representation of the after state
+
+    Raises:
+        TemplateError: Template rendering errors (syntax, missing variables, invalid format)
+        TemplateSyntaxError: Invalid template syntax
+        MissingVariableError: Required variable missing (in strict mode)
+        UnsupportedFormatError: Invalid template format
     """
     # Try to use template if rule has one
     if rule.template_id:
@@ -354,22 +404,25 @@ def _generate_after_content(changes: list[Change], rule: Rule, db: Session) -> s
             template = db.get(Template, rule.template_id)
             if template:
                 variables = _extract_template_variables(changes, rule)
-                try:
-                    return TemplateEngine.render(
-                        template.body, template.format, variables
-                    )
-                except (TemplateEngineError, TemplateValidationError) as e:
-                    logger.warning(
-                        f"Template rendering failed for rule {rule.id}, "
-                        f"template {rule.template_id}: {e}. Falling back to simple generation.",
-                        extra={
-                            "rule_id": rule.id,
-                            "template_id": rule.template_id,
-                            "error": str(e),
-                        },
-                    )
-                    # Fall through to simple generation
+                # Template rendering errors should be raised, not caught here
+                # They will be caught by patch generation to create ERROR patches
+                return TemplateEngine.render(
+                    template.body,
+                    template.format,
+                    variables,
+                    template_id=template.id,
+                )
+        except (
+            TemplateError,
+            TemplateSyntaxError,
+            MissingVariableError,
+            UnsupportedFormatError,
+        ):
+            # Re-raise template rendering errors - they will be caught by patch generation
+            # to create ERROR patches with structured error info
+            raise
         except Exception as e:
+            # Template loading errors fall back to simple generation
             logger.warning(
                 f"Error loading template {rule.template_id} for rule {rule.id}: {e}. "
                 "Falling back to simple generation.",
@@ -384,6 +437,8 @@ def _generate_after_content(changes: list[Change], rule: Rule, db: Session) -> s
 def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
     """Extract variables from changes for template rendering.
 
+    Builds a structure compatible with templates expecting {{changes.all}} and {{files}}.
+
     Args:
         changes: List of changes for a file
         rule: The matching rule
@@ -391,7 +446,8 @@ def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
     Returns:
         Dictionary of variables for template substitution
     """
-    file_path = changes[0].file_path if changes else ""
+    file_paths = {c.file_path for c in changes} if changes else set()
+    file_path = next(iter(file_paths), "") if file_paths else ""
 
     # Group changes by type
     added_changes = [c for c in changes if c.change_type == "added"]
@@ -403,10 +459,35 @@ def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
     modified_symbols = [c.symbol for c in modified_changes]
     removed_symbols = [c.symbol for c in removed_changes]
 
-    # Build variables dictionary
+    # Build changes.all as a string representation for templates
+    # This matches the structure expected by templates using {{changes.all}}
+    changes_all_lines = []
+    for change in changes:
+        change_desc = f"- **{change.symbol}** ({change.change_type})"
+        if change.file_path:
+            change_desc += f" in `{change.file_path}`"
+        changes_all_lines.append(change_desc)
+    changes_all_str = (
+        "\n".join(changes_all_lines) if changes_all_lines else "No changes"
+    )
+
+    # Build files as a string representation for templates
+    files_str = (
+        "\n".join([f"- `{fp}`" for fp in sorted(file_paths)])
+        if file_paths
+        else "No files"
+    )
+
+    # Build variables dictionary with structure matching _build_patch_context
     variables = {
         "file_path": file_path,
+        "files": files_str,  # String representation for {{files}}
         "rule_name": rule.name,
+        "rule": {
+            "name": rule.name,
+            "page_id": rule.page_id,
+            "space_key": rule.space_key,
+        },
         "page_id": rule.page_id,
         "space_key": rule.space_key,
         "change_count": len(changes),
@@ -416,22 +497,34 @@ def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
         "added_symbols": ", ".join(added_symbols) if added_symbols else "",
         "modified_symbols": ", ".join(modified_symbols) if modified_symbols else "",
         "removed_symbols": ", ".join(removed_symbols) if removed_symbols else "",
+        "changes": {
+            "all": changes_all_str,  # String representation for {{changes.all}}
+            "added": [
+                {
+                    "symbol": c.symbol,
+                    "file_path": c.file_path,
+                    "change_type": c.change_type,
+                }
+                for c in added_changes
+            ],
+            "modified": [
+                {
+                    "symbol": c.symbol,
+                    "file_path": c.file_path,
+                    "change_type": c.change_type,
+                }
+                for c in modified_changes
+            ],
+            "removed": [
+                {
+                    "symbol": c.symbol,
+                    "file_path": c.file_path,
+                    "change_type": c.change_type,
+                }
+                for c in removed_changes
+            ],
+        },
     }
-
-    # Add detailed change information
-    change_details = []
-    for change in changes:
-        detail = {
-            "symbol": change.symbol,
-            "type": change.change_type,
-        }
-        if change.signature_before:
-            detail["signature_before"] = str(change.signature_before)
-        if change.signature_after:
-            detail["signature_after"] = str(change.signature_after)
-        change_details.append(detail)
-
-    variables["changes"] = change_details
 
     # Add first change details for simple templates
     if changes:
@@ -449,29 +542,18 @@ def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
 def _generate_simple_after_content(changes: list[Change], rule: Rule) -> str:
     """Generate simple 'after' content for a patch (fallback).
 
+    This is a fallback function used when template rendering fails or
+    when no template is available. Template rendering is handled in
+    _generate_after_content, not here.
+
     Args:
         changes: List of changes for a file
         rule: The matching rule for this file
-        run: The run entity for metadata
 
     Returns:
         String representation of the after state
     """
-    # If rule has a template, use template engine
-    if rule.template_id and rule.template:
-        try:
-            engine = TemplateEngine()
-            variables = _build_template_variables(changes, rule, run)
-            return engine.render_template(rule.template, variables)
-        except Exception as e:
-            logger.warning(
-                f"Failed to render template for rule {rule.id}: {e}. "
-                "Falling back to default format.",
-                extra={"rule_id": rule.id, "template_id": rule.template_id},
-            )
-            # Fall through to default format
-
-    # Default hardcoded format (fallback or when no template)
+    # Default hardcoded format (fallback when template rendering fails)
     lines = ["# After Changes", ""]
     lines.append(f"**File:** `{changes[0].file_path}`")
     lines.append(f"**Target Page:** {rule.page_id}")

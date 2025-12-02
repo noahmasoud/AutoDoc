@@ -61,7 +61,7 @@ Total changes detected: {{change_count}}
             "change_count": 1,
         }
 
-        result = engine.render(template_body, variables, "Markdown")
+        result = TemplateEngine.render(template_body, "Markdown", variables)
 
         assert "Python API Changes Summary" in result
         assert "abc123def456" in result
@@ -126,7 +126,7 @@ Total endpoint changes: {{change_count}}
             "change_count": 1,
         }
 
-        result = engine.render(template_body, variables, "Markdown")
+        result = TemplateEngine.render(template_body, "Markdown", variables)
 
         assert "TypeScript Endpoint Changes Summary" in result
         assert "xyz789ghi012" in result
@@ -180,7 +180,7 @@ Total endpoint changes: {{change_count}}
             "change_count": 1,
         }
 
-        result = engine.render(template_body, variables, "Markdown")
+        result = TemplateEngine.render(template_body, "Markdown", variables)
 
         assert "def456abc789" in result
         assert "feature/new-endpoint" in result

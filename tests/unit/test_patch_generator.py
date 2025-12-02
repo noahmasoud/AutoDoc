@@ -530,8 +530,8 @@ class TestGeneratePatchesForRun:
             in patches[0].diff_after
         )
 
-    def test_generate_patches_fallback_on_template_error(self, test_session):
-        """Test that patch generation falls back when template rendering fails."""
+    def test_generate_patches_error_on_template_error(self, test_session):
+        """Test that patch generation creates ERROR patches when template rendering fails."""
         # Create a run
         run = Run(
             repo="test/repo",
@@ -574,11 +574,14 @@ class TestGeneratePatchesForRun:
         test_session.add(change)
         test_session.commit()
 
-        # Generate patches (should fall back to simple format)
+        # Generate patches (should create ERROR patch)
         patches = generate_patches_for_run(test_session, run.id)
 
-        # Verify patch was created with fallback format
+        # Verify ERROR patch was created with structured error information
         assert len(patches) == 1
-        # Verify simple format markers (fallback)
-        assert "# After Changes" in patches[0].diff_after
-        assert "**File:**" in patches[0].diff_after
+        assert patches[0].status == "ERROR"
+        assert patches[0].error_message is not None
+        assert "code" in patches[0].error_message
+        assert "message" in patches[0].error_message
+        assert "TEMPLATE_SYNTAX_ERROR" in patches[0].error_message.get("code", "")
+        assert patches[0].diff_after == ""  # Error patches have empty diff_after
