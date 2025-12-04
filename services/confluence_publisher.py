@@ -28,9 +28,11 @@ class ConfluencePublisher:
         self,
         client: ConfluenceClientProtocol,
         rollback_registry: PageRollbackRegistry | None = None,
+        run_mode: str = "PRODUCTION",
     ) -> None:
         self._client = client
         self._rollback_registry = rollback_registry or PageRollbackRegistry()
+        self._run_mode = run_mode
 
     @property
     def rollback_registry(self) -> PageRollbackRegistry:
@@ -39,6 +41,12 @@ class ConfluencePublisher:
 
     def update_page(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Update a Confluence page after recording the previous snapshot."""
+
+        if self._run_mode == "TEST":
+            logger.info(
+                "TEST MODE: Skipping Confluence page update for page %s", payload.get("id"))
+            return {"id": payload.get("id"), "status": "test_mode_skipped"}
+
         page_id = payload.get("id")
         if not page_id:
             msg = "update payload must include 'id'"
@@ -67,7 +75,8 @@ class ConfluencePublisher:
                 page_id,
             )
 
-            snapshot = snapshot or self._rollback_registry.latest_snapshot(page_id)
+            snapshot = snapshot or self._rollback_registry.latest_snapshot(
+                page_id)
             if snapshot is None:
                 logger.exception(
                     "Rollback skipped for page '%s'; no snapshot available",
@@ -103,6 +112,13 @@ class ConfluencePublisher:
 
     def create_page(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Create a Confluence page. The resulting snapshot is tracked for rollback."""
+        if self._run_mode == "TEST":
+            logger.info(
+                "TEST MODE: Skipping Confluence page creation for page %s",
+                payload.get("id")
+            )
+            return {"id": payload.get("id"), "status": "test_mode_skipped"}
+
         try:
             result = self._client.create_page(payload)
         except Exception as exc:
