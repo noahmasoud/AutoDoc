@@ -10,7 +10,9 @@ class RunCreate(BaseModel):
     status: str = "Awaiting Review"
     correlation_id: str | None = None
     description: str | None = None
-    is_dry_run: bool = False
+    is_dry_run: bool = False  # From SCRUM-49
+    mode: str = "PRODUCTION"  # From SCRUM-51
+    completed_at: datetime | None = None
 
 
 class RunOut(BaseModel):
@@ -22,7 +24,8 @@ class RunOut(BaseModel):
     completed_at: datetime | None = None
     status: str
     correlation_id: str
-    is_dry_run: bool = False
+    is_dry_run: bool = False  # From SCRUM-49
+    mode: str  # From SCRUM-51
     description: str | None = None
 
     model_config = {"from_attributes": True}
