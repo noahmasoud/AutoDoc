@@ -60,9 +60,20 @@ def get_run(run_id: int, db: Session = Depends(get_db)):
 
 @router.post("", response_model=RunOut, status_code=201)
 def create_run(payload: RunCreate, db: Session = Depends(get_db)):
-    row = Run(**payload.model_dump(exclude_unset=True))
+    from datetime import datetime, UTC
+    import uuid
+
+    # Set defaults for optional fields
+    run_data = payload.model_dump(exclude_unset=True)
+    if run_data.get("started_at") is None:
+        run_data["started_at"] = datetime.now(UTC)
+    if run_data.get("correlation_id") is None:
+        run_data["correlation_id"] = str(uuid.uuid4())
+
+    row = Run(**run_data)
     db.add(row)
-    db.flush()
+    db.commit()
+    db.refresh(row)
     return row
 
 
@@ -167,7 +178,8 @@ def generate_patches(
     """Generate patches for a run based on file changes and rules.
 
     This endpoint uses the rule engine to map changed files to Confluence pages
-    and generates patches for documentation updates.
+    and generates patches for documentation updates. Patches are automatically
+    exported as JSON artifacts for download from CI/CD.
 
     Args:
         run_id: The run ID
@@ -201,3 +213,53 @@ def generate_patches(
         }
     except PatchGenerationError as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{run_id}/patches-artifact")
+def get_patches_artifact(
+    run_id: int,
+    db: Session = Depends(get_db),
+):
+    """Retrieve the patches artifact JSON file for a run.
+
+    This endpoint returns the patches.json artifact file that contains all
+    patches generated for the run. This is especially useful for dry-run mode
+    where patches are generated but not applied to Confluence.
+
+    Args:
+        run_id: The run ID
+        db: Database session
+
+    Returns:
+        Patches artifact JSON data
+
+    Raises:
+        HTTPException: If the run is not found or artifact doesn't exist
+    """
+    # Verify run exists
+    run = db.get(Run, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    # Try to load the patches artifact file
+    patches_path = Path("artifacts") / str(run_id) / "patches.json"
+
+    if not patches_path.exists():
+        # Try to generate it if it doesn't exist
+        try:
+            from services.patches_artifact_exporter import export_patches_artifact
+
+            export_patches_artifact(db, run_id)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Patches artifact not found for run {run_id} and could not be generated: {exc!s}",
+            ) from exc
+
+    try:
+        with patches_path.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to read patches artifact: {exc!s}"
+        ) from exc

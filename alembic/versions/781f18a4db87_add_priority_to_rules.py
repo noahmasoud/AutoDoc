@@ -21,9 +21,18 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.add_column(
-        "rules", sa.Column("priority", sa.Integer(), nullable=False, server_default="0")
-    )
+    # Check if column already exists (may have been added by ab4e828d8044)
+    from sqlalchemy import inspect
+
+    conn = op.get_bind()
+    inspector = inspect(conn)
+    columns = [col["name"] for col in inspector.get_columns("rules")]
+
+    if "priority" not in columns:
+        op.add_column(
+            "rules",
+            sa.Column("priority", sa.Integer(), nullable=False, server_default="0"),
+        )
 
 
 def downgrade() -> None:
