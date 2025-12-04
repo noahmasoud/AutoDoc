@@ -15,6 +15,7 @@ from services.rule_engine import (
     InvalidTargetError,
     resolve_target_page,
 )
+from services.diff import DiffService
 
 logger = logging.getLogger(__name__)
 
@@ -108,19 +109,40 @@ def generate_patches_for_run(  # noqa: PLR0915
                     continue
 
                 # Generate patch content
-                # For now, create a simple patch with change summary
-                # Template rendering can be added later
                 diff_before = _generate_before_content(file_changes)
-                diff_after = _generate_after_content(file_changes, matching_rule)
+                diff_after = _generate_after_content(
+                    file_changes, matching_rule)
 
-                # Create patch record
+                try:
+                    unified_diff, structured_diff_json = DiffService.generate_diffs(
+                        before_content=diff_before,
+                        after_content=diff_after,
+                        from_file=file_path,
+                        to_file=file_path,
+                    )
+                    logger.debug(
+                        f"Generated diffs for {file_path}",
+                        extra={"run_id": run_id, "file_path": file_path},
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to generate diffs for {file_path}: {e}",
+                        extra={"run_id": run_id, "file_path": file_path},
+                    )
+
+                    unified_diff = None
+                    structured_diff_json = None
+
                 patch = Patch(
                     run_id=run_id,
                     page_id=matching_rule.page_id,
                     diff_before=diff_before,
                     diff_after=diff_after,
+                    diff_unified=unified_diff,
+                    diff_stuctured=structured_diff_json,
                     status="Proposed",
                 )
+
                 db.add(patch)
                 patches_created.append(patch)
                 files_with_patches.add(file_path)
