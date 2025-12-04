@@ -216,6 +216,8 @@ class Patch(Base):
     page_id: Mapped[str] = mapped_column(Text, nullable=False)
     diff_before: Mapped[str] = mapped_column(Text, nullable=False)
     diff_after: Mapped[str] = mapped_column(Text, nullable=False)
+    diff_unified: Mapped[str | None] = mapped_column(Text, nullable=True)
+    diff_structured: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     approved_by: Mapped[str | None] = mapped_column(Text, nullable=True)
     applied_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     status: Mapped[str] = mapped_column(
