@@ -139,7 +139,7 @@ def generate_patches_for_run(  # noqa: PLR0915
                     diff_before=diff_before,
                     diff_after=diff_after,
                     diff_unified=unified_diff,
-                    diff_stuctured=structured_diff_json,
+                    diff_structured=structured_diff_json,
                     status="Proposed",
                 )
 
