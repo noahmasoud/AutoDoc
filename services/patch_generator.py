@@ -20,6 +20,7 @@ from autodoc.templates.engine import (
     TemplateSyntaxError,
     UnsupportedFormatError,
 )
+from services.diff import DiffService
 
 # Aliases for backwards compatibility
 TemplateEngineError = TemplateError
@@ -149,14 +150,16 @@ def generate_patches_for_run(  # noqa: PLR0915
                 diff_before = _generate_before_content(page_changes)
                 diff_after = _generate_after_content(page_changes, rule, db)
 
-                # Create patch record
                 patch = Patch(
                     run_id=run_id,
                     page_id=page_id,
                     diff_before=diff_before,
                     diff_after=diff_after,
+                    diff_unified=unified_diff,
+                    diff_structured=structured_diff_json,
                     status="Proposed",
                 )
+
                 db.add(patch)
                 patches_created.append(patch)
 
