@@ -31,7 +31,7 @@ export interface TemplatePreviewRequest {
   format?: string;
 
 }
-export interface TemplatePreviewRequest {
+export interface TemplatePreviewResponse {
   rendered: string;
 }
 @Injectable({
@@ -60,11 +60,11 @@ export class TemplatesService {
   }
   // delete exsisting
   deleteTemplate(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+    return this.http.delete<any>(`${this.apiUrl}/${id}`);
   }
   // preview existing
-  previewTemplate(request: TemplatePreviewRequest): Observable<Template> {
-    return this.http.post<Template>(`${this.apiUrl}/preview`, request);
+  previewTemplate(request: TemplatePreviewRequest): Observable<TemplatePreviewResponse> {
+    return this.http.post<TemplatePreviewResponse>(`${this.apiUrl}/preview`, request);
   }
 }
 
