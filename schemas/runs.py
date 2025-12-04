@@ -3,15 +3,26 @@ from pydantic import BaseModel
 
 
 class RunCreate(BaseModel):
-    status: str | None = "created"
-    description: str | None = None
+    repo: str
+    branch: str
+    commit_sha: str
+    started_at: datetime
+    correlation_id: str
+    status: str = "Awaiting Review"
+    mode: str = "PRODUCTION"  # defualt mode
+    completed_at: datetime | None = None
 
 
 class RunOut(BaseModel):
     id: int
+    repo: str
+    branch: str
+    commit_sha: str
+    started_at: datetime
+    completed_at: datetime | None
     status: str
-    description: str | None = None
-    created_at: datetime
+    correlation_id: str
+    mode: str  # NEW
 
     model_config = {"from_attributes": True}
 
