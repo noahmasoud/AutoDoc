@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-from db.models import Change, Rule, Run
+from db.models import Change, Rule, Run, Template
 from db.session import Base
 from services.patch_generator import (
     PatchGenerationError,
@@ -369,3 +369,219 @@ class TestGeneratePatchesForRun:
         assert "func1" in patches[0].diff_after
         assert "func2" in patches[0].diff_after
         assert "func3" in patches[0].diff_after
+
+    def test_generate_patches_with_template(self, test_session):
+        """Test patch generation using template when rule has template_id."""
+        # Create a run
+        run = Run(
+            repo="test/repo",
+            branch="main",
+            commit_sha="abc123",
+            started_at=datetime.utcnow(),
+            correlation_id="test-correlation-id",
+        )
+        test_session.add(run)
+        test_session.commit()
+
+        # Create a template
+        template = Template(
+            name="api_changes_template",
+            format="Markdown",
+            body="# API Changes\n\nFile: {{file_path}}\nSymbol: {{symbol}}\nType: {{change_type}}",
+        )
+        test_session.add(template)
+        test_session.commit()
+
+        # Create a rule with template
+        rule = Rule(
+            name="python_files",
+            selector="*.py",
+            space_key="DOCS",
+            page_id="12345",
+            template_id=template.id,
+            priority=0,
+        )
+        test_session.add(rule)
+        test_session.commit()
+
+        # Create changes
+        change = Change(
+            run_id=run.id,
+            file_path="src/api.py",
+            symbol="process_request",
+            change_type="added",
+        )
+        test_session.add(change)
+        test_session.commit()
+
+        # Generate patches
+        patches = generate_patches_for_run(test_session, run.id)
+
+        # Verify patch was created with template content
+        assert len(patches) == 1
+        assert patches[0].page_id == "12345"
+        # Verify template variables were substituted
+        assert "src/api.py" in patches[0].diff_after
+        assert "process_request" in patches[0].diff_after
+        assert "added" in patches[0].diff_after
+        # Verify template structure
+        assert "# API Changes" in patches[0].diff_after
+
+    def test_generate_patches_with_storage_format_template(self, test_session):
+        """Test patch generation using Storage Format template."""
+        # Create a run
+        run = Run(
+            repo="test/repo",
+            branch="main",
+            commit_sha="abc123",
+            started_at=datetime.utcnow(),
+            correlation_id="test-correlation-id",
+        )
+        test_session.add(run)
+        test_session.commit()
+
+        # Create a Storage Format template
+        template = Template(
+            name="storage_template",
+            format="Storage",
+            body="<p>File: {{file_path}}</p><p>Symbol: {{symbol}}</p>",
+        )
+        test_session.add(template)
+        test_session.commit()
+
+        # Create a rule with template
+        rule = Rule(
+            name="python_files",
+            selector="*.py",
+            space_key="DOCS",
+            page_id="12345",
+            template_id=template.id,
+            priority=0,
+        )
+        test_session.add(rule)
+        test_session.commit()
+
+        # Create changes
+        change = Change(
+            run_id=run.id,
+            file_path="src/api.py",
+            symbol="process_request",
+            change_type="added",
+        )
+        test_session.add(change)
+        test_session.commit()
+
+        # Generate patches
+        patches = generate_patches_for_run(test_session, run.id)
+
+        # Verify patch was created with template content
+        assert len(patches) == 1
+        # Verify template variables were substituted
+        assert "src/api.py" in patches[0].diff_after
+        assert "process_request" in patches[0].diff_after
+        # Verify Storage Format structure
+        assert "<p>" in patches[0].diff_after
+
+    def test_generate_patches_fallback_when_no_template(self, test_session):
+        """Test that patch generation falls back to simple format when no template."""
+        # Create a run
+        run = Run(
+            repo="test/repo",
+            branch="main",
+            commit_sha="abc123",
+            started_at=datetime.utcnow(),
+            correlation_id="test-correlation-id",
+        )
+        test_session.add(run)
+        test_session.commit()
+
+        # Create a rule without template
+        rule = Rule(
+            name="python_files",
+            selector="*.py",
+            space_key="DOCS",
+            page_id="12345",
+            template_id=None,
+            priority=0,
+        )
+        test_session.add(rule)
+        test_session.commit()
+
+        # Create changes
+        change = Change(
+            run_id=run.id,
+            file_path="src/api.py",
+            symbol="process_request",
+            change_type="added",
+        )
+        test_session.add(change)
+        test_session.commit()
+
+        # Generate patches
+        patches = generate_patches_for_run(test_session, run.id)
+
+        # Verify patch was created with simple format
+        assert len(patches) == 1
+        # Verify simple format markers
+        assert "# After Changes" in patches[0].diff_after
+        assert "**File:**" in patches[0].diff_after
+        assert (
+            "*This patch was automatically generated by AutoDoc*"
+            in patches[0].diff_after
+        )
+
+    def test_generate_patches_error_on_template_error(self, test_session):
+        """Test that patch generation creates ERROR patches when template rendering fails."""
+        # Create a run
+        run = Run(
+            repo="test/repo",
+            branch="main",
+            commit_sha="abc123",
+            started_at=datetime.utcnow(),
+            correlation_id="test-correlation-id",
+        )
+        test_session.add(run)
+        test_session.commit()
+
+        # Create an invalid Storage Format template (malformed XML)
+        template = Template(
+            name="invalid_template",
+            format="Storage",
+            body="<p>Unclosed paragraph",  # Invalid XML
+        )
+        test_session.add(template)
+        test_session.commit()
+
+        # Create a rule with invalid template
+        rule = Rule(
+            name="python_files",
+            selector="*.py",
+            space_key="DOCS",
+            page_id="12345",
+            template_id=template.id,
+            priority=0,
+        )
+        test_session.add(rule)
+        test_session.commit()
+
+        # Create changes
+        change = Change(
+            run_id=run.id,
+            file_path="src/api.py",
+            symbol="process_request",
+            change_type="added",
+        )
+        test_session.add(change)
+        test_session.commit()
+
+        # Generate patches (should create ERROR patch)
+        patches = generate_patches_for_run(test_session, run.id)
+
+        # Verify ERROR patch was created with structured error information
+        assert len(patches) == 1
+        assert patches[0].status == "ERROR"
+        assert patches[0].error_message is not None
+        assert "code" in patches[0].error_message
+        assert "message" in patches[0].error_message
+        assert "TEMPLATE_SYNTAX_ERROR" in patches[0].error_message.get("code", "")
+        assert patches[0].diff_after == ""  # Error patches have empty diff_after

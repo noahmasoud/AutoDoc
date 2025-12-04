@@ -50,6 +50,11 @@ from services.rule_matcher import (
     RuleMatch,
     RuleMatcher,
 )
+from services.template_engine import (
+    TemplateEngine,
+    TemplateEngineError,
+    TemplateValidationError,
+)
 
 __all__ = [
     "ArtifactLoadError",
@@ -69,6 +74,9 @@ __all__ = [
     "RuleMatch",
     "RuleMatcher",
     "TypeScriptAnalyzer",
+    "TemplateEngine",
+    "TemplateEngineError",
+    "TemplateValidationError",
     "TypeScriptParser",
     "TypeScriptParserError",
     "detect_changes",
