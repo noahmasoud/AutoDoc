@@ -31,3 +31,15 @@ def validate_transaction(amount: float) -> bool:
         True if valid
     """
     return amount > 0
+
+def cancel_transaction(transaction_id: str, reason: str) -> dict:
+    """Cancel a transaction.
+    
+    Args:
+        transaction_id: ID of transaction to cancel
+        reason: Cancellation reason
+        
+    Returns:
+        Cancellation details
+    """
+    return {"transaction_id": transaction_id, "status": "cancelled", "reason": reason}
