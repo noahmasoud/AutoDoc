@@ -20,3 +20,14 @@ def refund_payment(transaction_id: str) -> bool:
         True if successful
     """
     return True
+
+def validate_payment(amount: float) -> bool:
+    """Validate payment amount.
+    
+    Args:
+        amount: Amount to validate
+        
+    Returns:
+        True if valid
+    """
+    return amount > 0
