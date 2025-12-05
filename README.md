@@ -10,27 +10,27 @@ AutoDoc is a university capstone project (CS4398 Senior Design) demonstrating en
 
 ### Completed Features (Sprint 0-3)
 
-**Sprint 0: Foundation & Infrastructure**
+** Foundation & Infrastructure**
 - Docker containerization with optimized multi-stage builds (under 500MB, ~15 second build time)
 - GitHub Actions CI/CD pipeline with automated testing and quality checks
 - FastAPI backend project structure with SQLite database
 - Angular frontend application shell with routing
 - Pre-commit hooks and code quality tools (Ruff, MyPy, Pytest)
 
-**Sprint 1: Static Analysis Engine**
+** Static Analysis Engine**
 - Python AST parser with comprehensive symbol extraction (modules, classes, functions, methods)
 - Change detection across git commits with detailed diff analysis
 - Docstring extraction for documentation context
 - Public symbol identification and signature analysis
 - Unit tests with high coverage across analyzers
 
-**Sprint 2: TypeScript Analysis**
+** TypeScript Analysis**
 - TypeScript AST parser using TypeScript Compiler API
 - Export detection and symbol extraction
 - Type signature parsing for functions and classes
 - JSDoc comment extraction
 
-**Sprint 3: Template Engine & Patch Generation**
+** Template Engine & Patch Generation**
 - Template rendering system with variable substitution
 - Patch generation from detected code changes
 - Dry-run mode for preview without persistence
@@ -39,7 +39,7 @@ AutoDoc is a university capstone project (CS4398 Senior Design) demonstrating en
 - Patch preview with side-by-side diff visualization
 - CLI interface (in development for MVP integration)
 
-**Quality & Testing**
+** Quality & Testing**
 - Unit and integration test suites achieving >70% coverage target
 - Type safety with comprehensive MyPy type hints
 - Zero Ruff linting violations in production code
@@ -528,7 +528,7 @@ AutoDoc/
 
 ## Technical Achievements
 
-### Sprint Accomplishments (Sprint 0-3)
+### Accomplishments 
 
 **Static Code Analysis**
 - Dual language support: Python and TypeScript AST parsing
@@ -603,7 +603,7 @@ AutoDoc/
 
 ## Future Roadmap
 
-**Sprint 4: Approval Workflow & Integration** (December 2025)
+**Approval Workflow & Integration** (December 2025)
 - Complete CLI interface for CI/CD integration
 - Implement Confluence API client with retry logic
 - Build rule engine for file-to-page mapping
@@ -708,5 +708,4 @@ For questions, feedback, or collaboration opportunities:
 ---
 
 **Project Timeline**: October 2025 - December 2025  
-**Institution**: University Capstone Project (CS4398 Senior Design)  
 **Status**: Active Development - Functional Prototype
