@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ############################################################
-# AutoDoc CI/CD Entrypoint Script - Sprint 1 Integration
-# Updated to call actual Python analysis engine
+# AutoDoc CI/CD Entrypoint Script - Sprint 3 Integration
+# Updated to call actual Python analysis engine and persist changes
 ############################################################
 
 set -e
@@ -239,7 +239,36 @@ try:
         old_module = extract_symbols(old_tree, "$FILE")
         new_module = extract_symbols(new_tree, "$FILE")
         report = detect_changes(old_module, new_module, "HEAD^", "HEAD")
+        
+        # Extract detailed changes for database persistence
+        detailed_changes = []
+        for change in report.added:
+            detailed_changes.append({
+                "file_path": "$FILE",
+                "symbol": change.symbol_name,
+                "change_type": "added",
+                "signature_before": None,
+                "signature_after": None  # SymbolChange doesn't have signature fields
+            })
+        for change in report.modified:
+            detailed_changes.append({
+                "file_path": "$FILE",
+                "symbol": change.symbol_name,
+                "change_type": "modified",
+                "signature_before": None,
+                "signature_after": None
+            })
+        for change in report.removed:
+            detailed_changes.append({
+                "file_path": "$FILE",
+                "symbol": change.symbol_name,
+                "change_type": "removed",
+                "signature_before": None,
+                "signature_after": None
+            })
+        
         result = report.to_dict()
+        result["detailed_changes"] = detailed_changes
     else:
         result = {
             "file_path": "$FILE",
@@ -248,7 +277,8 @@ try:
                 "modified_count": 0,
                 "removed_count": 0,
                 "breaking_count": 0
-            }
+            },
+            "detailed_changes": []
         }
     
     with open("$TEMP_DIR/result.json", "w") as f:
@@ -263,7 +293,8 @@ except Exception as e:
             "modified_count": 0,
             "removed_count": 0,
             "breaking_count": 0
-        }
+        },
+        "detailed_changes": []
     }
     with open("$TEMP_DIR/result.json", "w") as f:
         json.dump(result, f)
@@ -290,6 +321,9 @@ PYTHON_SCRIPT
         TOTAL_BREAKING=$((TOTAL_BREAKING + BREAKING))
         
         echo "      Added: $ADDED, Modified: $MODIFIED, Removed: $REMOVED, Breaking: $BREAKING"
+        
+        # Save this file's result for later
+        cp "$TEMP_DIR/result.json" "$TEMP_DIR/result_${FILE//\//_}.json"
     fi
 done
 
@@ -327,11 +361,53 @@ if curl -s -f "${API_BASE}/templates" > /dev/null 2>&1; then
   else
     echo "  ✓ Created run #${RUN_ID}"
     
-    # Generate patches
+    # Collect all changes from temp files
+    echo "  Collecting changes from analysis..."
+    ALL_CHANGES_JSON="[]"
+    
+    for RESULT_FILE in "$TEMP_DIR"/result_*.json; do
+      if [ -f "$RESULT_FILE" ]; then
+        CHANGES=$(python3 -c "
+import json
+try:
+    with open('$RESULT_FILE') as f:
+        data = json.load(f)
+        print(json.dumps(data.get('detailed_changes', [])))
+except:
+    print('[]')
+")
+        # Merge changes
+        ALL_CHANGES_JSON=$(python3 -c "
+import json
+try:
+    existing = json.loads('''$ALL_CHANGES_JSON''')
+    new = json.loads('''$CHANGES''')
+    existing.extend(new)
+    print(json.dumps(existing))
+except:
+    print('[]')
+")
+      fi
+    done
+    
+    # Save changes to database
+    CHANGE_COUNT=$(echo "$ALL_CHANGES_JSON" | python3 -c "import json, sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+    if [ "$CHANGE_COUNT" -gt 0 ]; then
+      echo "  Saving $CHANGE_COUNT change(s) to database..."
+      SAVE_RESPONSE=$(curl -s -X POST "${API_BASE}/runs/${RUN_ID}/changes" \
+        -H "Content-Type: application/json" \
+        -d "$ALL_CHANGES_JSON")
+      echo "  ✓ Saved changes"
+    else
+      echo "  No changes to save"
+    fi
+    
+    # Generate patches using your Sprint 3 infrastructure
     echo "  Generating documentation patches..."
     PATCH_RESPONSE=$(curl -s -X POST "${API_BASE}/runs/${RUN_ID}/generate-patches")
     PATCHES_GENERATED=$(echo "$PATCH_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('patches_generated', 0))" 2>/dev/null || echo "0")
     echo "  ✓ Generated ${PATCHES_GENERATED} patch(es)"
+    
     echo ""
     echo "  View results at: http://localhost:4200/runs/${RUN_ID}"
   fi
@@ -372,7 +448,7 @@ cat > change_report.json << EOF
     }
   ],
   "status": "success",
-  "message": "Analysis completed successfully using Sprint 1 infrastructure"
+  "message": "Analysis completed successfully using Sprint 3 infrastructure"
 }
 EOF
 
