@@ -55,3 +55,14 @@ def get_transaction_history(user_id: str, limit: int = 10) -> list:
         List of transaction records
     """
     return []
+
+def get_payment_status(payment_id: str) -> str:
+    """Get the current status of a payment.
+    
+    Args:
+        payment_id: Payment ID to check
+        
+    Returns:
+        Payment status
+    """
+    return "pending"
