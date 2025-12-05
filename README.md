@@ -48,25 +48,25 @@ AutoDoc is a university capstone project (CS4398 Senior Design) demonstrating en
 
 ### Future Roadmap
 
-**Confluence Integration** (Sprint 2 - Deferred)
+**Confluence Integration** 
 - Confluence REST API client for page operations
 - Page versioning and conflict resolution
 - Retry logic with exponential backoff
 - Connections management UI with secure token storage
 
-**Rule Engine & Mapping** (Sprint 2 - Deferred)
+**Rule Engine & Mapping** 
 - Rule-based file-to-page mapping
 - Path and module selectors
 - Rules CRUD API and UI
 - Multiple rules per file support
 
-**Approval Workflow** (Sprint 4)
+**Approval Workflow** 
 - Patch approval and rejection interface
 - Auto-approve flags per rule
 - Apply approved patches to Confluence
 - PR/MR comment integration
 
-**Advanced Features** (Sprint 4)
+**Advanced Features** 
 - Rollback functionality with version history
 - Audit trail for all operations
 - Read-only viewer role
