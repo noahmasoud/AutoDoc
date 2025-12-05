@@ -5,6 +5,7 @@ and generate patches for documentation updates using templates (FR-10).
 """
 
 import logging
+import json
 from collections import defaultdict
 from typing import Any
 from sqlalchemy.orm import Session, joinedload
@@ -145,11 +146,35 @@ def generate_patches_for_run(  # noqa: PLR0915
         patches_created = []
         for (page_id, rule), page_changes in changes_by_page.items():
             try:
-                # Generate patch content
-                # Use template engine if rule has an associated template
                 diff_before = _generate_before_content(page_changes)
                 diff_after = _generate_after_content(page_changes, rule, db)
-
+                
+                # Generate unified and structured diffs (SCRUM-50)
+                diff_service = DiffService()
+                unified_diff = diff_service.generate_unified_diff(
+                    before_content=diff_before,
+                    after_content=diff_after,
+                    from_file="Before",
+                    to_file="After"
+                )
+                structured_diff = diff_service.generate_structured_diff(
+                    before_content=diff_before,
+                    after_content=diff_after
+                )
+                structured_diff_json = json.dumps({
+                    "hunks": [
+                        {
+                            "start_before": hunk.start_before,
+                            "start_after": hunk.start_after,
+                            "lines": [{"type": line.type, "content": line.content} for line in hunk.lines]
+                        }
+                        for hunk in structured_diff.hunks
+                    ],
+                    "total_added": structured_diff.total_added,
+                    "total_removed": structured_diff.total_removed,
+                    "total_unchanged": structured_diff.total_unchanged
+                })
+                
                 patch = Patch(
                     run_id=run_id,
                     page_id=page_id,
