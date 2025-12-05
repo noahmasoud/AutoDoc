@@ -5,7 +5,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { RulesService, Rule, RuleRequest } from '../../services/rules.service';
-import { TemplatesService, TemplateSummary } from '../../services/templates.service';
+import { TemplatesService, Template } from '../../services/templates.service';
 import { ToastService } from '../../services/toast.service';
 
 @Component({
@@ -17,7 +17,7 @@ import { ToastService } from '../../services/toast.service';
 })
 export class RulesComponent implements OnInit {
   rules: Rule[] = [];
-  templates: TemplateSummary[] = [];
+  templates: Template[] = [];
   ruleForm: FormGroup;
   editingRule: Rule | null = null;
   isCreating = false;
