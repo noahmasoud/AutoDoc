@@ -53,18 +53,18 @@ export class TemplatesComponent implements OnInit {
   }
 
   insertVariable(varName: string, textarea: HTMLTextAreaElement): void {
-    const cursorPos = textarea.selectionStart;
+    const cursorPos = textarea.selectionStart || 0;
     const textBefore = this.templateForm.body.substring(0, cursorPos);
     const textAfter = this.templateForm.body.substring(cursorPos);
 
     const variableText = `{{${varName}}}`;
     this.templateForm.body = textBefore + variableText + textAfter;
 
-    // fix cursor position after inserted variable to stay in place
+    // update cursor position without focusing
     setTimeout(() => {
-      textarea.focus();
       const newPos = cursorPos + variableText.length;
-      textarea.setSelectionRange(newPos, newPos);
+      textarea.selectionStart = newPos;
+      textarea.selectionEnd = newPos;
     }, 0);
   }
 
