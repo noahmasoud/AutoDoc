@@ -295,9 +295,49 @@ done
 
 echo "  Analysis complete"
 
-# Step 3: Generate final report
+# ============================================
+# Sprint 3 Integration: Save to Database
+# ============================================
 echo ""
-echo "Step 3: Creating change report..."
+echo "Step 3: Saving results to AutoDoc database..."
+
+API_BASE="${API_BASE:-http://localhost:8000/api/v1}"
+
+# Create Run in database
+RUN_RESPONSE=$(curl -s -X POST "${API_BASE}/runs" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"repo\": \"${REPO_NAME}\",
+    \"branch\": \"${BRANCH_NAME}\",
+    \"commit_sha\": \"${COMMIT_SHA}\",
+    \"started_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+    \"correlation_id\": \"autodoc-${COMMIT_SHA:0:8}\",
+    \"status\": \"Awaiting Review\",
+    \"mode\": \"PRODUCTION\"
+  }")
+
+RUN_ID=$(echo "$RUN_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])" 2>/dev/null || echo "")
+
+if [ -z "$RUN_ID" ]; then
+  echo "  WARNING: Failed to create run in database"
+  echo "  Response: $RUN_RESPONSE"
+  echo "  Continuing with JSON output only..."
+else
+  echo "  ✓ Created run #${RUN_ID}"
+  
+  # Generate patches using your Sprint 3 infrastructure
+  echo "  Generating documentation patches..."
+  PATCH_RESPONSE=$(curl -s -X POST "${API_BASE}/runs/${RUN_ID}/generate-patches")
+  PATCHES_GENERATED=$(echo "$PATCH_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('patches_generated', 0))" 2>/dev/null || echo "0")
+  echo "  ✓ Generated ${PATCHES_GENERATED} patch(es)"
+  
+  echo ""
+  echo "  View results at: http://localhost:4200/runs/${RUN_ID}"
+fi
+
+# Step 4: Creating change report (JSON file)
+echo ""
+echo "Step 4: Creating change report JSON..."
 
 # Generate final change_report.json with real data
 cat > change_report.json << EOF

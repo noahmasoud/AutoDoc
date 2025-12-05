@@ -36,6 +36,38 @@ export class TemplatesComponent implements OnInit {
   getVariableKeys(variables: Record<string, any> | null): string[] {
     return variables ? Object.keys(variables) : [];
   }
+
+  getVariableDescription(varName: string): string {
+    const varData = this.templateForm.variables?.[varName];
+    if (typeof varData === 'object' && varData !== null && 'description' in varData) {
+      return varData.description;
+    }
+    return 'No description available';
+  }
+  getVariableExample(varName: string): string | null {
+    const varData = this.templateForm.variables?.[varName];
+    if (typeof varData === 'object' && varData !== null && 'example' in varData) {
+      return varData.example;
+    }
+    return null;
+  }
+
+  insertVariable(varName: string, textarea: HTMLTextAreaElement): void {
+    const cursorPos = textarea.selectionStart || 0;
+    const textBefore = this.templateForm.body.substring(0, cursorPos);
+    const textAfter = this.templateForm.body.substring(cursorPos);
+
+    const variableText = `{{${varName}}}`;
+    this.templateForm.body = textBefore + variableText + textAfter;
+
+    // update cursor position without focusing
+    setTimeout(() => {
+      const newPos = cursorPos + variableText.length;
+      textarea.selectionStart = newPos;
+      textarea.selectionEnd = newPos;
+    }, 0);
+  }
+
   loadTemplates(): void {
     this.loading = true;
     this.error = null;

@@ -92,12 +92,33 @@
 
                     <div class="form-group">
                         <label for="body">Template Body *</label>
-                        <textarea id="body" [(ngModel)]="templateForm.body" name="body" class="form-control" rows="10"
+                        <textarea id="body" #bodyTextarea [(ngModel)]="templateForm.body" name="body"
+                            class="form-control" rows="10"
                             placeholder="Enter your template content here. Use double curly braces for placeholders."
                             required></textarea>
                         <small class="form-hint">
-                            Use double curly braces for variables: <code>{{'{{'}}symbol_name{{'}}'}}</code>
+                            Use double curly braces for variables: <code>{{'{{'}}variable_name{{'}}'}}</code>
                         </small>
+                    </div>
+
+                    <div class="form-group"
+                        *ngIf="templateForm.variables && getVariableKeys(templateForm.variables).length > 0">
+                        <label>Available Variables</label>
+                        <div class="variables-panel">
+                            <div *ngFor="let varName of getVariableKeys(templateForm.variables)" class="variable-item">
+                                <div class="variable-header">
+                                    <code class="variable-name">{{'{{'}}{{ varName }}{{'}}'}}</code>
+                                    <button type="button" class="btn-insert"
+                                        (click)="insertVariable(varName, bodyTextarea)" title="Insert this variable">
+                                        Insert
+                                    </button>
+                                </div>
+                                <p class="variable-description">{{ getVariableDescription(varName) }}</p>
+                                <p class="variable-example" *ngIf="getVariableExample(varName)">
+                                    <strong>Example:</strong> <code>{{ getVariableExample(varName) }}</code>
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="modal-actions">
