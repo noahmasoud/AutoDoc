@@ -61,18 +61,18 @@ install: ## Install dependencies
 
 lint: ## Run linting checks
 	@echo "🔍 Running ruff linting..."
-	ruff check . --statistics
+	ruff check . --statistics --exclude src/
 	
 	@echo ""
 	@echo "🎨 Running ruff formatting check..."
-	ruff format --check .
+	ruff format --check . --exclude src/
 
 format: ## Format code with ruff
 	@echo "🎨 Formatting code with ruff..."
-	ruff format .
+	ruff format . --exclude src/
 	
 	@echo "🔧 Auto-fixing linting issues..."
-	ruff check . --fix
+	ruff check . --fix --exclude src/
 
 typecheck: ## Run type checking with mypy
 	@echo "🔍 Running mypy type checking..."

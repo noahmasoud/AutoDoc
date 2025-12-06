@@ -6,18 +6,21 @@ import { FormsModule } from '@angular/forms';
 // Angular Material modules
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatChipsModule } from '@angular/material/chips';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatIconModule } from '@angular/material/icon';
+import { MatDialogModule } from '@angular/material/dialog';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
-import { PatchPreviewComponent } from '../../components/patch-preview/patch-preview.component';
+import { PatchPreviewComponent } from './patch-preview.component';
 
 @NgModule({
-  declarations: [],
+  declarations: [PatchPreviewComponent],
   imports: [
     CommonModule,
     FormsModule,
@@ -27,15 +30,16 @@ import { PatchPreviewComponent } from '../../components/patch-preview/patch-prev
     // Angular Material
     MatCardModule,
     MatButtonModule,
-    MatIconModule,
-    MatChipsModule,
+    MatProgressSpinnerModule,
+    MatSnackBarModule,
     MatFormFieldModule,
     MatInputModule,
+    MatIconModule,
+    MatDialogModule,
+    MatChipsModule,
+    MatExpansionModule,
     MatSelectModule,
     MatTooltipModule,
-    MatProgressSpinnerModule,
-    // Standalone component
-    PatchPreviewComponent,
   ]
 })
 export class PatchPreviewModule {}

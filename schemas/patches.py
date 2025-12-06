@@ -27,6 +27,8 @@ class PatchUpdate(BaseModel):
 
 class PatchOut(PatchBase):
     id: int
+    diff_unified: str | None = None
+    diff_structured: dict[str, Any] | None = None
     approved_by: str | None
     applied_at: datetime | None
     status: str

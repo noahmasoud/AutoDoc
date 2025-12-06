@@ -1,0 +1,27 @@
+{
+  "run_id": 1,
+  "repo": "test/repo",
+  "branch": "main",
+  "commit_sha": "abc123",
+  "is_dry_run": false,
+  "timestamp": "2025-12-06T21:53:16.564639+00:00",
+  "patches_count": 1,
+  "patches": [
+    {
+      "id": 1,
+      "run_id": 1,
+      "page_id": "12345",
+      "status": "ERROR",
+      "diff_before": "# Before Changes\n",
+      "diff_after": "",
+      "approved_by": null,
+      "applied_at": null,
+      "error_message": {
+        "code": "TEMPLATE_SYNTAX_ERROR",
+        "message": "Invalid Confluence Storage Format XML: mismatched tag: line 1, column 106. Please ensure your template produces valid XML.",
+        "template_id": 1,
+        "variable": null
+      }
+    }
+  ]
+}

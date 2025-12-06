@@ -19,6 +19,7 @@ import { CommonModule } from '@angular/common';
 
 import { RunDetailsComponent } from './run-details.component';
 import { ChangeReportService, ChangeReport } from '../../services/change-report.service';
+import { ToastService } from '../../services/toast.service';
 
 describe('RunDetailsComponent', () => {
   let component: RunDetailsComponent;
@@ -59,6 +60,7 @@ describe('RunDetailsComponent', () => {
 
   beforeEach(async () => {
     const snackBarSpy = jasmine.createSpyObj('MatSnackBar', ['open']);
+    const toastServiceSpy = jasmine.createSpyObj('ToastService', ['error', 'success', 'info']);
     const routeParams = { runId: '123' };
 
     await TestBed.configureTestingModule({
@@ -88,6 +90,7 @@ describe('RunDetailsComponent', () => {
           },
         },
         { provide: MatSnackBar, useValue: snackBarSpy },
+        { provide: ToastService, useValue: toastServiceSpy },
       ],
     }).compileComponents();
 
@@ -195,6 +198,7 @@ describe('RunDetailsComponent', () => {
   }));
 
   it('should handle error response gracefully', fakeAsync(() => {
+    const toastService = TestBed.inject(ToastService) as jasmine.SpyObj<ToastService>;
     fixture.detectChanges();
     tick();
 
@@ -209,7 +213,7 @@ describe('RunDetailsComponent', () => {
 
     expect(component.loading).toBe(false);
     expect(component.error).toBeTruthy();
-    expect(snackBar.open).toHaveBeenCalled();
+    expect(toastService.error).toHaveBeenCalled();
     expect(fixture.nativeElement.textContent).toContain('Error Loading Run Details');
   }));
 
@@ -236,11 +240,20 @@ describe('RunDetailsComponent', () => {
     expect(typeof formatted).toBe('string');
   });
 
-  it('should unsubscribe on destroy', () => {
+  it('should unsubscribe on destroy', fakeAsync(() => {
     fixture.detectChanges();
+    tick();
+
+    // Handle the HTTP request
+    const req = httpMock.expectOne('http://localhost:8000/api/v1/runs/123/report');
+    req.flush(mockChangeReport);
+
+    tick();
+    fixture.detectChanges();
+
     const unsubscribeSpy = spyOn(component['routeSubscription']!, 'unsubscribe');
     component.ngOnDestroy();
     expect(unsubscribeSpy).toHaveBeenCalled();
-  });
+  }));
 });
 

@@ -1,4 +1,4 @@
-<div *ngIf="Object.keys(findingsByFile).length > 0" class="findings-container">
+<div *ngIf="findingsByFile && getObjectKeys(findingsByFile).length > 0" class="findings-container">
   <div *ngFor="let fileEntry of (findingsByFile | keyvalue)" class="file-findings">
     <h3 class="file-name">{{ fileEntry.key }}</h3>
     <div class="findings-list">
