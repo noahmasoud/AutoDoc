@@ -66,3 +66,21 @@ def get_payment_status(payment_id: str) -> str:
         Payment status
     """
     return "pending"
+
+
+def get_payment_receipt(payment_id: str, format: str = "pdf") -> dict:
+    """Generate and retrieve a payment receipt.
+    
+    Args:
+        payment_id: Payment ID to generate receipt for
+        format: Receipt format - 'pdf' or 'json'
+        
+    Returns:
+        Receipt data with transaction details and download URL
+    """
+    return {
+        "payment_id": payment_id,
+        "format": format,
+        "receipt_url": f"https://receipts.example.com/{payment_id}.{format}",
+        "generated_at": "2025-12-06T23:00:00Z"
+    }
