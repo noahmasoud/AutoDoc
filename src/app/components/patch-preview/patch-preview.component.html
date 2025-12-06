@@ -1,0 +1,167 @@
+<div class="patch-preview-container">
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Loading patch preview...</p>
+  </div>
+
+  <!-- Patch Preview Content -->
+  <div *ngIf="patchData && !loading" class="patch-content">
+    <!-- Header with Patch Info -->
+    <mat-card class="patch-header-card">
+      <mat-card-content>
+        <div class="patch-header">
+          <div class="patch-title-section">
+            <h2>Patch Preview</h2>
+            <mat-chip [color]="getStatusColor(patchData.status)">
+              {{ patchData.status }}
+            </mat-chip>
+          </div>
+          <div class="patch-meta">
+            <div class="meta-item">
+              <mat-icon>label</mat-icon>
+              <span>Page ID: {{ patchData.page_id }}</span>
+            </div>
+            <div class="meta-item" *ngIf="patchData.approved_by">
+              <mat-icon>person</mat-icon>
+              <span>Approved by: {{ patchData.approved_by }}</span>
+            </div>
+            <div class="meta-item" *ngIf="patchData.applied_at">
+              <mat-icon>schedule</mat-icon>
+              <span>Applied: {{ patchData.applied_at | date: 'short' }}</span>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- View Mode Toggle -->
+    <mat-card class="view-controls-card">
+      <mat-card-content>
+        <div class="view-controls">
+          <button
+            mat-stroked-button
+            (click)="toggleViewMode()"
+            [class.active]="viewMode === 'side-by-side'"
+            aria-label="Toggle view mode"
+          >
+            <mat-icon>{{ viewMode === 'side-by-side' ? 'view_column' : 'view_agenda' }}</mat-icon>
+            {{ viewMode === 'side-by-side' ? 'Side-by-Side' : 'Unified' }}
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Change Legend -->
+    <mat-card class="legend-card">
+      <mat-card-content>
+        <div class="legend">
+          <h3>Change Indicators</h3>
+          <div class="legend-items">
+            <div class="legend-item">
+              <span class="legend-icon added-icon">
+                <mat-icon>add</mat-icon>
+              </span>
+              <span>Added</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-icon removed-icon">
+                <mat-icon>remove</mat-icon>
+              </span>
+              <span>Removed</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-icon modified-icon">
+                <mat-icon>edit</mat-icon>
+              </span>
+              <span>Modified</span>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Side-by-Side View -->
+    <div *ngIf="viewMode === 'side-by-side'" class="diff-container side-by-side">
+      <div class="diff-pane before-pane">
+        <div class="pane-header before-header">
+          <mat-icon>history</mat-icon>
+          <h3>Before</h3>
+        </div>
+        <div class="pane-content">
+          <pre class="diff-content">{{ patchData.diff_before }}</pre>
+        </div>
+      </div>
+      <div class="diff-pane after-pane">
+        <div class="pane-header after-header">
+          <mat-icon>update</mat-icon>
+          <h3>After</h3>
+        </div>
+        <div class="pane-content">
+          <pre class="diff-content">{{ patchData.diff_after }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unified View -->
+    <div *ngIf="viewMode === 'unified'" class="diff-container unified">
+      <mat-card class="unified-diff-card">
+        <mat-card-content>
+          <div class="unified-content">
+            <pre class="diff-content unified-content">{{ patchData.diff_after }}</pre>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Error Message (if any) -->
+    <mat-card *ngIf="patchData.error_message" class="error-card">
+      <mat-card-content>
+        <h3>Error Details</h3>
+        <pre>{{ patchData.error_message | json }}</pre>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Approval Actions -->
+    <mat-card *ngIf="canApprove() || canReject()" class="actions-card">
+      <mat-card-content>
+        <div class="approval-section">
+          <h3>Review & Approval</h3>
+          <mat-form-field appearance="outline" class="comment-field">
+            <mat-label>Approval Comment (Optional)</mat-label>
+            <textarea
+              matInput
+              [(ngModel)]="approvalComment"
+              placeholder="Add a comment about this patch..."
+              rows="3"
+            ></textarea>
+          </mat-form-field>
+          <div class="action-buttons">
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="approvePatch()"
+              [disabled]="processing"
+              aria-label="Approve patch"
+            >
+              <mat-icon>check_circle</mat-icon>
+              <span *ngIf="!processing">Approve</span>
+              <span *ngIf="processing">Processing...</span>
+            </button>
+            <button
+              mat-stroked-button
+              color="warn"
+              (click)="rejectPatch()"
+              [disabled]="processing"
+              aria-label="Reject patch"
+            >
+              <mat-icon>cancel</mat-icon>
+              Reject
+            </button>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>
+

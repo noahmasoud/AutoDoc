@@ -273,11 +273,11 @@ def create_changes_for_run(
 ):
     """Create multiple changes for a run."""
     from db.models import Change
-    
+
     run = db.get(Run, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
-    
+
     created_count = 0
     for change_data in changes:
         change = Change(
@@ -290,6 +290,6 @@ def create_changes_for_run(
         )
         db.add(change)
         created_count += 1
-    
+
     db.commit()
     return {"run_id": run_id, "changes_created": created_count}

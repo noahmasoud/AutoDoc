@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import {
   ChangeReportService,
@@ -10,6 +10,7 @@ import {
 import { MockChangeReportService } from '../../services/mock-change-report.service';
 import { FileDiff } from '../../models/change-report.model';
 import { ToastService } from '../../services/toast.service';
+import { PatchesService, Patch } from '../../services/patches.service';
 
 @Component({
   selector: 'app-run-details',
@@ -29,15 +30,20 @@ export class RunDetailsComponent implements OnInit, OnDestroy {
   filteredFileDiffs: FileDiff[] = [];
   filteredFindings: { [file: string]: AnalyzerFinding[] } = {};
 
+  patches: Patch[] = [];
+  loadingPatches = false;
+
   private routeSubscription?: Subscription;
 
   useMockData = false;
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private changeReportService: ChangeReportService,
     private mockChangeReportService: MockChangeReportService,
-    private toastService: ToastService
+    private toastService: ToastService,
+    private patchesService: PatchesService
   ) {}
 
   ngOnInit(): void {
@@ -45,6 +51,7 @@ export class RunDetailsComponent implements OnInit, OnDestroy {
       const runId = params.get('runId');
       if (runId) {
         this.loadReport(runId);
+        this.loadPatches(parseInt(runId, 10));
       } else {
         this.error = 'Run ID not provided';
         this.showError('Run ID not found in route parameters');
@@ -213,6 +220,39 @@ export class RunDetailsComponent implements OnInit, OnDestroy {
    */
   get objectKeys() {
     return Object.keys;
+  }
+
+  loadPatches(runId: number): void {
+    this.loadingPatches = true;
+    this.patchesService.listPatches(runId).subscribe({
+      next: (patches) => {
+        this.patches = patches;
+        this.loadingPatches = false;
+      },
+      error: (err) => {
+        this.loadingPatches = false;
+        console.warn('Failed to load patches:', err);
+        // Don't show error toast for patches - it's optional data
+      },
+    });
+  }
+
+  viewPatch(patchId: number): void {
+    const runId = this.route.snapshot.paramMap.get('runId');
+    this.router.navigate(['/runs', runId, 'patches', patchId]);
+  }
+
+  getStatusColor(status: string): string {
+    switch (status?.toLowerCase()) {
+      case 'applied':
+        return 'primary';
+      case 'error':
+        return 'warn';
+      case 'awaiting review':
+        return 'accent';
+      default:
+        return '';
+    }
   }
 }
 

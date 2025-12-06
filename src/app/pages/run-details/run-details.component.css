@@ -204,6 +204,55 @@ mat-panel-description {
   justify-content: flex-end;
 }
 
+/* Patch styles */
+.patch-info {
+  padding: 16px 0;
+}
+
+.patch-actions {
+  margin-bottom: 16px;
+}
+
+.patch-actions button {
+  margin-right: 8px;
+}
+
+.patch-actions button mat-icon {
+  margin-right: 8px;
+}
+
+.patch-meta-info {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.patch-meta-info strong {
+  color: #333;
+  margin-right: 8px;
+}
+
+.patch-error {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #ffebee;
+  border-left: 4px solid #f44336;
+  border-radius: 4px;
+}
+
+.patch-error pre {
+  margin: 8px 0 0 0;
+  font-size: 12px;
+  overflow-x: auto;
+}
+
+.no-patches {
+  padding: 24px;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .container {

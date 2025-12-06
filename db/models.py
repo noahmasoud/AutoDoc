@@ -28,8 +28,7 @@ class Run(Base):
 
     __tablename__ = "runs"
 
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     repo: Mapped[str] = mapped_column(Text, nullable=False)
     branch: Mapped[str] = mapped_column(Text, nullable=False)
     commit_sha: Mapped[str] = mapped_column(
@@ -38,8 +37,7 @@ class Run(Base):
         index=True,
     )  # Index per requirements
     started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     status: Mapped[str] = mapped_column(
         Text,
         nullable=False,
@@ -73,10 +71,7 @@ class Run(Base):
             "status IN ('Awaiting Review', 'Success', 'Failed', 'Manual Action Required', 'Completed (no patches)')",
             name="check_run_status",
         ),
-        CheckConstraint(
-            "mode IN ('PRODUCTION', 'TEST')",
-            name="check_run_mode"
-        )
+        CheckConstraint("mode IN ('PRODUCTION', 'TEST')", name="check_run_mode"),
     )
 
 
@@ -89,8 +84,7 @@ class Change(Base):
 
     __tablename__ = "changes"
 
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     run_id: Mapped[int] = mapped_column(
         ForeignKey("runs.id", ondelete="CASCADE"),
         nullable=False,
@@ -122,8 +116,7 @@ class PythonSymbol(Base):
 
     __tablename__ = "python_symbols"
 
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     run_id: Mapped[int] = mapped_column(
         ForeignKey("runs.id", ondelete="CASCADE"),
         nullable=False,
@@ -161,8 +154,7 @@ class Rule(Base):
 
     __tablename__ = "rules"
 
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(
         Text,
         unique=True,
@@ -176,8 +168,7 @@ class Rule(Base):
         ForeignKey("templates.id", ondelete="SET NULL"),
         nullable=True,
     )
-    auto_approve: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False)
+    auto_approve: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Relationship
@@ -193,8 +184,7 @@ class Template(Base):
 
     __tablename__ = "templates"
 
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(
         Text,
         unique=True,
@@ -225,8 +215,7 @@ class Patch(Base):
 
     __tablename__ = "patches"
 
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     run_id: Mapped[int] = mapped_column(
         ForeignKey("runs.id", ondelete="CASCADE"),
         nullable=False,
@@ -238,8 +227,7 @@ class Patch(Base):
     diff_unified: Mapped[str | None] = mapped_column(Text, nullable=True)
     diff_structured: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     approved_by: Mapped[str | None] = mapped_column(Text, nullable=True)
-    applied_at: Mapped[datetime | None] = mapped_column(
-        DateTime, nullable=True)
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     status: Mapped[str] = mapped_column(
         Text,
         nullable=False,
@@ -270,16 +258,13 @@ class Connection(Base):
 
     __tablename__ = "connections"
 
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True)
-    confluence_base_url: Mapped[str] = mapped_column(
-        Text, nullable=False, unique=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    confluence_base_url: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     space_key: Mapped[str] = mapped_column(Text, nullable=False)
     # Encrypted token - never store plaintext (NFR-9)
     encrypted_token: Mapped[str] = mapped_column(Text, nullable=False)
     # Metadata
-    last_used_at: Mapped[datetime | None] = mapped_column(
-        DateTime, nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow
     )
