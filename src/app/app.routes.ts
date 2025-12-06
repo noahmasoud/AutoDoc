@@ -36,6 +36,14 @@ export const routes: Routes = [
       ),
     canActivate: [authGuard]
   },
+  {
+    path: 'runs/:runId/patches/:patchId',
+    loadChildren: () =>
+      import('./pages/patch-preview/patch-preview.module').then(
+        (m) => m.PatchPreviewModule
+      ),
+    canActivate: [authGuard]
+  },
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   { path: '**', redirectTo: 'dashboard' },
 ];

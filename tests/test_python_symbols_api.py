@@ -8,8 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.main import create_app
-from db.models import PythonSymbol, Run
-from db.session import SessionLocal
+from db.models import Base, PythonSymbol, Run
+from db.session import SessionLocal, engine
 
 
 @pytest.fixture
@@ -22,6 +22,9 @@ def client():
 
 def test_list_python_symbols_endpoint(client: TestClient):
     """Ensure the endpoint returns persisted symbol metadata."""
+    # Ensure database schema is up to date
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     session = SessionLocal()
     try:
         run = Run(
@@ -31,6 +34,7 @@ def test_list_python_symbols_endpoint(client: TestClient):
             started_at=datetime.utcnow(),
             status="Awaiting Review",
             correlation_id="corr-123",
+            mode="PRODUCTION",
         )
         session.add(run)
         session.commit()

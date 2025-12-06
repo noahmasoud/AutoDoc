@@ -133,8 +133,10 @@ describe('AnalyzerFindingsComponent', () => {
     const compiled = fixture.nativeElement;
     const fileNames = compiled.querySelectorAll('.file-name');
     expect(fileNames.length).toBe(2);
-    expect(fileNames[0].textContent).toContain('test-file.py');
-    expect(fileNames[1].textContent).toContain('another-file.ts');
+    // Check that both file names are present (order may vary)
+    const fileNamesText = Array.from(fileNames).map((el: any) => el.textContent);
+    expect(fileNamesText).toContain('test-file.py');
+    expect(fileNamesText).toContain('another-file.ts');
   });
 
   it('should render all finding items', () => {
