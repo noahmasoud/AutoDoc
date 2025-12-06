@@ -78,22 +78,31 @@ export class RunDetailsComponent implements OnInit, OnDestroy {
         this.parseReportData();
         this.applyFilter();
       },
-      error: (err: Error) => {
+      error: (err: any) => {
         // Check if it's a network error (backend unavailable)
-        const isNetworkError = err.message.includes('Failed to fetch') ||
-                              err.message.includes('NetworkError') ||
-                              err.message.includes('Http failure') ||
-                              err.message.includes('0 Unknown Error');
+        const errorMessage = err?.error?.detail || err?.message || 'Unknown error';
+        
+        // HTTP errors from the service include status codes in the message like ": 404 Not Found"
+        // Network errors don't have status codes in the message
+        const hasHttpStatusInMessage = /:\s*\d{3}\s+/.test(errorMessage);
+        const hasHttpStatus = err?.status !== undefined && err?.status !== 0 && err?.status !== null;
+        
+        // Only treat as network error if it's a true network failure
+        // (no HTTP status code in error object AND no status code in message)
+        const isNetworkError = !hasHttpStatus && !hasHttpStatusInMessage &&
+                              (errorMessage.includes('NetworkError') ||
+                               errorMessage.includes('0 Unknown Error') ||
+                               (errorMessage.includes('Failed to fetch') && !hasHttpStatusInMessage));
 
         if (isNetworkError) {
           // Fallback to mock data for offline development
-          console.warn('Backend unavailable, falling back to mock data:', err.message);
+          console.warn('Backend unavailable, falling back to mock data:', errorMessage);
           this.loadMockReport(runId);
         } else {
           // Other errors (404, 500, etc.) - show error
           this.loading = false;
-          this.error = err.message;
-          this.showError(err.message);
+          this.error = errorMessage;
+          this.showError(errorMessage);
         }
       },
     });
