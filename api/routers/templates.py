@@ -71,8 +71,10 @@ def delete_template(template_id: int, db: Session = Depends(get_db)):
         db.rollback()
         print(f"DELETE ERROR: {e}")
         import traceback
+
         traceback.print_exc()
-        raise HTTPException(500, f"Delete failed: {str(e)}")
+        raise HTTPException(500, f"Delete failed: {e!s}") from e
+
 
 @router.post("/preview", response_model=TemplatePreviewResponse)
 def preview_template(request: TemplatePreviewRequest, db: Session = Depends(get_db)):

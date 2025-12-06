@@ -44,7 +44,9 @@ class ConfluencePublisher:
 
         if self._run_mode == "TEST":
             logger.info(
-                "TEST MODE: Skipping Confluence page update for page %s", payload.get("id"))
+                "TEST MODE: Skipping Confluence page update for page %s",
+                payload.get("id"),
+            )
             return {"id": payload.get("id"), "status": "test_mode_skipped"}
 
         page_id = payload.get("id")
@@ -75,8 +77,7 @@ class ConfluencePublisher:
                 page_id,
             )
 
-            snapshot = snapshot or self._rollback_registry.latest_snapshot(
-                page_id)
+            snapshot = snapshot or self._rollback_registry.latest_snapshot(page_id)
             if snapshot is None:
                 logger.exception(
                     "Rollback skipped for page '%s'; no snapshot available",
@@ -115,7 +116,7 @@ class ConfluencePublisher:
         if self._run_mode == "TEST":
             logger.info(
                 "TEST MODE: Skipping Confluence page creation for page %s",
-                payload.get("id")
+                payload.get("id"),
             )
             return {"id": payload.get("id"), "status": "test_mode_skipped"}
 

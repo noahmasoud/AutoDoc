@@ -12,6 +12,7 @@ import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 
 import { RunDetailsComponent } from './run-details.component';
 
@@ -32,6 +33,7 @@ import { RunDetailsComponent } from './run-details.component';
     MatFormFieldModule,
     MatInputModule,
     MatIconModule,
+    MatButtonModule,
   ]
 })
 export class RunDetailsModule {}

@@ -157,9 +157,7 @@ class DiffService:
                     # Start a new hunk with context before
                     context_start = max(0, i1 - context_lines)
                     context_before = before_lines[context_start:i1]
-                    context_after = after_lines[
-                        max(0, j1 - context_lines) : j1
-                    ]
+                    context_after = after_lines[max(0, j1 - context_lines) : j1]
 
                     # Add context lines
                     for idx, line in enumerate(context_before):
@@ -195,9 +193,7 @@ class DiffService:
                     # Start a new hunk with context before
                     context_start = max(0, i1 - context_lines)
                     context_before = before_lines[context_start:i1]
-                    context_after = after_lines[
-                        max(0, j1 - context_lines) : j1
-                    ]
+                    context_after = after_lines[max(0, j1 - context_lines) : j1]
 
                     # Add context lines
                     for idx, line in enumerate(context_before):
@@ -233,9 +229,7 @@ class DiffService:
                     # Start a new hunk with context before
                     context_start = max(0, i1 - context_lines)
                     context_before = before_lines[context_start:i1]
-                    context_after = after_lines[
-                        max(0, j1 - context_lines) : j1
-                    ]
+                    context_after = after_lines[max(0, j1 - context_lines) : j1]
 
                     # Add context lines
                     for idx, line in enumerate(context_before):
@@ -349,13 +343,9 @@ class DiffService:
                 result = asdict(obj)
                 # Recursively convert nested dataclasses
                 if isinstance(obj, StructuredDiff):
-                    result["hunks"] = [
-                        dataclass_to_dict(hunk) for hunk in obj.hunks
-                    ]
+                    result["hunks"] = [dataclass_to_dict(hunk) for hunk in obj.hunks]
                 elif isinstance(obj, DiffHunk):
-                    result["lines"] = [
-                        dataclass_to_dict(line) for line in obj.lines
-                    ]
+                    result["lines"] = [dataclass_to_dict(line) for line in obj.lines]
                 return result
             return obj
 
@@ -363,4 +353,3 @@ class DiffService:
         structured_diff_json = json.dumps(structured_diff_dict, indent=2)
 
         return unified_diff, structured_diff_json
-

@@ -128,6 +128,61 @@
       </mat-card-content>
     </mat-card>
 
+    <!-- Patches -->
+    <mat-card *ngIf="patches.length > 0 || loadingPatches" class="section-card">
+      <mat-card-header>
+        <mat-card-title>Confluence Patches</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div *ngIf="loadingPatches" class="loading-container">
+          <mat-spinner diameter="30"></mat-spinner>
+          <p>Loading patches...</p>
+        </div>
+        <div *ngIf="!loadingPatches && patches.length > 0">
+          <mat-accordion multi="true">
+            <mat-expansion-panel *ngFor="let patch of patches">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <span class="file-name">Page: {{ patch.page_id }}</span>
+                </mat-panel-title>
+                <mat-panel-description>
+                  <mat-chip [color]="getStatusColor(patch.status)">
+                    {{ patch.status }}
+                  </mat-chip>
+                </mat-panel-description>
+              </mat-expansion-panel-header>
+              <div class="patch-info">
+                <div class="patch-actions">
+                  <button
+                    mat-raised-button
+                    color="primary"
+                    (click)="viewPatch(patch.id)"
+                    aria-label="View patch preview"
+                  >
+                    <mat-icon>preview</mat-icon>
+                    View Patch Preview
+                  </button>
+                </div>
+                <div *ngIf="patch.approved_by" class="patch-meta-info">
+                  <strong>Approved by:</strong> {{ patch.approved_by }}
+                </div>
+                <div *ngIf="patch.applied_at" class="patch-meta-info">
+                  <strong>Applied at:</strong> {{ formatTimestamp(patch.applied_at) }}
+                </div>
+                <div *ngIf="patch.error_message" class="patch-error">
+                  <strong>Error:</strong>
+                  <pre>{{ patch.error_message | json }}</pre>
+                </div>
+              </div>
+            </mat-expansion-panel>
+          </mat-accordion>
+        </div>
+        <div *ngIf="!loadingPatches && patches.length === 0" class="no-patches">
+          <p>No patches available for this run.</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
     <!-- Analyzer Findings -->
     <mat-card
       *ngIf="filteredFindings && objectKeys(filteredFindings).length > 0"
@@ -179,7 +234,8 @@
     <mat-card
       *ngIf="
         filteredFileDiffs.length === 0 &&
-        (!filteredFindings || objectKeys(filteredFindings).length === 0)
+        (!filteredFindings || objectKeys(filteredFindings).length === 0) &&
+        (!patches || patches.length === 0)
       "
       class="empty-card"
     >
@@ -188,7 +244,7 @@
           {{
             searchQuery
               ? 'No results found for "' + searchQuery + '"'
-              : 'No diffs or findings available for this run'
+              : 'No diffs, patches, or findings available for this run'
           }}
         </p>
       </mat-card-content>
