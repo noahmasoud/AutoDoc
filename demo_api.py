@@ -1,14 +1,3 @@
-def refund_payment(transaction_id: str) -> bool:
-    """Refund a payment transaction.
-    
-    Args:
-        transaction_id: ID of the transaction to refund
-        
-    Returns:
-        True if refund successful
-    """
-    return False
-
 def validate_transaction(amount: float) -> bool:
     """Validate transaction amount.
     
@@ -79,18 +68,6 @@ def validate_payment_amount(amount: float, currency: str = "USD") -> dict:
     }
 
 
-def process_refund_request(payment_id: str, reason: str, amount: float = None) -> dict:
-    """Process a refund request for a completed payment.
-    
-    Args:
-        payment_id: Original payment transaction ID
-        reason: Reason for refund request
-        amount: Partial refund amount (None for full refund)
-        
-    Returns:
-        Refund processing result with status and refund ID
-    """
-    return {"payment_id": payment_id, "refund_status": "pending", "reason": reason}
 
 
 def refund_payment_safe(transaction_id: str, amount: float) -> dict:
