@@ -274,3 +274,4 @@ docs/_build/
 .env
 publish_patch.py
 .env.bak
+data/change_report.json

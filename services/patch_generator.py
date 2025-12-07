@@ -6,6 +6,7 @@ and generate patches for documentation updates using templates (FR-10).
 
 import logging
 import json
+import subprocess
 from collections import defaultdict
 from typing import Any
 from sqlalchemy.orm import Session, joinedload
@@ -14,6 +15,7 @@ from sqlalchemy import select
 from db.models import Change, Patch, PythonSymbol, Rule, Run, Template
 from services.change_persister import get_changes_for_run
 from services.rule_engine import resolve_target_page
+from services.ai_documentation_gen import get_ai_generator
 from autodoc.templates.engine import (
     MissingVariableError,
     TemplateEngine,
@@ -420,12 +422,9 @@ def _generate_before_content(changes: list[Change]) -> str:
 
 
 def _generate_after_content(changes: list[Change], rule: Rule, db: Session) -> str:
-    """Generate 'after' content for a patch.
+    """Generate 'after' content for a patch using AI or template.
 
-    Uses template if available, otherwise falls back to simple markdown generation.
-
-    Template rendering errors (syntax errors, missing variables, invalid format) are
-    raised as structured exceptions to be caught and converted to ERROR patches (FR-24).
+    Tries AI generation first, then falls back to template, then simple generation.
 
     Args:
         changes: List of changes for a file
@@ -437,18 +436,73 @@ def _generate_after_content(changes: list[Change], rule: Rule, db: Session) -> s
 
     Raises:
         TemplateError: Template rendering errors (syntax, missing variables, invalid format)
-        TemplateSyntaxError: Invalid template syntax
-        MissingVariableError: Required variable missing (in strict mode)
-        UnsupportedFormatError: Invalid template format
     """
-    # Try to use template if rule has one
+    # Get the run for this change (to access commit info)
+    if not changes:
+        return "No changes"
+    
+    run = db.get(Run, changes[0].run_id)
+    if not run:
+        return _generate_simple_after_content(changes, rule)
+    
+    # Try AI generation first
+    ai_generator = get_ai_generator()
+    if ai_generator.is_available():
+        try:
+            # Get file content at this commit
+            file_path = changes[0].file_path
+            
+            # Get code after (current version)
+            try:
+                code_after = subprocess.run(
+                    ["git", "show", f"{run.commit_sha}:{file_path}"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                ).stdout
+            except subprocess.CalledProcessError:
+                code_after = ""
+            
+            # Get code before (previous version) if not a new function
+            code_before = None
+            if changes[0].change_type != "added":
+                try:
+                    code_before = subprocess.run(
+                        ["git", "show", f"{run.commit_sha}^:{file_path}"],
+                        capture_output=True,
+                        text=True
+                    ).stdout
+                except subprocess.CalledProcessError:
+                    code_before = None
+            
+            # Generate documentation with AI
+            documentation = ai_generator.generate_documentation(
+                change=changes[0],
+                run=run,
+                code_before=code_before,
+                code_after=code_after
+            )
+            
+            logger.info(
+                f"Generated AI documentation for {changes[0].symbol}",
+                extra={"run_id": run.id, "symbol": changes[0].symbol}
+            )
+            
+            return documentation
+            
+        except Exception as e:
+            logger.warning(
+                f"AI generation failed: {e}. Falling back to template.",
+                extra={"run_id": run.id, "error": str(e)}
+            )
+            # Fall through to template/simple generation
+    
+    # Fallback to template if AI unavailable or failed
     if rule.template_id:
         try:
             template = db.get(Template, rule.template_id)
             if template:
                 variables = _extract_template_variables(changes, rule)
-                # Template rendering errors should be raised, not caught here
-                # They will be caught by patch generation to create ERROR patches
                 return TemplateEngine.render(
                     template.body,
                     template.format,
@@ -461,19 +515,15 @@ def _generate_after_content(changes: list[Change], rule: Rule, db: Session) -> s
             MissingVariableError,
             UnsupportedFormatError,
         ):
-            # Re-raise template rendering errors - they will be caught by patch generation
-            # to create ERROR patches with structured error info
+            # Re-raise template errors - they should be caught by patch generation
             raise
         except Exception as e:
-            # Template loading errors fall back to simple generation
             logger.warning(
-                f"Error loading template {rule.template_id} for rule {rule.id}: {e}. "
-                "Falling back to simple generation.",
-                extra={"rule_id": rule.id, "template_id": rule.template_id},
+                f"Template rendering failed: {e}. Using simple generation.",
+                extra={"rule_id": rule.id, "template_id": rule.template_id}
             )
-            # Fall through to simple generation
-
-    # Fallback to simple markdown generation
+    
+    # Final fallback to simple generation
     return _generate_simple_after_content(changes, rule)
 
 
@@ -500,7 +550,7 @@ def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
     # Extract symbol names
     added_symbols = [c.symbol for c in added_changes]
     modified_symbols = [c.symbol for c in modified_changes]
-    removed_symbols = [c.symbol for c in removed_changes]
+    removed_symbols = [c for c in removed_changes]
 
     # Build changes.all as a string representation for templates
     # This matches the structure expected by templates using {{changes.all}}

@@ -2,9 +2,8 @@
 
 import os
 import logging
-import anthropic
 from typing import Optional
-from services.ai_documentation_gen import get_ai_generator
+import anthropic
 
 logger = logging.getLogger(__name__)
 
