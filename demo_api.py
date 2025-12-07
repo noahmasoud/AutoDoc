@@ -91,3 +91,40 @@ def process_refund_request(payment_id: str, reason: str, amount: float = None) -
         Refund processing result with status and refund ID
     """
     return {"payment_id": payment_id, "refund_status": "pending", "reason": reason}
+
+
+def refund_payment_safe(transaction_id: str, amount: float) -> dict:
+    """Safely process a refund after validating the transaction.
+    
+    Args:
+        transaction_id: ID of the transaction to refund
+        amount: Amount to refund (must be positive)
+    
+    Returns:
+        Refund result including status and any validation errors
+    """
+    # Validate refund amount
+    if not validate_transaction(amount):
+        return {
+            "transaction_id": transaction_id,
+            "status": "failed",
+            "error": "Invalid refund amount"
+        }
+    
+    # Mock: pretend we fetch history to confirm transaction exists
+    history = get_transaction_history("dummy_user")
+    found = any(txn.get("transaction_id") == transaction_id for txn in history)
+    
+    if not found:
+        return {
+            "transaction_id": transaction_id,
+            "status": "failed",
+            "error": "Transaction not found"
+        }
+    
+    # If all checks pass → process pending refund
+    return {
+        "transaction_id": transaction_id,
+        "refund_status": "pending",
+        "amount": amount
+    }
