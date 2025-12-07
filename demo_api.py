@@ -107,3 +107,17 @@ def validate_payment_amount(amount: float, currency: str = "USD") -> dict:
         "currency": currency,
         "max_limit": max_limit
     }
+
+
+def process_refund_request(payment_id: str, reason: str, amount: float = None) -> dict:
+    """Process a refund request for a completed payment.
+    
+    Args:
+        payment_id: Original payment transaction ID
+        reason: Reason for refund request
+        amount: Partial refund amount (None for full refund)
+        
+    Returns:
+        Refund processing result with status and refund ID
+    """
+    return {"payment_id": payment_id, "refund_status": "pending", "reason": reason}
