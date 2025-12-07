@@ -272,3 +272,5 @@ secrets/
 docs/build/
 docs/_build/
 .env
+publish_patch.py
+.env.bak
