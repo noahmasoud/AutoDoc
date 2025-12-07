@@ -147,7 +147,7 @@ def generate_patches_for_run(  # noqa: PLR0915
         for (page_id, rule), page_changes in changes_by_page.items():
             try:
                 diff_before = _generate_before_content(page_changes)
-                diff_after = _generate_after_content(page_changes, rule, db)
+                diff_after = _generate_after_content(page_changes, rule, run, db)
 
                 # Generate unified and structured diffs (SCRUM-50)
                 diff_service = DiffService()
@@ -423,7 +423,7 @@ def _generate_before_content(changes: list[Change]) -> str:
     return "\n".join(lines)
 
 
-def _generate_after_content(changes: list[Change], rule: Rule, db: Session) -> str:
+def _generate_after_content(changes: list[Change], rule: Rule, run: Run, db: Session) -> str:
     """Generate 'after' content for a patch.
 
     Uses template if available, otherwise falls back to simple markdown generation.
@@ -450,7 +450,7 @@ def _generate_after_content(changes: list[Change], rule: Rule, db: Session) -> s
         try:
             template = db.get(Template, rule.template_id)
             if template:
-                variables = _extract_template_variables(changes, rule)
+                variables = _extract_template_variables(changes, rule, run)
                 # Template rendering errors should be raised, not caught here
                 # They will be caught by patch generation to create ERROR patches
                 return TemplateEngine.render(
@@ -481,7 +481,7 @@ def _generate_after_content(changes: list[Change], rule: Rule, db: Session) -> s
     return _generate_simple_after_content(changes, rule)
 
 
-def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
+def _extract_template_variables(changes: list[Change], rule: Rule, run: Run) -> dict:
     """Extract variables from changes for template rendering.
 
     Builds a structure compatible with templates expecting {{changes.all}} and {{files}}.
@@ -489,6 +489,7 @@ def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
     Args:
         changes: List of changes for a file
         rule: The matching rule
+        run: The run object for run-related variables
 
     Returns:
         Dictionary of variables for template substitution
@@ -527,6 +528,13 @@ def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
 
     # Build variables dictionary with structure matching _build_patch_context
     variables = {
+        "run": {
+            "id": run.id,
+            "repo": run.repo,
+            "branch": run.branch,
+            "commit_sha": run.commit_sha,
+            "status": run.status,
+        },
         "file_path": file_path,
         "files": files_str,  # String representation for {{files}}
         "rule_name": rule.name,
@@ -580,8 +588,16 @@ def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
         variables["change_type"] = first_change.change_type
         if first_change.signature_after:
             variables["signature"] = str(first_change.signature_after)
+            variables["signature_after"] = str(first_change.signature_after)
         elif first_change.signature_before:
             variables["signature"] = str(first_change.signature_before)
+            variables["signature_after"] = str(first_change.signature_before)
+        
+        # Add signature_before if available
+        if first_change.signature_before:
+            variables["signature_before"] = str(first_change.signature_before)
+        else:
+            variables["signature_before"] = ""
 
     return variables
 
