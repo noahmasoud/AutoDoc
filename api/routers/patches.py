@@ -20,16 +20,47 @@ def list_patches(run_id: int | None = Query(None), db: Session = Depends(get_db)
     stmt = select(Patch).order_by(Patch.id)
     if run_id is not None:
         stmt = stmt.where(Patch.run_id == run_id)
-    return db.execute(stmt).scalars().all()
+    patches = db.execute(stmt).scalars().all()
+    
+    # Parse diff_structured from JSON string to dict for all patches
+    import json
+    for patch in patches:
+        if patch.diff_structured and isinstance(patch.diff_structured, str):
+            try:
+                patch.diff_structured = json.loads(patch.diff_structured)
+            except (json.JSONDecodeError, TypeError):
+                patch.diff_structured = None
+    
+    return patches
 
 
 @router.get("/{patch_id}", response_model=PatchOut)
 def get_patch(patch_id: int, db: Session = Depends(get_db)):
     """Get a single patch by ID."""
-    patch = db.get(Patch, patch_id)
-    if not patch:
-        raise HTTPException(status_code=404, detail="Patch not found")
-    return patch
+    try:
+        patch = db.get(Patch, patch_id)
+        if not patch:
+            raise HTTPException(status_code=404, detail="Patch not found")
+        
+        # Ensure diff_structured is a dict, not a string
+        # SQLite JSON columns sometimes return strings instead of dicts
+        import json
+        if patch.diff_structured and isinstance(patch.diff_structured, str):
+            try:
+                patch.diff_structured = json.loads(patch.diff_structured)
+            except (json.JSONDecodeError, TypeError):
+                # If parsing fails, set to None
+                patch.diff_structured = None
+        
+        return patch
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error getting patch {patch_id}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve patch: {e}",
+        ) from e
 
 
 @router.post("/{patch_id}/apply", response_model=PatchOut)
@@ -83,8 +114,45 @@ def apply_patch(
 
     # Normal flow: apply patch to Confluence
     try:
-        # Get Confluence client and publisher
-        client = ConfluenceClient()
+        # Load connection from database
+        from db.models import Connection
+        from core.encryption import decrypt_token
+        from autodoc.config.settings import ConfluenceSettings, get_settings
+
+        connection = db.execute(select(Connection).limit(1)).scalar_one_or_none()
+        if not connection:
+            raise HTTPException(
+                status_code=404,
+                detail="No Confluence connection found. Please configure a connection first.",
+            )
+
+        # Decrypt the token
+        try:
+            decrypted_token = decrypt_token(connection.encrypted_token)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to decrypt connection token: {e}",
+            ) from e
+
+        # Get app settings for timeout and max_retries
+        app_settings = get_settings()
+        
+        # Create ConfluenceSettings from database connection
+        # Use token as username if CONFLUENCE_USERNAME is not set (token:token format)
+        username = app_settings.confluence.username or decrypted_token
+
+        confluence_settings = ConfluenceSettings(
+            url=connection.confluence_base_url,
+            username=username,
+            token=decrypted_token,
+            space_key=connection.space_key,
+            timeout=app_settings.confluence.timeout,
+            max_retries=app_settings.confluence.max_retries,
+        )
+
+        # Get Confluence client and publisher with database connection settings
+        client = ConfluenceClient(settings=confluence_settings)
         publisher = ConfluencePublisher(client)
 
         # Get the rule to find space_key
@@ -103,14 +171,15 @@ def apply_patch(
             )
 
         # Update the Confluence page
-        update_payload = {
-            "id": patch.page_id,
-            "title": f"AutoDoc: {rule.name}",  # Use rule name as title
-            "body": patch.diff_after,
-            "representation": "storage",
-        }
-
-        result = publisher.update_page(update_payload)
+        # Note: ConfluenceClient.update_page expects keyword arguments, not a dict
+        # The publisher.update_page accepts a dict but needs to extract the args
+        # For now, call the client directly with the correct signature
+        result = client.update_page(
+            page_id=patch.page_id,
+            title=f"AutoDoc: {rule.name}",  # Use rule name as title
+            body=patch.diff_after,
+            representation="storage",
+        )
 
         # Update patch status
         patch.status = "Applied"
