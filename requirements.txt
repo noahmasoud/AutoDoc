@@ -5,4 +5,4 @@
 requests>=2.31.0
 
 # Note: The full backend dependencies are in pyproject.toml
-# This file is specifically for the CI Docker image
+# This file is specifically for the CI Docker imageanthropic>=0.18.0

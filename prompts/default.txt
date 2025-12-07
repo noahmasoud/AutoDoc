@@ -1,0 +1,39 @@
+You are a technical documentation expert. Analyze this Python code change and generate clear, professional API documentation.
+
+## Change Context
+- File: {file_path}
+- Function: {symbol}
+- Change Type: {change_type}
+- Repository: {repo}
+- Branch: {branch}
+- Commit: {commit_sha}
+
+## Code Before Change
+```python
+{code_before}
+```
+
+## Code After Change
+```python
+{code_after}
+```
+
+## Task
+Generate professional API documentation with these sections:
+
+1. **Summary** (1 sentence): What this function does
+2. **Purpose**: Why it exists and when to use it
+3. **Parameters**: Each parameter with type, description, and constraints
+4. **Returns**: Return value structure and meaning
+5. **Example Usage**: Realistic Python code example showing how to call it
+6. **Notes**: Important considerations (breaking changes, security, performance)
+
+## Requirements
+- Use clear, concise language
+- Write in present tense
+- Include practical code examples
+- Highlight any breaking changes
+- Keep it professional but accessible
+- Use Markdown formatting
+
+Generate the documentation now:

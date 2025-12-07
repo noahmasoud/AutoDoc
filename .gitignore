@@ -271,3 +271,4 @@ secrets/
 # Generated documentation
 docs/build/
 docs/_build/
+.env
