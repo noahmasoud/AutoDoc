@@ -84,3 +84,26 @@ def get_payment_receipt(payment_id: str, format: str = "pdf") -> dict:
         "receipt_url": f"https://receipts.example.com/{payment_id}.{format}",
         "generated_at": "2025-12-06T23:00:00Z"
     }
+
+
+def validate_payment_amount(amount: float, currency: str = "USD") -> dict:
+    """Validate payment amount against business rules and limits.
+    
+    Args:
+        amount: Payment amount to validate (must be positive)
+        currency: ISO 4217 currency code (default: USD)
+        
+    Returns:
+        Validation result with status and any violations
+    """
+    if amount <= 0:
+        raise ValueError("Payment amount must be positive")
+    
+    max_limit = {"USD": 10000, "EUR": 9000, "GBP": 8000}.get(currency, 10000)
+    
+    return {
+        "valid": amount <= max_limit,
+        "amount": amount,
+        "currency": currency,
+        "max_limit": max_limit
+    }

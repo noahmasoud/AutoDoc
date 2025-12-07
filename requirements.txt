@@ -1,8 +1,11 @@
 # AutoDoc CI/CD Runner Dependencies
 # Minimal set for Sprint 0 - just what autodoc.sh needs
 
-# HTTP client for future Confluence API calls (Sprint 2+)
+# HTTP client for Confluence API calls
 requests>=2.31.0
 
+# AI documentation generation with Claude
+anthropic>=0.18.0
+
 # Note: The full backend dependencies are in pyproject.toml
-# This file is specifically for the CI Docker imageanthropic>=0.18.0
+# This file is specifically for the CI Docker image
