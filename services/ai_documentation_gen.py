@@ -4,6 +4,9 @@ import os
 import logging
 from typing import Optional
 import anthropic
+from dotenv import load_dotenv
+
+load_dotenv()  # ensures os.getenv finds your .env
 
 logger = logging.getLogger(__name__)
 

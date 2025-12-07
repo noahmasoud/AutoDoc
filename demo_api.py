@@ -1,15 +1,3 @@
-def process_payment(amount: float, currency: str = "USD") -> dict:
-    """Process a payment transaction.
-    
-    Args:
-        amount: Payment amount
-        currency: Currency code
-        
-    Returns:
-        Transaction details
-    """
-    return {"amount": amount, "currency": currency, "status": "pending"}
-
 def refund_payment(transaction_id: str) -> bool:
     """Refund a payment transaction.
     
@@ -19,7 +7,7 @@ def refund_payment(transaction_id: str) -> bool:
     Returns:
         True if refund successful
     """
-    return True
+    return False
 
 def validate_transaction(amount: float) -> bool:
     """Validate transaction amount.
@@ -66,24 +54,6 @@ def get_payment_status(payment_id: str) -> str:
         Payment status
     """
     return "pending"
-
-
-def get_payment_receipt(payment_id: str, format: str = "pdf") -> dict:
-    """Generate and retrieve a payment receipt.
-    
-    Args:
-        payment_id: Payment ID to generate receipt for
-        format: Receipt format - 'pdf' or 'json'
-        
-    Returns:
-        Receipt data with transaction details and download URL
-    """
-    return {
-        "payment_id": payment_id,
-        "format": format,
-        "receipt_url": f"https://receipts.example.com/{payment_id}.{format}",
-        "generated_at": "2025-12-06T23:00:00Z"
-    }
 
 
 def validate_payment_amount(amount: float, currency: str = "USD") -> dict:
