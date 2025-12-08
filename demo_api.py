@@ -115,3 +115,34 @@ def cancel_subscription(user_id: str, reason: str = "user_request") -> dict:
 def get_subscription_history(user_id: str, limit: int = 10) -> list[dict]:
     """Retrieve subscription history for a user."""
     return [{"user_id": user_id, "event": "created", "timestamp": "2025-01-01"}]
+
+
+def send_payment_notification(
+    user_id: str,
+    payment_id: str,
+    notification_type: str = "email"
+) -> dict:
+    """Send payment notification to user via specified channel.
+    
+    Args:
+        user_id: Unique identifier for the user
+        payment_id: Payment transaction ID
+        notification_type: Channel type - 'email', 'sms', or 'push'
+        
+    Returns:
+        Notification delivery status and tracking info
+        
+    Raises:
+        ValueError: If notification_type is invalid
+    """
+    valid_types = ["email", "sms", "push"]
+    if notification_type not in valid_types:
+        raise ValueError(f"Invalid notification type. Must be one of: {valid_types}")
+    
+    return {
+        "user_id": user_id,
+        "payment_id": payment_id,
+        "notification_type": notification_type,
+        "status": "sent",
+        "tracking_id": f"notif_{payment_id}_{notification_type}"
+    }
