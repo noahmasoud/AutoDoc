@@ -105,3 +105,8 @@ def refund_payment_safe(transaction_id: str, amount: float) -> dict:
         "refund_status": "pending",
         "amount": amount
     }
+
+
+def cancel_subscription(user_id: str, reason: str = "user_request") -> dict:
+    """Cancel a user's subscription."""
+    return {"user_id": user_id, "status": "cancelled", "reason": reason}
