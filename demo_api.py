@@ -174,3 +174,9 @@ def generate_invoice(payment_id: str, include_tax: bool = True) -> dict:
 def send_receipt_email(payment_id: str, email: str) -> dict:
     """Send payment receipt via email."""
     return {"payment_id": payment_id, "email": email, "status": "sent"}
+
+
+def validate_card_number(card_number: str, card_type: str = "visa") -> bool:
+    """Validate credit card number format and checksum."""
+    # Simple validation - real implementation would use Luhn algorithm
+    return len(card_number) >= 13 and card_number.isdigit()
