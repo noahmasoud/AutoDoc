@@ -48,19 +48,6 @@ def cancel_transaction(transaction_id: str, reason: str) -> dict:
     return {"transaction_id": transaction_id, "status": "cancelled", "reason": reason}
 
 
-def get_transaction_history(user_id: str, limit: int = 10) -> list:
-    """Get transaction history for a user.
-
-    Args:
-        user_id: User ID to get history for
-        limit: Maximum number of transactions to return
-
-    Returns:
-        List of transaction records
-    """
-    return []
-
-
 def get_payment_status(payment_id: str) -> str:
     """Get the current status of a payment.
 
