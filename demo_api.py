@@ -48,33 +48,7 @@ def cancel_transaction(transaction_id: str, reason: str) -> dict:
     return {"transaction_id": transaction_id, "status": "cancelled", "reason": reason}
 
 
-def get_payment_status(payment_id: str) -> str:
-    """Get the current status of a payment.
 
-    Args:
-        payment_id: Payment ID to check
-
-    Returns:
-        Payment status
-    """
-    return "pending"
-
-# Add this new function to test AutoDoc detection
-def get_payment_receipt(payment_id: str, format: str = "json") -> dict:
-    """Get payment receipt in specified format.
-    
-    Args:
-        payment_id: ID of the payment
-        format: Output format (json, pdf, html)
-    
-    Returns:
-        Receipt data in requested format
-    """
-    # TODO: Implement receipt generation
-    # 1. Fetch payment details from database
-    # 2. Format receipt based on format parameter
-    # 3. Return formatted receipt data
-    pass
 
 
 # Modify an existing function to test change detection
