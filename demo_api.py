@@ -144,11 +144,6 @@ def send_payment_notification(user_id: str, payment_id: str, notification_type: 
     return {"user_id": user_id, "payment_id": payment_id, "notification_type": notification_type, "status": "sent"}
 
 
-def verify_payment_method(user_id: str, payment_method_id: str) -> dict:
-    """Verify a payment method is valid and active."""
-    return {"user_id": user_id, "payment_method_id": payment_method_id, "verified": True}
-
-
 def calculate_payment_fee(amount: float, fee_percent: float = 2.5) -> float:
     """Calculate processing fee for a payment."""
     return round(amount * (fee_percent / 100), 2)
