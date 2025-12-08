@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ############################################################
-# AutoDoc CI/CD Entrypoint Script - Sprint 1 Integration
-# Updated to call actual Python analysis engine
+# AutoDoc CI/CD Entrypoint Script - Sprint 3 Integration
+# Updated to call actual Python analysis engine and persist changes
 ############################################################
 
 set -e
@@ -239,7 +239,36 @@ try:
         old_module = extract_symbols(old_tree, "$FILE")
         new_module = extract_symbols(new_tree, "$FILE")
         report = detect_changes(old_module, new_module, "HEAD^", "HEAD")
+        
+        # Extract detailed changes for database persistence
+        detailed_changes = []
+        for change in report.added:
+            detailed_changes.append({
+                "file_path": "$FILE",
+                "symbol": change.symbol_name,
+                "change_type": "added",
+                "signature_before": None,
+                "signature_after": None  # SymbolChange doesn't have signature fields
+            })
+        for change in report.modified:
+            detailed_changes.append({
+                "file_path": "$FILE",
+                "symbol": change.symbol_name,
+                "change_type": "modified",
+                "signature_before": None,
+                "signature_after": None
+            })
+        for change in report.removed:
+            detailed_changes.append({
+                "file_path": "$FILE",
+                "symbol": change.symbol_name,
+                "change_type": "removed",
+                "signature_before": None,
+                "signature_after": None
+            })
+        
         result = report.to_dict()
+        result["detailed_changes"] = detailed_changes
     else:
         result = {
             "file_path": "$FILE",
@@ -248,7 +277,8 @@ try:
                 "modified_count": 0,
                 "removed_count": 0,
                 "breaking_count": 0
-            }
+            },
+            "detailed_changes": []
         }
     
     with open("$TEMP_DIR/result.json", "w") as f:
@@ -263,7 +293,8 @@ except Exception as e:
             "modified_count": 0,
             "removed_count": 0,
             "breaking_count": 0
-        }
+        },
+        "detailed_changes": []
     }
     with open("$TEMP_DIR/result.json", "w") as f:
         json.dump(result, f)
@@ -290,14 +321,136 @@ PYTHON_SCRIPT
         TOTAL_BREAKING=$((TOTAL_BREAKING + BREAKING))
         
         echo "      Added: $ADDED, Modified: $MODIFIED, Removed: $REMOVED, Breaking: $BREAKING"
+        
+        # Save this file's result for later
+        cp "$TEMP_DIR/result.json" "$TEMP_DIR/result_${FILE//\//_}.json"
     fi
 done
 
 echo "  Analysis complete"
 
-# Step 3: Generate final report
+# ============================================
+# Sprint 3 Integration: Save to Database
+# ============================================
 echo ""
-echo "Step 3: Creating change report..."
+echo "Step 3: Saving results to AutoDoc database..."
+
+API_BASE="${API_BASE:-http://localhost:8000/api/v1}"
+
+# Check if backend is available
+if curl -s -f "${API_BASE}/templates" > /dev/null 2>&1; then
+  echo "  Backend available, saving to database..."
+  
+  # Create Run in database
+  RUN_RESPONSE=$(curl -s -X POST "${API_BASE}/runs" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"repo\": \"${REPO_NAME}\",
+      \"branch\": \"${BRANCH_NAME}\",
+      \"commit_sha\": \"${COMMIT_SHA}\",
+      \"started_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+      \"correlation_id\": \"autodoc-${COMMIT_SHA:0:8}\",
+      \"status\": \"Awaiting Review\",
+      \"mode\": \"PRODUCTION\"
+    }")
+
+  RUN_ID=$(echo "$RUN_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])" 2>/dev/null || echo "")
+
+  if [ -z "$RUN_ID" ]; then
+    echo "  WARNING: Failed to create run in database"
+  else
+    echo "  ✓ Created run #${RUN_ID}"
+    
+    # Collect all changes from temp files
+    echo "  Collecting changes from analysis..."
+    ALL_CHANGES_JSON="[]"
+    
+    for RESULT_FILE in "$TEMP_DIR"/result_*.json; do
+      if [ -f "$RESULT_FILE" ]; then
+        CHANGES=$(python3 -c "
+import json
+try:
+    with open('$RESULT_FILE') as f:
+        data = json.load(f)
+        print(json.dumps(data.get('detailed_changes', [])))
+except:
+    print('[]')
+")
+        # Merge changes
+        ALL_CHANGES_JSON=$(python3 -c "
+import json
+try:
+    existing = json.loads('''$ALL_CHANGES_JSON''')
+    new = json.loads('''$CHANGES''')
+    existing.extend(new)
+    print(json.dumps(existing))
+except:
+    print('[]')
+")
+      fi
+    done
+    
+    # Save changes to database
+    CHANGE_COUNT=$(echo "$ALL_CHANGES_JSON" | python3 -c "import json, sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+    if [ "$CHANGE_COUNT" -gt 0 ]; then
+      echo "  Saving $CHANGE_COUNT change(s) to database..."
+      SAVE_RESPONSE=$(curl -s -X POST "${API_BASE}/runs/${RUN_ID}/changes" \
+        -H "Content-Type: application/json" \
+        -d "$ALL_CHANGES_JSON")
+      echo "  ✓ Saved changes"
+    else
+      echo "  No changes to save"
+    fi
+    
+    # Generate patches using your Sprint 3 infrastructure
+    echo "  Generating documentation patches..."
+    PATCH_RESPONSE=$(curl -s -X POST "${API_BASE}/runs/${RUN_ID}/generate-patches")
+    PATCHES_GENERATED=$(echo "$PATCH_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('patches_generated', 0))" 2>/dev/null || echo "0")
+    echo "  ✓ Generated ${PATCHES_GENERATED} patch(es)"
+    
+    # Check for LLM summary generation (happens automatically during patch generation)
+    if [ "$PATCHES_GENERATED" -gt 0 ]; then
+      echo ""
+      echo "  Checking LLM summary status..."
+      
+      # Try to retrieve LLM summary artifact (this will generate it if missing)
+      LLM_SUMMARY_RESPONSE=$(curl -s -X GET "${API_BASE}/patches/llm-summary-artifact/${RUN_ID}" 2>/dev/null || echo "")
+      
+      if [ -n "$LLM_SUMMARY_RESPONSE" ] && echo "$LLM_SUMMARY_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); exit(0 if data.get('summary') else 1)" 2>/dev/null; then
+        echo "  ✓ LLM summary generated successfully"
+        
+        # Auto-publish to Confluence if not dry-run
+        if [ "$DRY_RUN" = "false" ]; then
+          echo "  Publishing LLM summary to Confluence..."
+          PUBLISH_RESPONSE=$(curl -s -X POST "${API_BASE}/patches/publish-summary/${RUN_ID}" \
+            -H "Content-Type: application/json" \
+            -d '{"strategy": "append_to_patches"}' 2>/dev/null || echo "")
+          
+          if [ -n "$PUBLISH_RESPONSE" ] && echo "$PUBLISH_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); exit(0 if data.get('success') else 1)" 2>/dev/null; then
+            PAGES_UPDATED=$(echo "$PUBLISH_RESPONSE" | python3 -c "import sys, json; print(len(json.load(sys.stdin).get('pages_updated', [])))" 2>/dev/null || echo "0")
+            echo "  ✓ Published LLM summary to ${PAGES_UPDATED} Confluence page(s)"
+          else
+            echo "  ⚠ LLM summary publishing failed or skipped (check logs for details)"
+          fi
+        else
+          echo "  ⏭ Skipping Confluence publish (dry-run mode)"
+        fi
+      else
+        echo "  ⚠ LLM summary not available (API key missing, quota exceeded, or error)"
+      fi
+    fi
+    
+    echo ""
+    echo "  View results at: http://localhost:4200/runs/${RUN_ID}"
+  fi
+else
+  echo "  Backend not available (this is normal in CI/CD)"
+  echo "  Skipping database operations..."
+fi
+
+# Step 4: Creating change report (JSON file)
+echo ""
+echo "Step 4: Creating change report JSON..."
 
 # Generate final change_report.json with real data
 cat > change_report.json << EOF
@@ -327,7 +480,7 @@ cat > change_report.json << EOF
     }
   ],
   "status": "success",
-  "message": "Analysis completed successfully using Sprint 1 infrastructure"
+  "message": "Analysis completed successfully using Sprint 3 infrastructure"
 }
 EOF
 
@@ -345,9 +498,21 @@ echo "  Functions added:     ${TOTAL_ADDED}"
 echo "  Functions modified:  ${TOTAL_MODIFIED}"
 echo "  Functions removed:   ${TOTAL_REMOVED}"
 echo "  Breaking changes:    ${TOTAL_BREAKING}"
+if [ -n "${RUN_ID:-}" ]; then
+  echo "  Run ID:              ${RUN_ID}"
+  echo "  Patches generated:   ${PATCHES_GENERATED:-0}"
+  if [ "$DRY_RUN" = "false" ] && [ "${PATCHES_GENERATED:-0}" -gt 0 ]; then
+    echo "  LLM summary:         Generated and published to Confluence"
+  elif [ "$DRY_RUN" = "true" ] && [ "${PATCHES_GENERATED:-0}" -gt 0 ]; then
+    echo "  LLM summary:         Generated (not published - dry-run mode)"
+  fi
+fi
 echo ""
 echo "Output:"
 echo "  change_report.json"
+if [ -n "${RUN_ID:-}" ]; then
+  echo "  Artifacts:            artifacts/${RUN_ID}/"
+fi
 echo ""
 
 if [[ "$VERBOSE" == "true" ]] && command -v jq &> /dev/null; then

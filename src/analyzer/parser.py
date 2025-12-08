@@ -2,22 +2,23 @@ import ast
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 
 @dataclass
 class ParseResult:
     success: bool
     file_path: str
-    ast_tree: ast.AST | None = None
-    error: str | None = None
-    error_line: int | None = None
+    ast_tree: Optional[ast.AST] = None
+    error: Optional[str] = None
+    error_line: Optional[int] = None
 
 
 # parser for Python source files using Python's ast module.
 
 
 class PythonParser:
-    def __init__(self, logger: logging.Logger | None = None):
+    def __init__(self, logger: Optional[logging.Logger] = None):
         self.logger = logger or logging.getLogger(__name__)
 
     def parse(self, file_path: str) -> ParseResult:
@@ -29,11 +30,11 @@ class PythonParser:
         """
         success = False
         resolved_path_str = file_path
-        ast_tree: ast.AST | None = None
-        error_msg: str | None = None
-        error_line: int | None = None
+        ast_tree: Optional[ast.AST] = None
+        error_msg: Optional[str] = None
+        error_line: Optional[int] = None
 
-        resolved_path: Path | None = None
+        resolved_path: Optional[Path] = None
         try:
             resolved_path = self._resolve_path(file_path)
         except Exception as exc:
@@ -120,7 +121,7 @@ class PythonParser:
 
 #  function for simple use cases
 def parse_python_file(
-    file_path: str, logger: logging.Logger | None = None
+    file_path: str, logger: Optional[logging.Logger] = None
 ) -> ParseResult:
     parser = PythonParser(logger=logger)
     return parser.parse(file_path)

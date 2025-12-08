@@ -61,11 +61,19 @@ def update_template(
 
 @router.delete("/{template_id}", status_code=204)
 def delete_template(template_id: int, db: Session = Depends(get_db)):
-    row = db.get(Template, template_id)
-    if not row:
-        raise HTTPException(404, "Template not found")
-    db.delete(row)
-    db.flush()
+    try:
+        row = db.get(Template, template_id)
+        if not row:
+            raise HTTPException(404, "Template not found")
+        db.delete(row)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"DELETE ERROR: {e}")
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(500, f"Delete failed: {e!s}") from e
 
 
 @router.post("/preview", response_model=TemplatePreviewResponse)

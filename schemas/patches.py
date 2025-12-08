@@ -27,9 +27,19 @@ class PatchUpdate(BaseModel):
 
 class PatchOut(PatchBase):
     id: int
+    diff_unified: str | None = None
+    diff_structured: dict[str, Any] | None = None
     approved_by: str | None
     applied_at: datetime | None
     status: str
     error_message: dict[str, Any] | None = None
 
     model_config = {"from_attributes": True}
+
+
+class LLMPatchSummaryResponse(BaseModel):
+    """Response model for LLM patch summarization."""
+    summary: str
+    changes_description: str
+    demo_api_explanation: str
+    formatted_output: str

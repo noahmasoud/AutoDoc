@@ -5,6 +5,7 @@ and generate patches for documentation updates using templates (FR-10).
 """
 
 import logging
+import json
 from collections import defaultdict
 from typing import Any
 from sqlalchemy.orm import Session, joinedload
@@ -145,10 +146,38 @@ def generate_patches_for_run(  # noqa: PLR0915
         patches_created = []
         for (page_id, rule), page_changes in changes_by_page.items():
             try:
-                # Generate patch content
-                # Use template engine if rule has an associated template
                 diff_before = _generate_before_content(page_changes)
-                diff_after = _generate_after_content(page_changes, rule, db)
+                diff_after = _generate_after_content(page_changes, rule, run, db)
+
+                # Generate unified and structured diffs (SCRUM-50)
+                diff_service = DiffService()
+                unified_diff = diff_service.generate_unified_diff(
+                    before_content=diff_before,
+                    after_content=diff_after,
+                    from_file="Before",
+                    to_file="After",
+                )
+                structured_diff = diff_service.generate_structured_diff(
+                    before_content=diff_before, after_content=diff_after
+                )
+                structured_diff_json = json.dumps(
+                    {
+                        "hunks": [
+                            {
+                                "start_before": hunk.start_before,
+                                "start_after": hunk.start_after,
+                                "lines": [
+                                    {"type": line.type, "content": line.content}
+                                    for line in hunk.lines
+                                ],
+                            }
+                            for hunk in structured_diff.hunks
+                        ],
+                        "total_added": structured_diff.total_added,
+                        "total_removed": structured_diff.total_removed,
+                        "total_unchanged": structured_diff.total_unchanged,
+                    }
+                )
 
                 patch = Patch(
                     run_id=run_id,
@@ -263,6 +292,105 @@ def generate_patches_for_run(  # noqa: PLR0915
                     extra={"run_id": run_id},
                     exc_info=True,
                 )
+
+            # Export LLM summary as JSON artifact
+            # This generates a summary of the patches using Claude API
+            summary_path = None
+            try:
+                from services.llm_summary_artifact_exporter import (
+                    export_llm_summary_artifact,
+                )
+
+                summary_path = export_llm_summary_artifact(db, run_id)
+                if summary_path:
+                    logger.info(
+                        f"Successfully exported LLM summary artifact for run {run_id}",
+                        extra={"run_id": run_id, "summary_path": summary_path},
+                    )
+                else:
+                    logger.debug(
+                        f"LLM summary generation skipped for run {run_id} "
+                        "(API key missing, quota exceeded, or error)",
+                        extra={"run_id": run_id},
+                    )
+            except Exception as e:
+                # Log but don't fail patch generation if LLM summary export fails
+                logger.warning(
+                    f"Failed to export LLM summary artifact for run {run_id}: {e}",
+                    extra={"run_id": run_id},
+                    exc_info=True,
+                )
+
+            # Auto-publish to Confluence (if not dry-run)
+            if not run.is_dry_run:
+                if summary_path:
+                    # LLM summary was generated successfully - publish it
+                    try:
+                        from services.llm_summary_publisher import (
+                            publish_llm_summary_to_confluence,
+                        )
+
+                        publish_result = publish_llm_summary_to_confluence(
+                            db, run_id, strategy="append_to_patches"
+                        )
+                        if publish_result.get("success"):
+                            logger.info(
+                                f"Successfully published LLM summary to Confluence for run {run_id}",
+                                extra={
+                                    "run_id": run_id,
+                                    "pages_updated": publish_result.get("pages_updated", []),
+                                    "strategy": publish_result.get("strategy"),
+                                },
+                            )
+                        else:
+                            logger.warning(
+                                f"LLM summary publishing partially or completely failed for run {run_id}: {publish_result.get('errors', [])}",
+                                extra={
+                                    "run_id": run_id,
+                                    "errors": publish_result.get("errors", []),
+                                },
+                            )
+                    except Exception as e:
+                        # Log but don't fail patch generation if publishing fails
+                        logger.warning(
+                            f"Failed to publish LLM summary to Confluence for run {run_id}: {e}",
+                            extra={"run_id": run_id},
+                            exc_info=True,
+                        )
+                else:
+                    # LLM summary generation failed - fallback to publishing regular patches
+                    logger.info(
+                        f"LLM summary generation failed for run {run_id}, falling back to publishing regular patches",
+                        extra={"run_id": run_id},
+                    )
+                    try:
+                        from services.patches_publisher import publish_patches_to_confluence
+
+                        publish_result = publish_patches_to_confluence(db, run_id)
+                        if publish_result.get("success"):
+                            logger.info(
+                                f"Successfully published {publish_result.get('patches_published', 0)} patch(es) to Confluence for run {run_id} (fallback mode)",
+                                extra={
+                                    "run_id": run_id,
+                                    "patches_published": publish_result.get("patches_published", 0),
+                                    "pages_updated": publish_result.get("pages_updated", []),
+                                },
+                            )
+                        else:
+                            logger.warning(
+                                f"Patch publishing (fallback) partially or completely failed for run {run_id}: {publish_result.get('errors', [])}",
+                                extra={
+                                    "run_id": run_id,
+                                    "errors": publish_result.get("errors", []),
+                                },
+                            )
+                    except Exception as e:
+                        # Log but don't fail patch generation if fallback publishing fails
+                        logger.warning(
+                            f"Failed to publish patches to Confluence (fallback) for run {run_id}: {e}",
+                            extra={"run_id": run_id},
+                            exc_info=True,
+                        )
 
         return patches_created
 
@@ -394,7 +522,7 @@ def _generate_before_content(changes: list[Change]) -> str:
     return "\n".join(lines)
 
 
-def _generate_after_content(changes: list[Change], rule: Rule, db: Session) -> str:
+def _generate_after_content(changes: list[Change], rule: Rule, run: Run, db: Session) -> str:
     """Generate 'after' content for a patch.
 
     Uses template if available, otherwise falls back to simple markdown generation.
@@ -421,7 +549,7 @@ def _generate_after_content(changes: list[Change], rule: Rule, db: Session) -> s
         try:
             template = db.get(Template, rule.template_id)
             if template:
-                variables = _extract_template_variables(changes, rule)
+                variables = _extract_template_variables(changes, rule, run)
                 # Template rendering errors should be raised, not caught here
                 # They will be caught by patch generation to create ERROR patches
                 return TemplateEngine.render(
@@ -452,7 +580,7 @@ def _generate_after_content(changes: list[Change], rule: Rule, db: Session) -> s
     return _generate_simple_after_content(changes, rule)
 
 
-def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
+def _extract_template_variables(changes: list[Change], rule: Rule, run: Run) -> dict:
     """Extract variables from changes for template rendering.
 
     Builds a structure compatible with templates expecting {{changes.all}} and {{files}}.
@@ -460,6 +588,7 @@ def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
     Args:
         changes: List of changes for a file
         rule: The matching rule
+        run: The run object for run-related variables
 
     Returns:
         Dictionary of variables for template substitution
@@ -498,6 +627,13 @@ def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
 
     # Build variables dictionary with structure matching _build_patch_context
     variables = {
+        "run": {
+            "id": run.id,
+            "repo": run.repo,
+            "branch": run.branch,
+            "commit_sha": run.commit_sha,
+            "status": run.status,
+        },
         "file_path": file_path,
         "files": files_str,  # String representation for {{files}}
         "rule_name": rule.name,
@@ -551,8 +687,16 @@ def _extract_template_variables(changes: list[Change], rule: Rule) -> dict:
         variables["change_type"] = first_change.change_type
         if first_change.signature_after:
             variables["signature"] = str(first_change.signature_after)
+            variables["signature_after"] = str(first_change.signature_after)
         elif first_change.signature_before:
             variables["signature"] = str(first_change.signature_before)
+            variables["signature_after"] = str(first_change.signature_before)
+        
+        # Add signature_before if available
+        if first_change.signature_before:
+            variables["signature_before"] = str(first_change.signature_before)
+        else:
+            variables["signature_before"] = ""
 
     return variables
 

@@ -263,3 +263,33 @@ def get_patches_artifact(
         raise HTTPException(
             status_code=500, detail=f"Failed to read patches artifact: {exc!s}"
         ) from exc
+
+
+@router.post("/{run_id}/changes", status_code=201)
+def create_changes_for_run(
+    run_id: int,
+    changes: list[dict],
+    db: Session = Depends(get_db),
+):
+    """Create multiple changes for a run."""
+    from db.models import Change
+
+    run = db.get(Run, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    created_count = 0
+    for change_data in changes:
+        change = Change(
+            run_id=run_id,
+            file_path=change_data.get("file_path"),
+            symbol=change_data.get("symbol"),
+            change_type=change_data.get("change_type"),
+            signature_before=change_data.get("signature_before"),
+            signature_after=change_data.get("signature_after"),
+        )
+        db.add(change)
+        created_count += 1
+
+    db.commit()
+    return {"run_id": run_id, "changes_created": created_count}

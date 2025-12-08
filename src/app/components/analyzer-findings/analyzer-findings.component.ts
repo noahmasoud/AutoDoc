@@ -10,6 +10,11 @@ import { AnalyzerFinding } from '../../services/change-report.service';
 export class AnalyzerFindingsComponent {
   @Input() findingsByFile: Record<string, AnalyzerFinding[]> = {};
 
+  // Helper method to access Object.keys in templates
+  getObjectKeys(obj: Record<string, any>): string[] {
+    return Object.keys(obj || {});
+  }
+
   getSeverityColor(severity?: string): string {
     if (!severity) return '';
     const sev = severity.toLowerCase();

@@ -2,11 +2,10 @@
 Tests for DiffService - Patch Diff Preview Generation.
 Tests verify correct diff output for:
 - Single-line changes
-- Multi-line insertions/deletions  
+- Multi-line insertions/deletions
 - Edge cases
 """
 
-import pytest
 import json
 from services.diff import DiffService
 

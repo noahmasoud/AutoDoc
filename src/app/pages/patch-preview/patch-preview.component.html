@@ -1,0 +1,212 @@
+<div class="patch-preview-container">
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <mat-spinner></mat-spinner>
+    <p>Loading patch preview...</p>
+  </div>
+
+  <!-- Error State -->
+  <mat-card *ngIf="error && !loading" class="error-card">
+    <mat-card-content>
+      <h2>Error Loading Patch</h2>
+      <p>{{ error }}</p>
+      <button mat-raised-button color="primary" (click)="goBack()">
+        <mat-icon>arrow_back</mat-icon>
+        Back to Run Details
+      </button>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Main Content -->
+  <div *ngIf="patch && !loading && !error" class="patch-content">
+    <!-- Header Card -->
+    <mat-card class="header-card">
+      <mat-card-content>
+        <div class="header-row">
+          <div class="header-left">
+            <button mat-icon-button (click)="goBack()" aria-label="Go back">
+              <mat-icon>arrow_back</mat-icon>
+            </button>
+            <h1>Patch Preview</h1>
+          </div>
+          <div class="header-right">
+            <mat-chip [color]="getStatusColor(patch.status)">
+              {{ patch.status }}
+            </mat-chip>
+          </div>
+        </div>
+
+        <div class="patch-info">
+          <div class="info-item">
+            <strong>Patch ID:</strong> {{ patch.id }}
+          </div>
+          <div class="info-item">
+            <strong>Page ID:</strong> {{ patch.page_id }}
+          </div>
+          <div class="info-item" *ngIf="patch.approved_by">
+            <strong>Approved by:</strong> {{ patch.approved_by }}
+          </div>
+          <div class="info-item" *ngIf="patch.applied_at">
+            <strong>Applied at:</strong> {{ formatTimestamp(patch.applied_at) }}
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons" *ngIf="patch.status !== 'Applied'">
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="approvePatch()"
+            [disabled]="approving"
+            #approveButton
+            aria-label="Approve patch"
+          >
+            <mat-icon *ngIf="!approving">check_circle</mat-icon>
+            <mat-spinner *ngIf="approving" diameter="20" class="button-spinner"></mat-spinner>
+            {{ approving ? 'Applying...' : 'Approve & Apply' }}
+          </button>
+          <button
+            mat-raised-button
+            color="warn"
+            (click)="openRejectDialog()"
+            [disabled]="rejecting"
+            #rejectButton
+            aria-label="Reject patch"
+          >
+            <mat-icon>cancel</mat-icon>
+            Reject
+          </button>
+        </div>
+
+        <div *ngIf="patch.status === 'Applied'" class="applied-message">
+          <mat-icon color="primary">check_circle</mat-icon>
+          <span>This patch has been applied to Confluence.</span>
+        </div>
+
+        <!-- Error Message Display -->
+        <div *ngIf="patch.error_message" class="error-message">
+          <mat-icon color="warn">error</mat-icon>
+          <div>
+            <strong>Error:</strong>
+            <pre>{{ patch.error_message | json }}</pre>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Side-by-Side Diff View -->
+    <mat-card class="diff-card">
+      <mat-card-header>
+        <mat-card-title>Content Diff</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="diff-container">
+          <!-- Before Panel -->
+          <div class="diff-panel before-panel">
+            <div class="panel-header">
+              <h3>Before</h3>
+            </div>
+            <div class="panel-content" #beforePanel>
+              <div
+                *ngFor="let line of diffLines; let i = index"
+                class="diff-line"
+                [ngClass]="{
+                  'line-unchanged': line.type === 'unchanged',
+                  'line-removed': line.type === 'removed',
+                  'line-modified-old': line.type === 'modified'
+                }"
+              >
+                <span class="line-number">{{ i + 1 }}</span>
+                <span class="line-content">
+                  {{ line.beforeLine || '&nbsp;' }}
+                </span>
+              </div>
+              <div *ngIf="diffLines.length === 0" class="empty-diff">
+                No changes detected
+              </div>
+            </div>
+          </div>
+
+          <!-- After Panel -->
+          <div class="diff-panel after-panel">
+            <div class="panel-header">
+              <h3>After</h3>
+            </div>
+            <div class="panel-content" #afterPanel>
+              <div
+                *ngFor="let line of diffLines; let i = index"
+                class="diff-line"
+                [ngClass]="{
+                  'line-unchanged': line.type === 'unchanged',
+                  'line-added': line.type === 'added',
+                  'line-modified-new': line.type === 'modified'
+                }"
+              >
+                <span class="line-number">{{ i + 1 }}</span>
+                <span class="line-content">
+                  {{ line.afterLine || '&nbsp;' }}
+                </span>
+              </div>
+              <div *ngIf="diffLines.length === 0" class="empty-diff">
+                No changes detected
+              </div>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Raw Content View (Collapsible) -->
+    <mat-card class="raw-content-card">
+      <mat-card-header>
+        <mat-card-title>Raw Content</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-accordion>
+          <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title>Before Content</mat-panel-title>
+            </mat-expansion-panel-header>
+            <pre class="raw-content">{{ patch.diff_before }}</pre>
+          </mat-expansion-panel>
+          <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title>After Content</mat-panel-title>
+            </mat-expansion-panel-header>
+            <pre class="raw-content">{{ patch.diff_after }}</pre>
+          </mat-expansion-panel>
+        </mat-accordion>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Reject Dialog -->
+  <div *ngIf="showRejectDialog" class="reject-dialog-overlay" (click)="closeRejectDialog()">
+    <mat-card class="reject-dialog" (click)="$event.stopPropagation()">
+      <mat-card-header>
+        <mat-card-title>Reject Patch</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <p>Are you sure you want to reject this patch?</p>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Rejection Comment (Optional)</mat-label>
+          <textarea
+            matInput
+            [(ngModel)]="rejectComment"
+            rows="4"
+            placeholder="Enter a reason for rejecting this patch..."
+            #commentInput
+          ></textarea>
+        </mat-form-field>
+      </mat-card-content>
+      <mat-card-actions>
+        <button mat-button (click)="closeRejectDialog()">Cancel</button>
+        <button mat-raised-button color="warn" (click)="rejectPatch()" [disabled]="rejecting">
+          <mat-spinner *ngIf="rejecting" diameter="20" class="button-spinner"></mat-spinner>
+          {{ rejecting ? 'Rejecting...' : 'Reject Patch' }}
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
+</div>
+
