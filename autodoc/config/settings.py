@@ -11,6 +11,17 @@ from typing import Any
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Load .env file into environment before creating settings
+# This ensures nested settings (like ConfluenceSettings) can access the variables
+try:
+    from dotenv import load_dotenv
+    env_path = Path(".env")
+    if env_path.exists():
+        load_dotenv(env_path)
+except ImportError:
+    # python-dotenv not installed, rely on Pydantic's built-in .env loading
+    pass
+
 
 class DatabaseSettings(BaseSettings):
     """Database configuration settings."""

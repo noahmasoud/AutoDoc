@@ -321,40 +321,76 @@ def generate_patches_for_run(  # noqa: PLR0915
                     exc_info=True,
                 )
 
-            # Auto-publish LLM summary to Confluence (if not dry-run and summary was generated)
-            if summary_path and not run.is_dry_run:
-                try:
-                    from services.llm_summary_publisher import (
-                        publish_llm_summary_to_confluence,
-                    )
+            # Auto-publish to Confluence (if not dry-run)
+            if not run.is_dry_run:
+                if summary_path:
+                    # LLM summary was generated successfully - publish it
+                    try:
+                        from services.llm_summary_publisher import (
+                            publish_llm_summary_to_confluence,
+                        )
 
-                    publish_result = publish_llm_summary_to_confluence(
-                        db, run_id, strategy="append_to_patches"
-                    )
-                    if publish_result.get("success"):
-                        logger.info(
-                            f"Successfully published LLM summary to Confluence for run {run_id}",
-                            extra={
-                                "run_id": run_id,
-                                "pages_updated": publish_result.get("pages_updated", []),
-                                "strategy": publish_result.get("strategy"),
-                            },
+                        publish_result = publish_llm_summary_to_confluence(
+                            db, run_id, strategy="append_to_patches"
                         )
-                    else:
+                        if publish_result.get("success"):
+                            logger.info(
+                                f"Successfully published LLM summary to Confluence for run {run_id}",
+                                extra={
+                                    "run_id": run_id,
+                                    "pages_updated": publish_result.get("pages_updated", []),
+                                    "strategy": publish_result.get("strategy"),
+                                },
+                            )
+                        else:
+                            logger.warning(
+                                f"LLM summary publishing partially or completely failed for run {run_id}: {publish_result.get('errors', [])}",
+                                extra={
+                                    "run_id": run_id,
+                                    "errors": publish_result.get("errors", []),
+                                },
+                            )
+                    except Exception as e:
+                        # Log but don't fail patch generation if publishing fails
                         logger.warning(
-                            f"LLM summary publishing partially or completely failed for run {run_id}: {publish_result.get('errors', [])}",
-                            extra={
-                                "run_id": run_id,
-                                "errors": publish_result.get("errors", []),
-                            },
+                            f"Failed to publish LLM summary to Confluence for run {run_id}: {e}",
+                            extra={"run_id": run_id},
+                            exc_info=True,
                         )
-                except Exception as e:
-                    # Log but don't fail patch generation if publishing fails
-                    logger.warning(
-                        f"Failed to publish LLM summary to Confluence for run {run_id}: {e}",
+                else:
+                    # LLM summary generation failed - fallback to publishing regular patches
+                    logger.info(
+                        f"LLM summary generation failed for run {run_id}, falling back to publishing regular patches",
                         extra={"run_id": run_id},
-                        exc_info=True,
                     )
+                    try:
+                        from services.patches_publisher import publish_patches_to_confluence
+
+                        publish_result = publish_patches_to_confluence(db, run_id)
+                        if publish_result.get("success"):
+                            logger.info(
+                                f"Successfully published {publish_result.get('patches_published', 0)} patch(es) to Confluence for run {run_id} (fallback mode)",
+                                extra={
+                                    "run_id": run_id,
+                                    "patches_published": publish_result.get("patches_published", 0),
+                                    "pages_updated": publish_result.get("pages_updated", []),
+                                },
+                            )
+                        else:
+                            logger.warning(
+                                f"Patch publishing (fallback) partially or completely failed for run {run_id}: {publish_result.get('errors', [])}",
+                                extra={
+                                    "run_id": run_id,
+                                    "errors": publish_result.get("errors", []),
+                                },
+                            )
+                    except Exception as e:
+                        # Log but don't fail patch generation if fallback publishing fails
+                        logger.warning(
+                            f"Failed to publish patches to Confluence (fallback) for run {run_id}: {e}",
+                            extra={"run_id": run_id},
+                            exc_info=True,
+                        )
 
         return patches_created
 

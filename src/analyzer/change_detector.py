@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 from .extractor import ModuleInfo, FunctionInfo, ClassInfo
 
 
@@ -75,8 +75,8 @@ class ChangeReport:
 
 class FunctionChangeDetector:
     def compare(
-        self, old_func: FunctionInfo | None, new_func: FunctionInfo | None
-    ) -> SymbolChange | None:
+        self, old_func: Optional[FunctionInfo], new_func: Optional[FunctionInfo]
+    ) -> Optional[SymbolChange]:
         if old_func is None and new_func is not None:
             return SymbolChange(
                 change_type=ChangeType.ADDED,
@@ -103,7 +103,7 @@ class FunctionChangeDetector:
 
     def _detect_modifications(
         self, old_func: FunctionInfo, new_func: FunctionInfo
-    ) -> SymbolChange | None:
+    ) -> Optional[SymbolChange]:
         breaking_reasons = []
         details = {}
         old_params = {p.name: p for p in old_func.parameters}
@@ -164,8 +164,8 @@ class ClassChangeDetector:
         self.func_detector = FunctionChangeDetector()
 
     def compare(
-        self, old_class: ClassInfo | None, new_class: ClassInfo | None
-    ) -> SymbolChange | None:
+        self, old_class: Optional[ClassInfo], new_class: Optional[ClassInfo]
+    ) -> Optional[SymbolChange]:
         if old_class is None and new_class is not None:
             return SymbolChange(
                 change_type=ChangeType.ADDED,
@@ -188,7 +188,7 @@ class ClassChangeDetector:
 
     def _detect_modifications(
         self, old_class: ClassInfo, new_class: ClassInfo
-    ) -> SymbolChange | None:
+    ) -> Optional[SymbolChange]:
         breaking_reasons = []
         details = {}
         if set(old_class.base_classes) != set(new_class.base_classes):

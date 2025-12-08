@@ -1,6 +1,6 @@
 import ast
 from dataclasses import dataclass, field, asdict
-from typing import Any
+from typing import Any, Optional, Union
 
 
 @dataclass
@@ -8,8 +8,8 @@ class ParameterInfo:
     # function parameter(s)
 
     name: str
-    annotation: str | None = None
-    default: str | None = None
+    annotation: Optional[str] = None
+    default: Optional[str] = None
     kind: str = "positional"  # positional, keyword, *args, **kwargs
 
     def to_dict(self) -> dict[str, Any]:
@@ -21,12 +21,12 @@ class FunctionInfo:
     # function or method definition.
     name: str
     parameters: list[ParameterInfo] = field(default_factory=list)
-    return_type: str | None = None
+    return_type: Optional[str] = None
     decorators: list[str] = field(default_factory=list)
     is_async: bool = False
     is_public: bool = True
     is_method: bool = False
-    docstring: str | None = None
+    docstring: Optional[str] = None
     lineno: int = 0
 
     def to_dict(self) -> dict[str, Any]:
@@ -51,7 +51,7 @@ class ClassInfo:
     methods: list[FunctionInfo] = field(default_factory=list)
     decorators: list[str] = field(default_factory=list)
     is_public: bool = True
-    docstring: str | None = None
+    docstring: Optional[str] = None
     lineno: int = 0
 
     def to_dict(self) -> dict[str, Any]:
@@ -81,7 +81,7 @@ class ModuleInfo:
     file_path: str
     functions: list[FunctionInfo] = field(default_factory=list)
     classes: list[ClassInfo] = field(default_factory=list)
-    module_docstring: str | None = None
+    module_docstring: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -99,8 +99,8 @@ class SymbolExtractor(ast.NodeVisitor):
     def __init__(self):
         self.functions: list[FunctionInfo] = []
         self.classes: list[ClassInfo] = []
-        self.current_class: ClassInfo | None = None
-        self.module_docstring: str | None = None
+        self.current_class: Optional[ClassInfo] = None
+        self.module_docstring: Optional[str] = None
 
     def extract(self, tree: ast.AST, file_path: str) -> ModuleInfo:
         # extract all symbols from an AST
@@ -171,7 +171,7 @@ class SymbolExtractor(ast.NodeVisitor):
 
     # Extract detailed information from a function node.
     def _extract_function_info(
-        self, node: ast.FunctionDef | ast.AsyncFunctionDef, is_async: bool
+        self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef], is_async: bool
     ) -> FunctionInfo:
         return FunctionInfo(
             name=node.name,
@@ -252,7 +252,7 @@ class SymbolExtractor(ast.NodeVisitor):
 
         return parameters
 
-    def _extract_annotation(self, annotation: ast.expr | None) -> str | None:
+    def _extract_annotation(self, annotation: Optional[ast.expr]) -> Optional[str]:
         if annotation is None:
             return None
 
@@ -262,7 +262,7 @@ class SymbolExtractor(ast.NodeVisitor):
             # Fallback for complex annotations
             return ast.dump(annotation)
 
-    def _extract_default_value(self, default: ast.expr | None) -> str:
+    def _extract_default_value(self, default: Optional[ast.expr]) -> str:
         if default is None:
             return "None"
 
@@ -274,7 +274,7 @@ class SymbolExtractor(ast.NodeVisitor):
     # extract decorator names from a function or class.
     def _extract_decorators(
         self,
-        node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef,
+        node: Union[ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef],
     ) -> list[str]:
         decorators = []
         for decorator in node.decorator_list:

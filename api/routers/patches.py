@@ -354,7 +354,18 @@ def get_llm_summary_artifact(run_id: int, db: Session = Depends(get_db)):
                 export_llm_summary_artifact,
             )
 
-            export_llm_summary_artifact(db, run_id)
+            result_path = export_llm_summary_artifact(db, run_id)
+            # If generation failed (e.g., API key missing), result_path will be None
+            if result_path is None or not summary_path.exists():
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"LLM summary artifact not available for run {run_id}. "
+                    "This may be due to missing API key, quota exceeded, or other error. "
+                    "Check server logs for details.",
+                )
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
         except Exception as exc:
             raise HTTPException(
                 status_code=404,
