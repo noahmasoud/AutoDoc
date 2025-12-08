@@ -154,3 +154,8 @@ def send_payment_notification(user_id: str, payment_id: str, notification_type: 
     if notification_type not in valid_types:
         raise ValueError(f"Invalid type. Must be: {valid_types}")
     return {"user_id": user_id, "payment_id": payment_id, "notification_type": notification_type, "status": "sent"}
+
+
+def verify_payment_method(user_id: str, payment_method_id: str) -> dict:
+    """Verify a payment method is valid and active."""
+    return {"user_id": user_id, "payment_method_id": payment_method_id, "verified": True}
