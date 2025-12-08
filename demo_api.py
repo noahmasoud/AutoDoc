@@ -169,3 +169,8 @@ def calculate_payment_fee(amount: float, fee_percent: float = 2.5) -> float:
 def generate_invoice(payment_id: str, include_tax: bool = True) -> dict:
     """Generate an invoice for a completed payment."""
     return {"payment_id": payment_id, "invoice_id": f"INV-{payment_id}", "tax_included": include_tax}
+
+
+def send_receipt_email(payment_id: str, email: str) -> dict:
+    """Send payment receipt via email."""
+    return {"payment_id": payment_id, "email": email, "status": "sent"}
