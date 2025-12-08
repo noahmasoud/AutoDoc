@@ -110,3 +110,8 @@ def refund_payment_safe(transaction_id: str, amount: float) -> dict:
 def cancel_subscription(user_id: str, reason: str = "user_request") -> dict:
     """Cancel a user's subscription."""
     return {"user_id": user_id, "status": "cancelled", "reason": reason}
+
+
+def get_subscription_history(user_id: str, limit: int = 10) -> list[dict]:
+    """Retrieve subscription history for a user."""
+    return [{"user_id": user_id, "event": "created", "timestamp": "2025-01-01"}]
