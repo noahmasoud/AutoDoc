@@ -146,3 +146,11 @@ def send_payment_notification(
         "status": "sent",
         "tracking_id": f"notif_{payment_id}_{notification_type}"
     }
+
+
+def send_payment_notification(user_id: str, payment_id: str, notification_type: str = "email") -> dict:
+    """Send payment notification to user via specified channel."""
+    valid_types = ["email", "sms", "push"]
+    if notification_type not in valid_types:
+        raise ValueError(f"Invalid type. Must be: {valid_types}")
+    return {"user_id": user_id, "payment_id": payment_id, "notification_type": notification_type, "status": "sent"}
