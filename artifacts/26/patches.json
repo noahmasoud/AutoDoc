@@ -1,0 +1,22 @@
+{
+  "run_id": 26,
+  "repo": "AutoDoc",
+  "branch": "dev",
+  "commit_sha": "2343124cd0739d9d11b1bc072e701345a67aa459",
+  "is_dry_run": false,
+  "timestamp": "2025-12-08T19:55:36.412235+00:00",
+  "patches_count": 1,
+  "patches": [
+    {
+      "id": 16,
+      "run_id": 26,
+      "page_id": "7700481",
+      "status": "Applied",
+      "diff_before": "# Before Changes\n",
+      "diff_after": "# API Documentation: `generate_invoice`\n\n## Summary\nGenerates an invoice document for a completed payment transaction.\n\n## Purpose\nThis function creates invoice records for payment transactions that have been successfully processed. Use this function when you need to provide customers with formal billing documentation or maintain financial records for completed payments. It's typically called after payment confirmation to generate customer-facing invoices.\n\n## Parameters\n\n| Parameter | Type | Required | Default | Description |\n|-----------|------|----------|---------|-------------|\n| `payment_id` | `str` | Yes | - | Unique identifier of the completed payment transaction |\n| `include_tax` | `bool` | No | `True` | Whether to include tax information in the generated invoice |\n\n### Parameter Constraints\n- `payment_id`: Must be a non-empty string representing a valid payment transaction\n- `include_tax`: Boolean flag that controls tax line item inclusion\n\n## Returns\n\nReturns a `dict` containing the invoice details:\n\n```python\n{\n    \"payment_id\": str,      # Original payment transaction ID\n    \"invoice_id\": str,      # Generated invoice identifier (format: \"INV-{payment_id}\")\n    \"tax_included\": bool    # Confirms whether tax information is included\n}\n```\n\n## Example Usage\n\n```python\n# Generate invoice with tax information (default)\ninvoice = generate_invoice(\"pay_12345\")\nprint(invoice)\n# Output: {\"payment_id\": \"pay_12345\", \"invoice_id\": \"INV-pay_12345\", \"tax_included\": True}\n\n# Generate invoice without tax information\ninvoice_no_tax = generate_invoice(\"pay_67890\", include_tax=False)\nprint(invoice_no_tax)\n# Output: {\"payment_id\": \"pay_67890\", \"invoice_id\": \"INV-pay_67890\", \"tax_included\": False}\n\n# Use in payment workflow\ndef complete_payment_flow(payment_id: str):\n    # After payment processing...\n    invoice = generate_invoice(payment_id)\n    print(f\"Invoice {invoice['invoice_id']} generated for payment {payment_id}\")\n    return invoice\n```\n\n## Notes\n\n- **New Function**: This is a newly added function in the payment processing module\n- **Invoice ID Format**: Generated invoice IDs follow the pattern `INV-{payment_id}` \n- **Payment Validation**: This function assumes the payment_id represents a valid, completed transaction - no validation is performed\n- **Tax Handling**: The `include_tax` parameter only affects the returned flag; actual tax calculations should be handled separately\n- **Integration**: Consider calling this function as part of your payment completion workflow to maintain consistent invoice generation\n\n---\n\nHello From Claude! We have received your API request.",
+      "approved_by": "system",
+      "applied_at": "2025-12-08T19:55:36.400277",
+      "error_message": null
+    }
+  ]
+}

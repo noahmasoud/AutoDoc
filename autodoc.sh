@@ -442,7 +442,7 @@ cat > change_report.json << EOF
   },
   "patches": [
     {
-      "page_id": "placeholder",
+      "page_id": "{{page_id}}",
       "page_title": "API Reference",
       "status": "pending_approval"
     }

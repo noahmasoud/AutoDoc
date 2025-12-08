@@ -1,4 +1,5 @@
-You are a technical documentation expert. Analyze this Python code change and generate clear, professional API documentation.
+You are a technical documentation expert. Generate documentation in **Confluence Storage Format** (XHTML). This documentatiuon should make it easier for developers to understand how to use the code. 
+Most imporantly it should be short technical and to the point -- example snippets are welcome if needed.  
 
 ## Change Context
 - File: {file_path}
@@ -19,25 +20,21 @@ You are a technical documentation expert. Analyze this Python code change and ge
 ```
 
 ## Task
-Generate professional API documentation with these sections:
+Generate professional API documentation using Confluence Storage Format (XHTML). This documentatiuon should make it easier for developers to understand how to use the code. 
+Most imporantly it should be short technical and to the point -- example snippets are welcome if needed.   Use these tags:
+- <h1>, <h2>, <h3> for headings
+- <p> for paragraphs
+- <table> for parameter tables
+- <ac:structured-macro ac:name="code"> for code blocks
+- <strong> for bold text
+- <ac:structured-macro ac:name="panel"> for info boxes
 
-1. **Summary** (1 sentence): What this function does
-2. **Purpose**: Why it exists and when to use it
-3. **Parameters**: Each parameter with type, description, and constraints
-4. **Returns**: Return value structure and meaning
-5. **Example Usage**: Realistic Python code example showing how to call it
-6. **Notes**: Important considerations (breaking changes, security, performance)
+Structure:
+1. Summary (1 sentence)
+2. Purpose
+3. Parameters (as table)
+4. Returns
+5. Example Usage (in code macro)
+6. Notes
 
-## Requirements
-- Use clear, concise language
-- Write in present tense
-- Include practical code examples
-- Highlight any breaking changes
-- Keep it professional but accessible
-- Use Markdown formatting
-
-Generate the documentation now:
-
-
-
-After documentation is generated say "Hello From Claude! We have received your API request."
+Make it professional and well-formatted for Confluence. Make it easy to work with!

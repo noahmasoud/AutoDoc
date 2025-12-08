@@ -7,6 +7,7 @@ and generate patches for documentation updates using templates (FR-10).
 import logging
 import json
 import subprocess
+import os
 from collections import defaultdict
 from typing import Any
 from sqlalchemy.orm import Session, joinedload
@@ -257,6 +258,17 @@ def generate_patches_for_run(  # noqa: PLR0915
                     "files_without_rules": len(files_without_rules),
                 },
             )
+
+            # Auto-publish
+            auto_publish = os.getenv("AUTO_PUBLISH_PATCHES", "false").lower() == "true"
+            if auto_publish and not os.getenv("REQUIRE_MANUAL_APPROVAL", "true").lower() == "true":
+                try:
+                    from services.patch_publisher import publish_patch_to_confluence
+                    for patch in patches_created:
+                        if patch.status != "ERROR":
+                            publish_patch_to_confluence(db, patch.id, approved_by="system")
+                            logger.info(f"Published patch {patch.id}")
+                except: pass
         else:
             logger.info(
                 f"No patches generated for run {run_id}",

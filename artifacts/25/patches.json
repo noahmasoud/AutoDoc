@@ -1,0 +1,22 @@
+{
+  "run_id": 25,
+  "repo": "AutoDoc",
+  "branch": "dev",
+  "commit_sha": "bc238e5fe92e5bd194e924ba4f6b67e449d87cd8",
+  "is_dry_run": false,
+  "timestamp": "2025-12-08T19:26:44.779576+00:00",
+  "patches_count": 1,
+  "patches": [
+    {
+      "id": 15,
+      "run_id": 25,
+      "page_id": "7700481",
+      "status": "Proposed",
+      "diff_before": "# Before Changes\n",
+      "diff_after": "# API Documentation: `calculate_payment_fee`\n\n## Summary\nCalculates the processing fee for a payment transaction based on the payment amount and fee percentage.\n\n## Purpose\nThis function exists to provide consistent fee calculation across payment processing workflows. Use it whenever you need to determine the processing fee that will be charged for a payment transaction, whether for display to users, internal accounting, or fee validation purposes.\n\n## Parameters\n\n| Parameter | Type | Description | Constraints |\n|-----------|------|-------------|-------------|\n| `amount` | `float` | The base payment amount to calculate fees for | Must be a numeric value (typically positive) |\n| `fee_percent` | `float` | The fee percentage to apply to the amount | Optional, defaults to 2.5% |\n\n## Returns\n\n| Type | Description |\n|------|-------------|\n| `float` | The calculated processing fee, rounded to 2 decimal places for currency precision |\n\n## Example Usage\n\n```python\n# Calculate fee with default 2.5% rate\nbasic_fee = calculate_payment_fee(100.00)\nprint(f\"Fee: ${basic_fee}\")  # Output: Fee: $2.5\n\n# Calculate fee with custom percentage\npremium_fee = calculate_payment_fee(250.00, fee_percent=3.0)\nprint(f\"Premium fee: ${premium_fee}\")  # Output: Premium fee: $7.5\n\n# Calculate total payment including fees\npayment_amount = 150.00\nprocessing_fee = calculate_payment_fee(payment_amount, 2.9)\ntotal_charge = payment_amount + processing_fee\nprint(f\"Amount: ${payment_amount}, Fee: ${processing_fee}, Total: ${total_charge}\")\n# Output: Amount: $150.0, Fee: $4.35, Total: $154.35\n```\n\n## Notes\n\n- **New Function**: This is a newly added function in the payment processing module\n- **Precision**: The result is automatically rounded to 2 decimal places to ensure proper currency formatting\n- **Validation**: The function does not validate input parameters - ensure `amount` is positive and `fee_percent` is reasonable before calling\n- **Currency Agnostic**: Works with any currency as it operates on numeric values only\n- **Performance**: Lightweight calculation suitable for high-frequency usage in payment workflows\n\n---\n\nHello From Claude! We have received your API request.",
+      "approved_by": null,
+      "applied_at": null,
+      "error_message": null
+    }
+  ]
+}

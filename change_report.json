@@ -1,28 +1,22 @@
 {
   "metadata": {
     "script_version": "1.0.0",
-    "commit_sha": "567b88bd42b12463121d56cf86e4a6784363b589",
+    "commit_sha": "d7a731ca0414444b369dabc2cfbd7e3c7d296175",
     "repository": "AutoDoc",
     "branch": "dev",
     "pr_id": "null",
     "dry_run": false,
-    "timestamp": "2025-12-07T23:48:26Z",
+    "timestamp": "2025-12-08T20:13:45Z",
     "hostname": "MacBookPro.lan"
   },
   "analysis": {
     "files_changed": 1,
     "functions_added": 0,
     "functions_modified": 0,
-    "functions_removed": 2,
-    "breaking_changes": 2
+    "functions_removed": 1,
+    "breaking_changes": 1
   },
-  "patches": [
-    {
-      "page_id": "placeholder",
-      "page_title": "API Reference",
-      "status": "pending_approval"
-    }
-  ],
+  "patches": [{"page_id": "7700481", "status": "Applied", "patch_id": 20}],
   "status": "success",
   "message": "Analysis completed successfully using Sprint 3 infrastructure"
 }
