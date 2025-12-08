@@ -136,13 +136,6 @@ def send_payment_notification(
     }
 
 
-def send_payment_notification(user_id: str, payment_id: str, notification_type: str = "email") -> dict:
-    """Send payment notification to user via specified channel."""
-    valid_types = ["email", "sms", "push"]
-    if notification_type not in valid_types:
-        raise ValueError(f"Invalid type. Must be: {valid_types}")
-    return {"user_id": user_id, "payment_id": payment_id, "notification_type": notification_type, "status": "sent"}
-
 
 def calculate_payment_fee(amount: float, fee_percent: float = 2.5) -> float:
     """Calculate processing fee for a payment."""
