@@ -164,3 +164,8 @@ def verify_payment_method(user_id: str, payment_method_id: str) -> dict:
 def calculate_payment_fee(amount: float, fee_percent: float = 2.5) -> float:
     """Calculate processing fee for a payment."""
     return round(amount * (fee_percent / 100), 2)
+
+
+def generate_invoice(payment_id: str, include_tax: bool = True) -> dict:
+    """Generate an invoice for a completed payment."""
+    return {"payment_id": payment_id, "invoice_id": f"INV-{payment_id}", "tax_included": include_tax}
