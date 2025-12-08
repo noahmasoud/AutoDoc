@@ -293,6 +293,69 @@ def generate_patches_for_run(  # noqa: PLR0915
                     exc_info=True,
                 )
 
+            # Export LLM summary as JSON artifact
+            # This generates a summary of the patches using Claude API
+            summary_path = None
+            try:
+                from services.llm_summary_artifact_exporter import (
+                    export_llm_summary_artifact,
+                )
+
+                summary_path = export_llm_summary_artifact(db, run_id)
+                if summary_path:
+                    logger.info(
+                        f"Successfully exported LLM summary artifact for run {run_id}",
+                        extra={"run_id": run_id, "summary_path": summary_path},
+                    )
+                else:
+                    logger.debug(
+                        f"LLM summary generation skipped for run {run_id} "
+                        "(API key missing, quota exceeded, or error)",
+                        extra={"run_id": run_id},
+                    )
+            except Exception as e:
+                # Log but don't fail patch generation if LLM summary export fails
+                logger.warning(
+                    f"Failed to export LLM summary artifact for run {run_id}: {e}",
+                    extra={"run_id": run_id},
+                    exc_info=True,
+                )
+
+            # Auto-publish LLM summary to Confluence (if not dry-run and summary was generated)
+            if summary_path and not run.is_dry_run:
+                try:
+                    from services.llm_summary_publisher import (
+                        publish_llm_summary_to_confluence,
+                    )
+
+                    publish_result = publish_llm_summary_to_confluence(
+                        db, run_id, strategy="append_to_patches"
+                    )
+                    if publish_result.get("success"):
+                        logger.info(
+                            f"Successfully published LLM summary to Confluence for run {run_id}",
+                            extra={
+                                "run_id": run_id,
+                                "pages_updated": publish_result.get("pages_updated", []),
+                                "strategy": publish_result.get("strategy"),
+                            },
+                        )
+                    else:
+                        logger.warning(
+                            f"LLM summary publishing partially or completely failed for run {run_id}: {publish_result.get('errors', [])}",
+                            extra={
+                                "run_id": run_id,
+                                "errors": publish_result.get("errors", []),
+                            },
+                        )
+                except Exception as e:
+                    # Log but don't fail patch generation if publishing fails
+                    logger.warning(
+                        f"Failed to publish LLM summary to Confluence for run {run_id}: {e}",
+                        extra={"run_id": run_id},
+                        exc_info=True,
+                    )
+
         return patches_created
 
     except PatchGenerationError:

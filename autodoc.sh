@@ -408,6 +408,38 @@ except:
     PATCHES_GENERATED=$(echo "$PATCH_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('patches_generated', 0))" 2>/dev/null || echo "0")
     echo "  ✓ Generated ${PATCHES_GENERATED} patch(es)"
     
+    # Check for LLM summary generation (happens automatically during patch generation)
+    if [ "$PATCHES_GENERATED" -gt 0 ]; then
+      echo ""
+      echo "  Checking LLM summary status..."
+      
+      # Try to retrieve LLM summary artifact (this will generate it if missing)
+      LLM_SUMMARY_RESPONSE=$(curl -s -X GET "${API_BASE}/patches/llm-summary-artifact/${RUN_ID}" 2>/dev/null || echo "")
+      
+      if [ -n "$LLM_SUMMARY_RESPONSE" ] && echo "$LLM_SUMMARY_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); exit(0 if data.get('summary') else 1)" 2>/dev/null; then
+        echo "  ✓ LLM summary generated successfully"
+        
+        # Auto-publish to Confluence if not dry-run
+        if [ "$DRY_RUN" = "false" ]; then
+          echo "  Publishing LLM summary to Confluence..."
+          PUBLISH_RESPONSE=$(curl -s -X POST "${API_BASE}/patches/publish-summary/${RUN_ID}" \
+            -H "Content-Type: application/json" \
+            -d '{"strategy": "append_to_patches"}' 2>/dev/null || echo "")
+          
+          if [ -n "$PUBLISH_RESPONSE" ] && echo "$PUBLISH_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); exit(0 if data.get('success') else 1)" 2>/dev/null; then
+            PAGES_UPDATED=$(echo "$PUBLISH_RESPONSE" | python3 -c "import sys, json; print(len(json.load(sys.stdin).get('pages_updated', [])))" 2>/dev/null || echo "0")
+            echo "  ✓ Published LLM summary to ${PAGES_UPDATED} Confluence page(s)"
+          else
+            echo "  ⚠ LLM summary publishing failed or skipped (check logs for details)"
+          fi
+        else
+          echo "  ⏭ Skipping Confluence publish (dry-run mode)"
+        fi
+      else
+        echo "  ⚠ LLM summary not available (API key missing, quota exceeded, or error)"
+      fi
+    fi
+    
     echo ""
     echo "  View results at: http://localhost:4200/runs/${RUN_ID}"
   fi
@@ -466,9 +498,21 @@ echo "  Functions added:     ${TOTAL_ADDED}"
 echo "  Functions modified:  ${TOTAL_MODIFIED}"
 echo "  Functions removed:   ${TOTAL_REMOVED}"
 echo "  Breaking changes:    ${TOTAL_BREAKING}"
+if [ -n "${RUN_ID:-}" ]; then
+  echo "  Run ID:              ${RUN_ID}"
+  echo "  Patches generated:   ${PATCHES_GENERATED:-0}"
+  if [ "$DRY_RUN" = "false" ] && [ "${PATCHES_GENERATED:-0}" -gt 0 ]; then
+    echo "  LLM summary:         Generated and published to Confluence"
+  elif [ "$DRY_RUN" = "true" ] && [ "${PATCHES_GENERATED:-0}" -gt 0 ]; then
+    echo "  LLM summary:         Generated (not published - dry-run mode)"
+  fi
+fi
 echo ""
 echo "Output:"
 echo "  change_report.json"
+if [ -n "${RUN_ID:-}" ]; then
+  echo "  Artifacts:            artifacts/${RUN_ID}/"
+fi
 echo ""
 
 if [[ "$VERBOSE" == "true" ]] && command -v jq &> /dev/null; then

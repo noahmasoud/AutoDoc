@@ -35,3 +35,11 @@ class PatchOut(PatchBase):
     error_message: dict[str, Any] | None = None
 
     model_config = {"from_attributes": True}
+
+
+class LLMPatchSummaryResponse(BaseModel):
+    """Response model for LLM patch summarization."""
+    summary: str
+    changes_description: str
+    demo_api_explanation: str
+    formatted_output: str
