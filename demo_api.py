@@ -21,21 +21,9 @@ def validate_transaction(amount: float) -> bool:
     """
     return amount > 0
 
-
-def cancel_transaction(transaction_id: str, reason: str) -> dict:
-    """Cancel a transaction.
-
-    Args:
-        transaction_id: ID of transaction to cancel
-        reason: Cancellation reason
-
-    Returns:
-        Cancellation details
-    """
-    return {"transaction_id": transaction_id, "status": "cancelled", "reason": reason}
-
-
-
+def get_transaction_status(transaction_id: str) -> dict:
+    """Return a stubbed transaction status (placeholder)."""
+    return {"transaction_id": transaction_id, "status": "unknown", "note": "placeholder"}
 
 
 
