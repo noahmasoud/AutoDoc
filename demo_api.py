@@ -71,3 +71,18 @@ def get_payment_status(payment_id: str) -> str:
         Payment status
     """
     return "pending"
+
+
+def print_transaction_list(transactions: list[dict]) -> None:
+    """Print a simple transaction list to stdout (placeholder/demo).
+
+    Args:
+        transactions: List of transaction dicts to print
+    """
+    if not transactions:
+        print("No transactions available.")
+        return
+
+    print("Transactions:")
+    for tx in transactions:
+        print(f"- {tx}")
