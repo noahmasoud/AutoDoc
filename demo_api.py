@@ -48,7 +48,9 @@ def cancel_transaction(transaction_id: str, reason: str) -> dict:
     return {"transaction_id": transaction_id, "status": "cancelled", "reason": reason}
 
 
-
+def get_transaction_status(transaction_id: str) -> dict:
+    """Return a stubbed transaction status (placeholder)."""
+    return {"transaction_id": transaction_id, "status": "unknown", "note": "placeholder"}
 
 
 # Modify an existing function to test change detection
