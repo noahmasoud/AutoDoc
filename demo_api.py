@@ -1,13 +1,13 @@
-def validate_transaction(amount: float) -> bool:
-    """Validate transaction amount.
+# def validate_transaction(amount: float) -> bool:
+#     """Validate transaction amount.
     
-    Args:
-        amount: Transaction amount to validate
+#     Args:
+#         amount: Transaction amount to validate
         
-    Returns:
-        True if valid
-    """
-    return amount > 0
+#     Returns:
+#         True if valid
+#     """
+#     return amount > 0
 
 def cancel_transaction(transaction_id: str, reason: str) -> dict:
     """Cancel a transaction.
@@ -100,6 +100,11 @@ def cancel_subscription(user_id: str, reason: str = "user_request") -> dict:
     return {"user_id": user_id, "status": "cancelled", "reason": reason}
 
 
+def get_subscription_history(user_id: str, limit: int = 10) -> list[dict]:
+    """Retrieve subscription history for a user."""
+    return [{"user_id": user_id, "event": "created", "timestamp": "2025-01-01"}]
+
+
 def send_payment_notification(
     user_id: str,
     payment_id: str,
@@ -134,7 +139,7 @@ def send_payment_notification(
 
 def calculate_payment_fee(amount: float, fee_percent: float = 2.5) -> float:
     """Calculate processing fee for a payment."""
-    return round(amount * (fee_percent / 100), 2)
+    return round(amount * (fee_percent / 10), 2)
 
 
 def generate_invoice(payment_id: str, include_tax: bool = True) -> dict:
