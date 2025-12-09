@@ -67,6 +67,3 @@ def process_payment(amount: float, currency: str = "USD", metadata: dict = None)
     # 4. Return transaction details including transaction_id
     return {"amount": amount, "currency": currency, "status": "pending"}
 
-def get_transaction_status(transaction_id: str) -> dict:
-    """Return a stubbed transaction status (placeholder)."""
-    return {"transaction_id": transaction_id, "status": "unknown", "note": "placeholder"}
