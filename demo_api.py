@@ -100,11 +100,6 @@ def cancel_subscription(user_id: str, reason: str = "user_request") -> dict:
     return {"user_id": user_id, "status": "cancelled", "reason": reason}
 
 
-def get_subscription_history(user_id: str, limit: int = 10) -> list[dict]:
-    """Retrieve subscription history for a user."""
-    return [{"user_id": user_id, "event": "created", "timestamp": "2025-01-01"}]
-
-
 def send_payment_notification(
     user_id: str,
     payment_id: str,
