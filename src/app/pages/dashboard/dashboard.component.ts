@@ -7,6 +7,7 @@ import { catchError } from 'rxjs/operators';
 import { ConnectionsService } from '../../services/connections.service';
 import { RulesService } from '../../services/rules.service';
 import { TemplatesService } from '../../services/templates.service';
+import { PromptsService } from '../../services/prompts.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -20,12 +21,14 @@ export class DashboardComponent implements OnInit {
   connectionUrl: string = '';
   rulesCount: number = 0;
   templatesCount: number = 0;
+  promptsCount: number = 0;
   isLoading = true;
 
   constructor(
     private connectionsService: ConnectionsService,
     private rulesService: RulesService,
-    private templatesService: TemplatesService
+    private templatesService: TemplatesService,
+    private promptsService: PromptsService
   ) {}
 
   ngOnInit(): void {
@@ -45,6 +48,9 @@ export class DashboardComponent implements OnInit {
       ),
       templates: this.templatesService.listTemplates().pipe(
         catchError(() => of([]))
+      ),
+      prompts: this.promptsService.listPrompts().pipe(
+        catchError(() => of([]))
       )
     }).subscribe({
       next: (results) => {
@@ -62,6 +68,9 @@ export class DashboardComponent implements OnInit {
         // Process templates
         this.templatesCount = Array.isArray(results.templates) ? results.templates.length : 0;
 
+        // Process prompts
+        this.promptsCount = Array.isArray(results.prompts) ? results.prompts.length : 0;
+
         this.isLoading = false;
       },
       error: () => {
@@ -69,6 +78,7 @@ export class DashboardComponent implements OnInit {
         this.connectionStatus = 'not-configured';
         this.rulesCount = 0;
         this.templatesCount = 0;
+        this.promptsCount = 0;
         this.isLoading = false;
       }
     });
