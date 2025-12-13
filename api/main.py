@@ -14,6 +14,7 @@ from api.routers import (
     pages,
     connections,
     auth,
+    prompts,
 )
 
 
@@ -55,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(templates.router, prefix=api_prefix)
     app.include_router(patches.router, prefix=api_prefix)
     app.include_router(pages.router, prefix=api_prefix)
+    app.include_router(prompts.router, prefix=api_prefix)
     # Register diff parser at /api/diff (without v1 prefix as per FR-3/FR-24)
     app.include_router(diff_parser.router, prefix="/api")
     # Register connections at /api/connections (without v1 prefix as per requirements)

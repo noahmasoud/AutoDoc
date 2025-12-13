@@ -271,3 +271,31 @@ class Connection(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+
+
+class Prompt(Base):
+    """
+    Prompt entity: stores LLM prompts for patch summarization.
+
+    Supports both default system prompts and user-created custom prompts.
+    Users can create up to 10 custom prompts in addition to 3 baseline prompts.
+    """
+
+    __tablename__ = "prompts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(
+        Text,
+        unique=True,
+        nullable=False,
+        index=True,
+    )  # UNIQUE and indexed
+    content: Mapped[str] = mapped_column(Text, nullable=False)  # The prompt template text
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # True for 3 baseline prompts
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)  # Whether prompt is available for use
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
