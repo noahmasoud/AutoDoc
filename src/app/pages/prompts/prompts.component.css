@@ -46,6 +46,13 @@
   background-color: #f5f9ff;
 }
 
+.prompt-card.selected-prompt {
+  border-color: #4caf50;
+  border-width: 2px;
+  background-color: #f1f8f4;
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.2);
+}
+
 .prompt-header {
   display: flex;
   justify-content: space-between;
@@ -80,6 +87,12 @@
 .badge-inactive {
   background-color: #9e9e9e;
   color: white;
+}
+
+.badge-selected {
+  background-color: #4caf50;
+  color: white;
+  font-weight: 600;
 }
 
 .prompt-body {

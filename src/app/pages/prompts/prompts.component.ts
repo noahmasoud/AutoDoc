@@ -2,6 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PromptsService, Prompt, PromptCreate } from '../../services/prompts.service';
+import { PromptPreferenceService } from '../../services/prompt-preference.service';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-prompts',
@@ -16,6 +18,7 @@ export class PromptsComponent implements OnInit {
   searchQuery = '';
   loading = false;
   error: string | null = null;
+  selectedPromptId: number | null = null;
 
   // Editor state
   showEditor = false;
@@ -26,10 +29,15 @@ export class PromptsComponent implements OnInit {
     is_active: true
   };
 
-  constructor(private promptsService: PromptsService) { }
+  constructor(
+    private promptsService: PromptsService,
+    private promptPreferenceService: PromptPreferenceService,
+    private toastService: ToastService
+  ) { }
 
   ngOnInit(): void {
     this.loadPrompts();
+    this.selectedPromptId = this.promptPreferenceService.getSelectedPromptId();
   }
 
   loadPrompts(): void {
@@ -177,6 +185,26 @@ export class PromptsComponent implements OnInit {
 
   getPlaceholderInfo(): string {
     return 'Available placeholders: {repo}, {branch}, {commit_sha}, {patches_count}, {patches_text}';
+  }
+
+  selectPrompt(prompt: Prompt): void {
+    if (!prompt.is_active) {
+      this.error = 'Cannot select an inactive prompt. Please activate it first.';
+      return;
+    }
+    this.promptPreferenceService.setSelectedPromptId(prompt.id);
+    this.selectedPromptId = prompt.id;
+    this.toastService.success(`"${prompt.name}" is now your selected prompt for LLM summaries`);
+  }
+
+  isPromptSelected(prompt: Prompt): boolean {
+    return this.selectedPromptId === prompt.id;
+  }
+
+  clearSelection(): void {
+    this.promptPreferenceService.clearSelection();
+    this.selectedPromptId = null;
+    this.toastService.info('Default prompt will be used for LLM summaries');
   }
 }
 

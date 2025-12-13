@@ -25,10 +25,13 @@
 
     <!-- Prompts List -->
     <div *ngIf="!loading && !showEditor" class="prompts-grid">
-        <div *ngFor="let prompt of filteredPrompts" class="prompt-card" [class.default-prompt]="prompt.is_default">
+        <div *ngFor="let prompt of filteredPrompts" class="prompt-card" 
+             [class.default-prompt]="prompt.is_default"
+             [class.selected-prompt]="isPromptSelected(prompt)">
             <div class="prompt-header">
                 <h3>{{ prompt.name }}</h3>
                 <div class="prompt-badges">
+                    <span *ngIf="isPromptSelected(prompt)" class="badge badge-selected">✓ Selected</span>
                     <span *ngIf="prompt.is_default" class="badge badge-default">Default</span>
                     <span *ngIf="!prompt.is_active" class="badge badge-inactive">Inactive</span>
                 </div>
@@ -39,6 +42,14 @@
             </div>
 
             <div class="prompt-actions">
+                <button *ngIf="prompt.is_active" 
+                    class="btn" 
+                    [class.btn-primary]="isPromptSelected(prompt)"
+                    [class.btn-secondary]="!isPromptSelected(prompt)"
+                    (click)="isPromptSelected(prompt) ? clearSelection() : selectPrompt(prompt)" 
+                    [disabled]="loading">
+                    {{ isPromptSelected(prompt) ? '✓ Selected' : 'Select This Prompt' }}
+                </button>
                 <button *ngIf="prompt.is_default" class="btn btn-secondary" 
                     (click)="toggleActive(prompt)" [disabled]="loading">
                     {{ prompt.is_active ? 'Deactivate' : 'Activate' }}

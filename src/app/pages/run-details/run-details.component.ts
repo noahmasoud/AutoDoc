@@ -12,6 +12,7 @@ import { FileDiff } from '../../models/change-report.model';
 import { ToastService } from '../../services/toast.service';
 import { PatchesService, Patch, LLMPatchSummaryResponse } from '../../services/patches.service';
 import { PromptsService, Prompt } from '../../services/prompts.service';
+import { PromptPreferenceService } from '../../services/prompt-preference.service';
 
 @Component({
   selector: 'app-run-details',
@@ -53,7 +54,8 @@ export class RunDetailsComponent implements OnInit, OnDestroy {
     private mockChangeReportService: MockChangeReportService,
     private toastService: ToastService,
     private patchesService: PatchesService,
-    private promptsService: PromptsService
+    private promptsService: PromptsService,
+    private promptPreferenceService: PromptPreferenceService
   ) {}
 
   ngOnInit(): void {
@@ -281,6 +283,11 @@ export class RunDetailsComponent implements OnInit, OnDestroy {
       next: (prompts) => {
         // Only show active prompts
         this.prompts = prompts.filter(p => p.is_active);
+        // Set default selection from user preference
+        const preferredId = this.promptPreferenceService.getSelectedPromptId();
+        if (preferredId !== null && this.prompts.find(p => p.id === preferredId)) {
+          this.selectedPromptId = preferredId;
+        }
         this.loadingPrompts = false;
       },
       error: (err) => {
