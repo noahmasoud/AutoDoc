@@ -3,6 +3,7 @@ import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { ConnectionsComponent } from './pages/connections/connections.component';
 import { RulesComponent } from './pages/rules/rules.component';
 import { TemplatesComponent } from './pages/templates/templates.component';
+import { PromptsComponent } from './pages/prompts/prompts.component';
 import { LoginComponent } from './pages/login/login.component';
 import { authGuard } from './guards/auth.guard';
 
@@ -26,6 +27,11 @@ export const routes: Routes = [
   { 
     path: 'templates', 
     component: TemplatesComponent, 
+    canActivate: [authGuard] 
+  },
+  { 
+    path: 'prompts', 
+    component: PromptsComponent, 
     canActivate: [authGuard] 
   },
   {
