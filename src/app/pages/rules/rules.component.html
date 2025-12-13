@@ -117,6 +117,21 @@
       </div>
 
       <div class="form-group">
+        <label for="rule-prompt">LLM Prompt</label>
+        <select 
+          id="rule-prompt"
+          formControlName="prompt_id"
+          aria-label="Select an LLM prompt (optional)"
+        >
+          <option [value]="null">None (No LLM)</option>
+          <option *ngFor="let prompt of prompts" [value]="prompt.id">
+            {{ prompt.name }}{{ prompt.is_default ? ' (Default)' : '' }}
+          </option>
+        </select>
+        <small class="help-text">Select a prompt to use for LLM summarization, or None to skip LLM processing</small>
+      </div>
+
+      <div class="form-group">
         <label for="rule-auto-approve">
           <input 
             id="rule-auto-approve"
@@ -202,6 +217,7 @@
         <div><strong>Space:</strong> {{ rule.space_key }}</div>
         <div><strong>Page ID:</strong> {{ rule.page_id }}</div>
         <div *ngIf="rule.template_id"><strong>Template ID:</strong> {{ rule.template_id }}</div>
+        <div><strong>LLM Prompt:</strong> {{ getPromptName(rule.prompt_id) }}</div>
         <div><strong>Auto-approve:</strong> {{ rule.auto_approve ? 'Yes' : 'No' }}</div>
       </div>
     </div>

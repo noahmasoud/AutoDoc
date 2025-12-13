@@ -170,9 +170,14 @@ class Rule(Base):
     )
     auto_approve: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    prompt_id: Mapped[int | None] = mapped_column(
+        ForeignKey("prompts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
-    # Relationship
+    # Relationships
     template: Mapped["Template | None"] = relationship(back_populates="rules")
+    prompt: Mapped["Prompt | None"] = relationship()
 
 
 class Template(Base):

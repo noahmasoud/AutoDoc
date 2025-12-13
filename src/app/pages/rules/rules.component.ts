@@ -6,6 +6,7 @@ import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { RulesService, Rule, RuleRequest } from '../../services/rules.service';
 import { TemplatesService, Template } from '../../services/templates.service';
+import { PromptsService, Prompt } from '../../services/prompts.service';
 import { ToastService } from '../../services/toast.service';
 
 @Component({
@@ -18,6 +19,7 @@ import { ToastService } from '../../services/toast.service';
 export class RulesComponent implements OnInit {
   rules: Rule[] = [];
   templates: Template[] = [];
+  prompts: Prompt[] = [];
   ruleForm: FormGroup;
   editingRule: Rule | null = null;
   isCreating = false;
@@ -29,6 +31,7 @@ export class RulesComponent implements OnInit {
     private fb: FormBuilder,
     private rulesService: RulesService,
     private templatesService: TemplatesService,
+    private promptsService: PromptsService,
     private toastService: ToastService
   ) {
     this.ruleForm = this.fb.group({
@@ -37,6 +40,7 @@ export class RulesComponent implements OnInit {
       space_key: ['', [Validators.required]],
       page_id: ['', [Validators.required]],
       template_id: [null],
+      prompt_id: [null],
       auto_approve: [false]
     });
   }
@@ -44,6 +48,7 @@ export class RulesComponent implements OnInit {
   ngOnInit(): void {
     this.loadRules();
     this.loadTemplates();
+    this.loadPrompts();
   }
 
   loadRules(): void {
@@ -74,10 +79,24 @@ export class RulesComponent implements OnInit {
     });
   }
 
+  loadPrompts(): void {
+    this.promptsService.listPrompts().pipe(
+      catchError((error) => {
+        console.error('Error loading prompts:', error);
+        return of([]);
+      })
+    ).subscribe({
+      next: (prompts) => {
+        // Only show active prompts
+        this.prompts = prompts.filter(p => p.is_active);
+      }
+    });
+  }
+
   startCreate(): void {
     this.editingRule = null;
     this.isCreating = true;
-    this.ruleForm.reset({ auto_approve: false, template_id: null });
+    this.ruleForm.reset({ auto_approve: false, template_id: null, prompt_id: null });
   }
 
   startEdit(rule: Rule): void {
@@ -89,6 +108,7 @@ export class RulesComponent implements OnInit {
       space_key: rule.space_key,
       page_id: rule.page_id,
       template_id: rule.template_id,
+      prompt_id: rule.prompt_id,
       auto_approve: rule.auto_approve
     });
   }
@@ -96,7 +116,7 @@ export class RulesComponent implements OnInit {
   cancelEdit(): void {
     this.editingRule = null;
     this.isCreating = false;
-    this.ruleForm.reset({ auto_approve: false, template_id: null });
+    this.ruleForm.reset({ auto_approve: false, template_id: null, prompt_id: null });
   }
 
   saveRule(): void {
@@ -114,6 +134,7 @@ export class RulesComponent implements OnInit {
       space_key: formValue.space_key,
       page_id: formValue.page_id,
       template_id: formValue.template_id || null,
+      prompt_id: formValue.prompt_id || null,
       auto_approve: formValue.auto_approve || false
     };
 
@@ -128,7 +149,7 @@ export class RulesComponent implements OnInit {
         this.loadRules();
         this.editingRule = null;
         this.isCreating = false;
-        this.ruleForm.reset({ auto_approve: false, template_id: null });
+        this.ruleForm.reset({ auto_approve: false, template_id: null, prompt_id: null });
         this.isSubmitting = false;
       },
       error: (error) => {
@@ -176,5 +197,11 @@ export class RulesComponent implements OnInit {
 
   trackByRuleId(index: number, rule: Rule): number {
     return rule.id;
+  }
+
+  getPromptName(promptId: number | null): string {
+    if (!promptId) return 'None';
+    const prompt = this.prompts.find(p => p.id === promptId);
+    return prompt ? prompt.name : 'Unknown';
   }
 }

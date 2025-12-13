@@ -7,6 +7,7 @@ class RuleBase(BaseModel):
     space_key: str
     page_id: str
     template_id: int | None = None
+    prompt_id: int | None = None
     auto_approve: bool = False
     priority: int = 0
 
@@ -37,6 +38,7 @@ class RuleUpdate(BaseModel):
     space_key: str | None = None
     page_id: str | None = None
     template_id: int | None = None
+    prompt_id: int | None = None
     auto_approve: bool | None = None
     priority: int | None = None
 
