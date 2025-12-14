@@ -29,6 +29,10 @@ export class PromptsComponent implements OnInit {
     is_active: true
   };
 
+  // Viewer state for default prompts
+  showViewer = false;
+  viewingPrompt: Prompt | null = null;
+
   constructor(
     private promptsService: PromptsService,
     private promptPreferenceService: PromptPreferenceService,
@@ -205,6 +209,18 @@ export class PromptsComponent implements OnInit {
     this.promptPreferenceService.clearSelection();
     this.selectedPromptId = null;
     this.toastService.info('Default prompt will be used for LLM summaries');
+  }
+
+  viewFullPrompt(prompt: Prompt): void {
+    if (prompt.is_default) {
+      this.viewingPrompt = prompt;
+      this.showViewer = true;
+    }
+  }
+
+  closeViewer(): void {
+    this.showViewer = false;
+    this.viewingPrompt = null;
   }
 }
 
