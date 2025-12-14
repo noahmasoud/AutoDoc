@@ -93,29 +93,36 @@
                     <div class="form-group">
                         <label for="body">Template Body *</label>
                         <textarea id="body" #bodyTextarea [(ngModel)]="templateForm.body" name="body"
-                            class="form-control" rows="10"
-                            placeholder="Enter your template content here. Use double curly braces for placeholders."
-                            required></textarea>
+                            class="form-control template-body-textarea" rows="10"
+                            placeholder="Enter your template content here. Use double curly braces for placeholders. Drag and drop variables from the list below."
+                            required
+                            (dragover)="onDragOver($event, bodyTextarea)"
+                            (dragleave)="onDragLeave($event, bodyTextarea)"
+                            (drop)="onDrop($event, bodyTextarea)"></textarea>
                         <small class="form-hint">
                             Use double curly braces for variables: <code>{{'{{'}}variable_name{{'}}'}}</code>
                         </small>
                     </div>
 
-                    <div class="form-group"
-                        *ngIf="templateForm.variables && getVariableKeys(templateForm.variables).length > 0">
-                        <label>Available Variables</label>
+                    <div class="form-group">
+                        <label>Available Template Variables</label>
+                        <small class="form-hint">Drag and drop variables into the template body above, or click "Insert" to add at cursor position.</small>
                         <div class="variables-panel">
-                            <div *ngFor="let varName of getVariableKeys(templateForm.variables)" class="variable-item">
+                            <div *ngFor="let variable of availableVariables" 
+                                 class="variable-item"
+                                 draggable="true"
+                                 (dragstart)="onDragStart($event, variable.name)"
+                                 (dragend)="onDragEnd($event)">
                                 <div class="variable-header">
-                                    <code class="variable-name">{{'{{'}}{{ varName }}{{'}}'}}</code>
+                                    <code class="variable-name" [attr.data-variable]="variable.name">{{'{{'}}{{ variable.name }}{{'}}'}}</code>
                                     <button type="button" class="btn-insert"
-                                        (click)="insertVariable(varName, bodyTextarea)" title="Insert this variable">
+                                        (click)="insertVariable(variable.name, bodyTextarea)" title="Insert this variable">
                                         Insert
                                     </button>
                                 </div>
-                                <p class="variable-description">{{ getVariableDescription(varName) }}</p>
-                                <p class="variable-example" *ngIf="getVariableExample(varName)">
-                                    <strong>Example:</strong> <code>{{ getVariableExample(varName) }}</code>
+                                <p class="variable-description">{{ variable.description }}</p>
+                                <p class="variable-example" *ngIf="variable.example">
+                                    <strong>Example:</strong> <code>{{ variable.example }}</code>
                                 </p>
                             </div>
                         </div>

@@ -283,6 +283,15 @@ textarea.form-control {
     font-family: 'Courier New', monospace;
 }
 
+.template-body-textarea {
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+.template-body-textarea.drag-over {
+    border-color: #4a90e2;
+    background-color: #f0f7ff;
+}
+
 .form-hint {
     display: block;
     margin-top: 6px;
@@ -309,7 +318,7 @@ textarea.form-control {
     border: 1px solid #e0e0e0;
     border-radius: 6px;
     padding: 16px;
-    max-height: 300px;
+    max-height: 400px;
     overflow-y: auto;
 }
 
@@ -319,6 +328,23 @@ textarea.form-control {
     border-radius: 4px;
     padding: 12px;
     margin-bottom: 12px;
+    cursor: grab;
+    transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
+    user-select: none;
+}
+
+.variable-item:hover {
+    border-color: #4a90e2;
+    box-shadow: 0 2px 4px rgba(74, 144, 226, 0.1);
+    transform: translateY(-1px);
+}
+
+.variable-item:active {
+    cursor: grabbing;
+}
+
+.variable-item[draggable="true"]:hover .variable-name {
+    background: #ffe69c;
 }
 
 .variable-item:last-child {
