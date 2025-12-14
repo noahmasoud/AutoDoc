@@ -183,6 +183,69 @@
       </mat-card-content>
     </mat-card>
 
+    <!-- LLM Summary Generation -->
+    <mat-card *ngIf="patches.length > 0" class="section-card">
+      <mat-card-header>
+        <mat-card-title>LLM Summary</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="summary-controls">
+          <mat-form-field appearance="outline" class="prompt-select">
+            <mat-label>Select Prompt (Optional)</mat-label>
+            <mat-select [(ngModel)]="selectedPromptId" [disabled]="loadingPrompts || loadingSummary">
+              <mat-option [value]="null">Default Prompt</mat-option>
+              <mat-option *ngFor="let prompt of prompts" [value]="prompt.id">
+                {{ prompt.name }}
+                <span *ngIf="prompt.is_default" class="default-badge">(Default)</span>
+              </mat-option>
+            </mat-select>
+            <mat-spinner *ngIf="loadingPrompts" matPrefix diameter="20" class="inline-spinner"></mat-spinner>
+          </mat-form-field>
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="generateSummary()"
+            [disabled]="loadingSummary || loadingPrompts"
+          >
+            <mat-icon>auto_awesome</mat-icon>
+            Generate Summary
+          </button>
+        </div>
+
+        <!-- Summary Results -->
+        <div *ngIf="showSummary" class="summary-results">
+          <div *ngIf="loadingSummary" class="loading-container">
+            <mat-spinner diameter="30"></mat-spinner>
+            <p>Generating LLM summary...</p>
+          </div>
+          <div *ngIf="!loadingSummary && summary" class="summary-content">
+            <div class="summary-header">
+              <h3>Generated Summary</h3>
+              <button mat-icon-button (click)="closeSummary()" aria-label="Close summary">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+            <div class="summary-section">
+              <h4>Summary</h4>
+              <p>{{ summary.summary }}</p>
+            </div>
+            <div class="summary-section" *ngIf="summary.changes_description">
+              <h4>Changes Description</h4>
+              <p>{{ summary.changes_description }}</p>
+            </div>
+            <div class="summary-section" *ngIf="summary.demo_api_explanation">
+              <h4>Demo API Explanation</h4>
+              <p>{{ summary.demo_api_explanation }}</p>
+            </div>
+            <div class="summary-section">
+              <h4>Full Output</h4>
+              <pre class="summary-full-output">{{ summary.formatted_output }}</pre>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
     <!-- Analyzer Findings -->
     <mat-card
       *ngIf="filteredFindings && objectKeys(filteredFindings).length > 0"

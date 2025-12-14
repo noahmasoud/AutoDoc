@@ -10,6 +10,7 @@ export interface Rule {
   space_key: string;
   page_id: string;
   template_id: number | null;
+  prompt_id: number | null;
   auto_approve: boolean;
 }
 

@@ -57,11 +57,13 @@ def structure_patch_data_for_llm(patches_data: dict[str, Any]) -> dict[str, Any]
 
 def summarize_patches_with_llm(
     patches_data: dict[str, Any],
+    prompt_template: str | None = None,
 ) -> LLMPatchSummary:
     """Generate LLM summary for patch data.
 
     Args:
         patches_data: Structured patch data dictionary
+        prompt_template: Optional custom prompt template. If None, uses default prompt.
 
     Returns:
         LLMPatchSummary with summary fields
@@ -87,7 +89,7 @@ def summarize_patches_with_llm(
         logger.debug(f"Calling Claude API with model {model}")
 
         # Build prompt for LLM
-        prompt = _build_llm_prompt(patches_data)
+        prompt = _build_llm_prompt(patches_data, prompt_template=prompt_template)
 
         message = client.messages.create(
             model=model,
@@ -121,11 +123,12 @@ def summarize_patches_with_llm(
         raise LLMAPIError(f"Unexpected error calling Claude API: {e}") from e
 
 
-def _build_llm_prompt(patches_data: dict[str, Any]) -> str:
+def _build_llm_prompt(patches_data: dict[str, Any], prompt_template: str | None = None) -> str:
     """Build prompt for LLM summarization.
 
     Args:
         patches_data: Structured patch data
+        prompt_template: Optional custom prompt template. If None, uses default prompt.
 
     Returns:
         Formatted prompt string
@@ -143,6 +146,37 @@ def _build_llm_prompt(patches_data: dict[str, Any]) -> str:
         ]
     )
 
+    # Use custom template if provided, otherwise use default
+    if prompt_template:
+        # Format the custom prompt template with patches data
+        try:
+            prompt = prompt_template.format(
+                repo=patches_data.get('repo', ''),
+                branch=patches_data.get('branch', ''),
+                commit_sha=patches_data.get('commit_sha', ''),
+                patches_count=patches_data.get('patches_count', 0),
+                patches_text=patches_text,
+            )
+        except KeyError as e:
+            logger.warning(f"Missing placeholder in custom prompt template: {e}. Using default prompt.")
+            prompt = _build_default_prompt(patches_data, patches_text)
+    else:
+        # Use default prompt
+        prompt = _build_default_prompt(patches_data, patches_text)
+    
+    return prompt
+
+
+def _build_default_prompt(patches_data: dict[str, Any], patches_text: str) -> str:
+    """Build default prompt for LLM summarization.
+
+    Args:
+        patches_data: Structured patch data
+        patches_text: Formatted patches text
+
+    Returns:
+        Default formatted prompt string
+    """
     prompt = f"""Please analyze the following code changes and provide a comprehensive summary.
 
 Repository: {patches_data.get('repo')}

@@ -80,6 +80,10 @@
   animation-delay: 0.3s;
 }
 
+.stat-card:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -119,6 +123,11 @@
 
 .templates-icon {
   background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+  color: white;
+}
+
+.prompts-icon {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
   color: white;
 }
 

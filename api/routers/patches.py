@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from db.models import Patch, Run
+from db.models import Patch, Run, Prompt
 from db.session import get_db
 from schemas.patches import LLMPatchSummaryResponse, PatchOut
 from services.confluence_client import ConfluenceClient
@@ -40,6 +40,7 @@ def list_patches(run_id: int | None = Query(None), db: Session = Depends(get_db)
 @router.get("/summarize", response_model=LLMPatchSummaryResponse)
 def summarize_patches_with_llm(
     run_id: int = Query(..., description="Run ID to summarize patches for"),
+    prompt_id: int | None = Query(None, description="Optional prompt ID to use for summarization. If not provided, uses default prompt."),
     db: Session = Depends(get_db),
 ):
     """Generate LLM summary for patches in a run.
@@ -49,13 +50,14 @@ def summarize_patches_with_llm(
 
     Args:
         run_id: The run ID to summarize
+        prompt_id: Optional prompt ID to use. If not provided, uses the default prompt.
         db: Database session
 
     Returns:
         LLMPatchSummaryResponse with summary fields
 
     Raises:
-        HTTPException: If run not found, no patches, or LLM API errors
+        HTTPException: If run not found, no patches, prompt not found, or LLM API errors
     """
     # Verify run exists
     run = db.get(Run, run_id)
@@ -73,6 +75,20 @@ def summarize_patches_with_llm(
         raise HTTPException(
             status_code=404, detail=f"No patches found for run {run_id}"
         )
+
+    # Load prompt if provided, otherwise use None (will use default)
+    prompt_content = None
+    if prompt_id is not None:
+        prompt = db.get(Prompt, prompt_id)
+        if not prompt:
+            raise HTTPException(
+                status_code=404, detail=f"Prompt with ID {prompt_id} not found"
+            )
+        if not prompt.is_active:
+            raise HTTPException(
+                status_code=400, detail=f"Prompt with ID {prompt_id} is not active"
+            )
+        prompt_content = prompt.content
 
     try:
         from services.llm_patch_summarizer import (
@@ -110,7 +126,7 @@ def summarize_patches_with_llm(
         }
 
         structured_request = structure_patch_data_for_llm(patches_json)
-        summary = generate_summary(structured_request)
+        summary = generate_summary(structured_request, prompt_template=prompt_content)
 
         return LLMPatchSummaryResponse(
             summary=summary.summary,

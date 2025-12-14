@@ -10,7 +10,9 @@ import {
 import { MockChangeReportService } from '../../services/mock-change-report.service';
 import { FileDiff } from '../../models/change-report.model';
 import { ToastService } from '../../services/toast.service';
-import { PatchesService, Patch } from '../../services/patches.service';
+import { PatchesService, Patch, LLMPatchSummaryResponse } from '../../services/patches.service';
+import { PromptsService, Prompt } from '../../services/prompts.service';
+import { PromptPreferenceService } from '../../services/prompt-preference.service';
 
 @Component({
   selector: 'app-run-details',
@@ -33,6 +35,14 @@ export class RunDetailsComponent implements OnInit, OnDestroy {
   patches: Patch[] = [];
   loadingPatches = false;
 
+  // LLM Summary state
+  prompts: Prompt[] = [];
+  selectedPromptId: number | null = null;
+  loadingPrompts = false;
+  loadingSummary = false;
+  summary: LLMPatchSummaryResponse | null = null;
+  showSummary = false;
+
   private routeSubscription?: Subscription;
 
   useMockData = false;
@@ -43,7 +53,9 @@ export class RunDetailsComponent implements OnInit, OnDestroy {
     private changeReportService: ChangeReportService,
     private mockChangeReportService: MockChangeReportService,
     private toastService: ToastService,
-    private patchesService: PatchesService
+    private patchesService: PatchesService,
+    private promptsService: PromptsService,
+    private promptPreferenceService: PromptPreferenceService
   ) {}
 
   ngOnInit(): void {
@@ -52,6 +64,7 @@ export class RunDetailsComponent implements OnInit, OnDestroy {
       if (runId) {
         this.loadReport(runId);
         this.loadPatches(parseInt(runId, 10));
+        this.loadPrompts();
       } else {
         this.error = 'Run ID not provided';
         this.showError('Run ID not found in route parameters');
@@ -262,6 +275,60 @@ export class RunDetailsComponent implements OnInit, OnDestroy {
       default:
         return '';
     }
+  }
+
+  loadPrompts(): void {
+    this.loadingPrompts = true;
+    this.promptsService.listPrompts().subscribe({
+      next: (prompts) => {
+        // Only show active prompts
+        this.prompts = prompts.filter(p => p.is_active);
+        // Set default selection from user preference
+        const preferredId = this.promptPreferenceService.getSelectedPromptId();
+        if (preferredId !== null && this.prompts.find(p => p.id === preferredId)) {
+          this.selectedPromptId = preferredId;
+        }
+        this.loadingPrompts = false;
+      },
+      error: (err) => {
+        this.loadingPrompts = false;
+        console.warn('Failed to load prompts:', err);
+        // Don't show error - prompts are optional
+      }
+    });
+  }
+
+  generateSummary(): void {
+    const runId = this.route.snapshot.paramMap.get('runId');
+    if (!runId) {
+      this.toastService.error('Run ID not found');
+      return;
+    }
+
+    this.loadingSummary = true;
+    this.summary = null;
+    this.showSummary = true;
+
+    const promptId = this.selectedPromptId !== null ? this.selectedPromptId : undefined;
+
+    this.patchesService.summarizePatches(parseInt(runId, 10), promptId).subscribe({
+      next: (summary) => {
+        this.summary = summary;
+        this.loadingSummary = false;
+        this.toastService.success('LLM summary generated successfully');
+      },
+      error: (err) => {
+        this.loadingSummary = false;
+        const errorMsg = err.error?.detail || err.message || 'Failed to generate LLM summary';
+        this.toastService.error(errorMsg);
+        console.error('Error generating summary:', err);
+      }
+    });
+  }
+
+  closeSummary(): void {
+    this.showSummary = false;
+    this.summary = null;
   }
 }
 

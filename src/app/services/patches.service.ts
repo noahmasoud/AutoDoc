@@ -34,6 +34,13 @@ export interface PatchApplyRequest {
   comment?: string;
 }
 
+export interface LLMPatchSummaryResponse {
+  summary: string;
+  changes_description: string;
+  demo_api_explanation: string;
+  formatted_output: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -66,6 +73,14 @@ export class PatchesService {
     // TODO: Implement reject endpoint when available
     // For now, we'll use a PATCH or PUT to update status
     return this.http.patch<void>(`${this.apiUrl}/${patchId}/reject`, { comment });
+  }
+
+  summarizePatches(runId: number, promptId?: number): Observable<LLMPatchSummaryResponse> {
+    let params = new HttpParams();
+    if (promptId !== undefined && promptId !== null) {
+      params = params.set('prompt_id', promptId.toString());
+    }
+    return this.http.get<LLMPatchSummaryResponse>(`${this.apiUrl}/summarize`, { params: params.set('run_id', runId.toString()) });
   }
 }
 

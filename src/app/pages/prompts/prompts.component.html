@@ -1,0 +1,172 @@
+<div class="page-container">
+    <!-- Header -->
+    <div class="page-header">
+        <h2>LLM Prompts</h2>
+        <button class="btn btn-primary" (click)="openCreateDialog()">
+            + Create Prompt
+        </button>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-bar">
+        <input type="text" [(ngModel)]="searchQuery" (input)="filterPrompts()"
+            placeholder="Search prompts by name or content..." class="search-input" />
+    </div>
+
+    <!-- Error Message -->
+    <div *ngIf="error && !showEditor" class="alert alert-error">
+        {{ error }}
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading && !showEditor" class="loading">
+        Loading prompts...
+    </div>
+
+    <!-- Prompts List -->
+    <div *ngIf="!loading && !showEditor && !showViewer" class="prompts-grid">
+        <div *ngFor="let prompt of filteredPrompts" class="prompt-card" 
+             [class.default-prompt]="prompt.is_default"
+             [class.selected-prompt]="isPromptSelected(prompt)">
+            <div class="prompt-header">
+                <h3>{{ prompt.name }}</h3>
+                <div class="prompt-badges">
+                    <span *ngIf="isPromptSelected(prompt)" class="badge badge-selected">✓ Selected</span>
+                    <span *ngIf="prompt.is_default" class="badge badge-default">Default</span>
+                    <span *ngIf="!prompt.is_active" class="badge badge-inactive">Inactive</span>
+                </div>
+            </div>
+
+            <div class="prompt-body">
+                <pre>{{ prompt.content | slice:0:200 }}{{ prompt.content.length > 200 ? '...' : '' }}</pre>
+            </div>
+
+            <div class="prompt-actions">
+                <button *ngIf="prompt.is_active" 
+                    class="btn" 
+                    [class.btn-primary]="isPromptSelected(prompt)"
+                    [class.btn-secondary]="!isPromptSelected(prompt)"
+                    (click)="isPromptSelected(prompt) ? clearSelection() : selectPrompt(prompt)" 
+                    [disabled]="loading">
+                    {{ isPromptSelected(prompt) ? '✓ Selected' : 'Select This Prompt' }}
+                </button>
+                <button *ngIf="prompt.is_default" class="btn btn-secondary" 
+                    (click)="viewFullPrompt(prompt)" [disabled]="loading">
+                    View Full
+                </button>
+                <button *ngIf="prompt.is_default" class="btn btn-secondary" 
+                    (click)="toggleActive(prompt)" [disabled]="loading">
+                    {{ prompt.is_active ? 'Deactivate' : 'Activate' }}
+                </button>
+                <button *ngIf="!prompt.is_default" class="btn btn-secondary" 
+                    (click)="openEditDialog(prompt)" [disabled]="loading">
+                    Edit
+                </button>
+                <button *ngIf="!prompt.is_default" class="btn btn-danger" 
+                    (click)="deletePrompt(prompt)" [disabled]="loading">
+                    Delete
+                </button>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div *ngIf="filteredPrompts.length === 0" class="empty-state">
+            <p>{{ searchQuery ? 'No prompts match your search' : 'No prompts yet. Create your first prompt!' }}</p>
+        </div>
+    </div>
+
+    <!-- Editor Modal -->
+    <div *ngIf="showEditor" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>{{ editingPrompt ? 'Edit Prompt' : 'Create Prompt' }}</h3>
+                <button class="btn-close" (click)="closeEditor()">×</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Error Message -->
+                <div *ngIf="error" class="alert alert-error">
+                    {{ error }}
+                </div>
+
+                <!-- Form -->
+                <form (ngSubmit)="savePrompt()">
+                    <div class="form-group">
+                        <label for="name">Prompt Name *</label>
+                        <input id="name" type="text" [(ngModel)]="promptForm.name" name="name" class="form-control"
+                            placeholder="e.g., Technical Deep Dive" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="content">Prompt Content *</label>
+                        <textarea id="content" [(ngModel)]="promptForm.content" name="content"
+                            class="form-control" rows="12"
+                            placeholder="Enter your prompt template here. Use placeholders like {repo}, {branch}, {commit_sha}, {patches_count}, {patches_text}."
+                            required></textarea>
+                        <small class="form-hint">
+                            {{ getPlaceholderInfo() }}
+                        </small>
+                    </div>
+
+                    <div class="form-group" *ngIf="editingPrompt">
+                        <label>
+                            <input type="checkbox" [(ngModel)]="promptForm.is_active" name="is_active" />
+                            Active (prompt is available for use)
+                        </label>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" (click)="closeEditor()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" [disabled]="loading">
+                            {{ loading ? 'Saving...' : (editingPrompt ? 'Update' : 'Create') }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Full Prompt Modal (Read-only for default prompts) -->
+    <div *ngIf="showViewer && viewingPrompt" class="modal-overlay">
+        <div class="modal-content modal-viewer">
+            <div class="modal-header">
+                <h3>{{ viewingPrompt.name }} <span class="badge badge-default">Default Prompt</span></h3>
+                <button class="btn-close" (click)="closeViewer()">×</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Prompt Content (Read-only)</label>
+                    <div class="prompt-content-viewer">
+                        <pre>{{ viewingPrompt.content }}</pre>
+                    </div>
+                    <small class="form-hint">
+                        {{ getPlaceholderInfo() }}
+                    </small>
+                </div>
+
+                <div class="prompt-meta-info">
+                    <div class="meta-item">
+                        <strong>Status:</strong> 
+                        <span [class.active]="viewingPrompt.is_active" 
+                              [class.inactive]="!viewingPrompt.is_active">
+                            {{ viewingPrompt.is_active ? 'Active' : 'Inactive' }}
+                        </span>
+                    </div>
+                    <div class="meta-item">
+                        <strong>Type:</strong> Default System Prompt
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-primary" (click)="closeViewer()">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
