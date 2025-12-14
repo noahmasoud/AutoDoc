@@ -159,7 +159,7 @@ docker.clean: ## Clean up Docker resources
 dev: ## Start development server
 	@echo "🚀 Starting AutoDoc development server..."
 	@echo "📝 Make sure you have set up your .env file"
-	uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+	python3.11 -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 
 dev-shell: ## Start development shell
 	@echo "🐚 Starting development shell..."
