@@ -5,8 +5,12 @@ from datetime import datetime
 class PromptBase(BaseModel):
     name: str = Field(description="Prompt name/identifier")
     content: str = Field(description="Prompt template content with placeholders")
-    is_default: bool = Field(default=False, description="Whether this is a default system prompt")
-    is_active: bool = Field(default=True, description="Whether prompt is available for use")
+    is_default: bool = Field(
+        default=False, description="Whether this is a default system prompt"
+    )
+    is_active: bool = Field(
+        default=True, description="Whether prompt is available for use"
+    )
 
 
 class PromptCreate(PromptBase):
@@ -25,4 +29,3 @@ class PromptOut(PromptBase):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
-

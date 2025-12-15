@@ -39,6 +39,7 @@ class PatchOut(PatchBase):
 
 class LLMPatchSummaryResponse(BaseModel):
     """Response model for LLM patch summarization."""
+
     summary: str
     changes_description: str
     demo_api_explanation: str

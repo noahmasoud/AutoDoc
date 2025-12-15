@@ -338,7 +338,9 @@ def generate_patches_for_run(  # noqa: PLR0915
                                 f"Successfully published LLM summary to Confluence for run {run_id}",
                                 extra={
                                     "run_id": run_id,
-                                    "pages_updated": publish_result.get("pages_updated", []),
+                                    "pages_updated": publish_result.get(
+                                        "pages_updated", []
+                                    ),
                                     "strategy": publish_result.get("strategy"),
                                 },
                             )
@@ -364,7 +366,9 @@ def generate_patches_for_run(  # noqa: PLR0915
                         extra={"run_id": run_id},
                     )
                     try:
-                        from services.patches_publisher import publish_patches_to_confluence
+                        from services.patches_publisher import (
+                            publish_patches_to_confluence,
+                        )
 
                         publish_result = publish_patches_to_confluence(db, run_id)
                         if publish_result.get("success"):
@@ -372,8 +376,12 @@ def generate_patches_for_run(  # noqa: PLR0915
                                 f"Successfully published {publish_result.get('patches_published', 0)} patch(es) to Confluence for run {run_id} (fallback mode)",
                                 extra={
                                     "run_id": run_id,
-                                    "patches_published": publish_result.get("patches_published", 0),
-                                    "pages_updated": publish_result.get("pages_updated", []),
+                                    "patches_published": publish_result.get(
+                                        "patches_published", 0
+                                    ),
+                                    "pages_updated": publish_result.get(
+                                        "pages_updated", []
+                                    ),
                                 },
                             )
                         else:
@@ -522,7 +530,9 @@ def _generate_before_content(changes: list[Change]) -> str:
     return "\n".join(lines)
 
 
-def _generate_after_content(changes: list[Change], rule: Rule, run: Run, db: Session) -> str:
+def _generate_after_content(
+    changes: list[Change], rule: Rule, run: Run, db: Session
+) -> str:
     """Generate 'after' content for a patch.
 
     Uses template if available, otherwise falls back to simple markdown generation.
@@ -691,7 +701,7 @@ def _extract_template_variables(changes: list[Change], rule: Rule, run: Run) -> 
         elif first_change.signature_before:
             variables["signature"] = str(first_change.signature_before)
             variables["signature_after"] = str(first_change.signature_before)
-        
+
         # Add signature_before if available
         if first_change.signature_before:
             variables["signature_before"] = str(first_change.signature_before)

@@ -1,17 +1,7 @@
 {
   "run_id": "1",
-  "timestamp": "2025-12-06T21:53:16.412289+00:00",
-  "is_dry_run": true,
-  "diff_summary": {
-    "test.py": {
-      "added": [
-        "line1"
-      ],
-      "removed": [],
-      "modified": []
-    }
-  },
-  "analyzer_findings": {
-    "test.py": []
-  }
+  "timestamp": "2025-12-15T20:46:10.484379+00:00",
+  "is_dry_run": false,
+  "diff_summary": {},
+  "analyzer_findings": {}
 }

@@ -134,10 +134,9 @@ def publish_llm_summary_to_confluence(
         client = ConfluenceClient(settings=confluence_settings)
         publisher = ConfluencePublisher(client)
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Failed to initialize Confluence client for run {run_id}: {e}",
             extra={"run_id": run_id},
-            exc_info=True,
         )
         return {
             "success": False,
@@ -148,17 +147,14 @@ def publish_llm_summary_to_confluence(
 
     try:
         if strategy == "append_to_patches":
-            return _append_summary_to_patch_pages(
-                db, run_id, summary_xml, publisher
-            )
-        elif strategy == "create_page":
+            return _append_summary_to_patch_pages(db, run_id, summary_xml, publisher)
+        if strategy == "create_page":
             return _create_summary_page(
                 db, run_id, summary_artifact, summary_xml, publisher, client
             )
-        else:
-            raise ValueError(
-                f"Invalid strategy: {strategy}. Must be 'append_to_patches' or 'create_page'"
-            )
+        raise ValueError(
+            f"Invalid strategy: {strategy}. Must be 'append_to_patches' or 'create_page'"
+        )
     finally:
         client.close()
 
@@ -203,9 +199,7 @@ def _append_summary_to_patch_pages(
         try:
             # Get the rule to find page title
             rule = (
-                db.execute(
-                    select(Rule).where(Rule.page_id == patch.page_id)
-                )
+                db.execute(select(Rule).where(Rule.page_id == patch.page_id))
                 .scalars()
                 .first()
             )
@@ -217,7 +211,7 @@ def _append_summary_to_patch_pages(
                 continue
 
             # Get current page content
-            current_page = publisher._client.get_page(patch.page_id)
+            current_page = publisher._client.get_page(patch.page_id)  # noqa: SLF001
             if not current_page:
                 errors.append(f"Page {patch.page_id} not found")
                 continue
@@ -228,12 +222,12 @@ def _append_summary_to_patch_pages(
 
             # Append summary section to existing content
             # Use a horizontal rule as separator
-            separator = '<hr/>'
+            separator = "<hr/>"
             new_content = f"{current_content}{separator}{summary_xml}"
 
             # Update the page using ConfluenceClient directly (matching patches.py pattern)
             # Note: ConfluenceClient.update_page expects keyword arguments, not a dict
-            result = publisher._client.update_page(
+            result = publisher._client.update_page(  # noqa: SLF001
                 page_id=patch.page_id,
                 title=f"AutoDoc: {rule.name}",
                 body=new_content,
@@ -256,10 +250,13 @@ def _append_summary_to_patch_pages(
         except Exception as e:
             error_msg = f"Failed to append summary to page {patch.page_id}: {e}"
             errors.append(error_msg)
-            logger.error(
+            logger.exception(
                 error_msg,
-                extra={"run_id": run_id, "patch_id": patch.id, "page_id": patch.page_id},
-                exc_info=True,
+                extra={
+                    "run_id": run_id,
+                    "patch_id": patch.id,
+                    "page_id": patch.page_id,
+                },
             )
 
     return {
@@ -343,11 +340,10 @@ def _create_summary_page(
 
     except Exception as e:
         error_msg = f"Failed to create summary page for run {run_id}: {e}"
-        logger.error(error_msg, extra={"run_id": run_id}, exc_info=True)
+        logger.exception(error_msg, extra={"run_id": run_id})
         return {
             "success": False,
             "strategy": "create_page",
             "pages_updated": [],
             "errors": [error_msg],
         }
-

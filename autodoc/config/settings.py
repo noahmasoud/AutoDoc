@@ -15,6 +15,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # This ensures nested settings (like ConfluenceSettings) can access the variables
 try:
     from dotenv import load_dotenv
+
     env_path = Path(".env")
     if env_path.exists():
         load_dotenv(env_path)

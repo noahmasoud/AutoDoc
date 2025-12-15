@@ -18,7 +18,6 @@ from services.llm_patch_summarizer import (
     LLMAPIKeyMissingError,
     LLMAPIError,
     LLMAPIQuotaExceededError,
-    LLMPatchSummary,
     structure_patch_data_for_llm,
     summarize_patches_with_llm,
 )
@@ -129,18 +128,16 @@ def export_llm_summary_artifact(
         return None
 
     except LLMAPIError as e:
-        logger.error(
+        logger.exception(
             f"LLM API error for run {run_id}, skipping summary generation: {e}",
             extra={"run_id": run_id},
-            exc_info=True,
         )
         return None
 
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Unexpected error generating LLM summary for run {run_id}: {e}",
             extra={"run_id": run_id},
-            exc_info=True,
         )
         return None
 
@@ -185,10 +182,8 @@ def export_llm_summary_artifact(
         return str(summary_path.absolute())
 
     except OSError as e:
-        logger.error(
+        logger.exception(
             f"Failed to write LLM summary artifact for run {run_id}: {e}",
             extra={"run_id": run_id, "path": str(summary_path)},
-            exc_info=True,
         )
         raise
-

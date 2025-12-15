@@ -22,7 +22,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     """Update default prompts to target specific audiences."""
     connection = op.get_bind()
-    
+
     # Update Prompt 1: Development Team / Sprint Focus
     prompt_1_content = """As a senior developer reviewing code changes during a sprint, analyze these changes and provide a technical summary for the development team.
 
@@ -43,11 +43,11 @@ Please provide:
 6. **Next Steps**: What follow-up work is needed? Any dependencies or blockers?
 
 Focus on actionable technical information that helps the team understand the changes and plan their work."""
-    
+
     connection.execute(
         text("""
-        UPDATE prompts 
-        SET name = :name, content = :content 
+        UPDATE prompts
+        SET name = :name, content = :content
         WHERE name IN ('Comprehensive Summary', 'Development Team / Sprint Focus')
         AND is_default = 1
         """),
@@ -56,7 +56,7 @@ Focus on actionable technical information that helps the team understand the cha
             "content": prompt_1_content,
         },
     )
-    
+
     # Update Prompt 2: Product Manager Focus
     prompt_2_content = """As a product manager reviewing code changes, analyze these updates and provide a business-focused summary.
 
@@ -77,11 +77,11 @@ Please provide:
 6. **Metrics & Success Criteria**: What should we measure to determine if this change is successful?
 
 Focus on business outcomes, user experience, and product strategy rather than technical implementation details."""
-    
+
     connection.execute(
         text("""
-        UPDATE prompts 
-        SET name = :name, content = :content 
+        UPDATE prompts
+        SET name = :name, content = :content
         WHERE name IN ('Technical Deep Dive', 'Product Manager Focus')
         AND is_default = 1
         """),
@@ -90,7 +90,7 @@ Focus on business outcomes, user experience, and product strategy rather than te
             "content": prompt_2_content,
         },
     )
-    
+
     # Update Prompt 3: Tech Support Team Focus
     prompt_3_content = """As a technical support specialist reviewing code changes, analyze these updates and provide a support-focused summary.
 
@@ -111,11 +111,11 @@ Please provide:
 6. **Escalation Points**: When should support escalate to engineering? What technical details should support be aware of?
 
 Focus on practical information that helps support teams assist users and resolve issues effectively."""
-    
+
     connection.execute(
         text("""
-        UPDATE prompts 
-        SET name = :name, content = :content 
+        UPDATE prompts
+        SET name = :name, content = :content
         WHERE name IN ('Executive Summary', 'Tech Support Team Focus')
         AND is_default = 1
         """),
@@ -124,15 +124,18 @@ Focus on practical information that helps support teams assist users and resolve
             "content": prompt_3_content,
         },
     )
-    
+
     # If prompts don't exist yet (migration hasn't run), insert them
     # Check if any default prompts exist
-    result = connection.execute(text("SELECT COUNT(*) FROM prompts WHERE is_default = 1")).scalar()
+    result = connection.execute(
+        text("SELECT COUNT(*) FROM prompts WHERE is_default = 1")
+    ).scalar()
     if result == 0:
         # Insert the prompts (same as add_prompts_table migration)
         from datetime import datetime
+
         now = datetime.utcnow()
-        
+
         connection.execute(
             text("""
             INSERT INTO prompts (name, content, is_default, is_active, created_at, updated_at)
@@ -147,7 +150,7 @@ Focus on practical information that helps support teams assist users and resolve
                 "updated_at": now,
             },
         )
-        
+
         connection.execute(
             text("""
             INSERT INTO prompts (name, content, is_default, is_active, created_at, updated_at)
@@ -162,7 +165,7 @@ Focus on practical information that helps support teams assist users and resolve
                 "updated_at": now,
             },
         )
-        
+
         connection.execute(
             text("""
             INSERT INTO prompts (name, content, is_default, is_active, created_at, updated_at)
@@ -182,7 +185,7 @@ Focus on practical information that helps support teams assist users and resolve
 def downgrade() -> None:
     """Revert to original default prompts."""
     connection = op.get_bind()
-    
+
     # Revert to original names and content
     original_prompt_1 = """Please analyze the following code changes and provide a comprehensive summary.
 
@@ -201,7 +204,7 @@ Please provide:
 4. Any important notes or considerations
 
 Format your response with clear sections for easy parsing."""
-    
+
     original_prompt_2 = """As a senior software engineer, analyze these code changes and provide a technical deep dive.
 
 Repository: {repo}
@@ -220,7 +223,7 @@ Provide:
 5. Dependencies and integration points affected
 
 Use technical terminology and be specific about code patterns and architectural implications."""
-    
+
     original_prompt_3 = """Provide an executive-level summary of the following code changes.
 
 Repository: {repo}
@@ -238,31 +241,30 @@ Please provide:
 4. Next steps or actions required
 
 Keep the summary concise, clear, and accessible to non-technical stakeholders."""
-    
+
     connection.execute(
         text("""
-        UPDATE prompts 
-        SET name = 'Comprehensive Summary', content = :content 
+        UPDATE prompts
+        SET name = 'Comprehensive Summary', content = :content
         WHERE name = 'Development Team / Sprint Focus' AND is_default = 1
         """),
         {"content": original_prompt_1},
     )
-    
+
     connection.execute(
         text("""
-        UPDATE prompts 
-        SET name = 'Technical Deep Dive', content = :content 
+        UPDATE prompts
+        SET name = 'Technical Deep Dive', content = :content
         WHERE name = 'Product Manager Focus' AND is_default = 1
         """),
         {"content": original_prompt_2},
     )
-    
+
     connection.execute(
         text("""
-        UPDATE prompts 
-        SET name = 'Executive Summary', content = :content 
+        UPDATE prompts
+        SET name = 'Executive Summary', content = :content
         WHERE name = 'Tech Support Team Focus' AND is_default = 1
         """),
         {"content": original_prompt_3},
     )
-

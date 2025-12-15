@@ -30,7 +30,7 @@ def upgrade() -> None:
             nullable=True,
         ),
     )
-    
+
     # Add foreign key constraint
     op.create_foreign_key(
         "fk_rules_prompt_id",
@@ -46,7 +46,6 @@ def downgrade() -> None:
     """Remove prompt_id column from rules table."""
     # Drop foreign key constraint
     op.drop_constraint("fk_rules_prompt_id", "rules", type_="foreignkey")
-    
+
     # Drop prompt_id column
     op.drop_column("rules", "prompt_id")
-

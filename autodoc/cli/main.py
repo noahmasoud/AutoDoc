@@ -13,7 +13,7 @@ import json
 import logging
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +51,7 @@ def get_changed_files(commit_sha: str) -> list[str]:
         result = subprocess.run(
             ["git", "rev-parse", "--verify", f"{commit_sha}^"],
             capture_output=True,
+            text=True,
             check=False,
         )
         if result.returncode == 0:
@@ -66,8 +67,7 @@ def get_changed_files(commit_sha: str) -> list[str]:
             text=True,
             check=True,
         )
-        files = [f.strip() for f in result.stdout.splitlines() if f.strip()]
-        return files
+        return [f.strip() for f in result.stdout.splitlines() if f.strip()]
     except subprocess.CalledProcessError as e:
         print(f"Error getting changed files: {e}", file=sys.stderr)
         sys.exit(1)
@@ -207,9 +207,7 @@ def detect_and_persist_changes(
         raise ValueError(f"Run {run_id} not found")
 
     current_symbols = (
-        db.execute(
-            select(PythonSymbol).where(PythonSymbol.run_id == run_id)
-        )
+        db.execute(select(PythonSymbol).where(PythonSymbol.run_id == run_id))
         .scalars()
         .all()
     )
@@ -218,15 +216,12 @@ def detect_and_persist_changes(
     current_artifact = build_artifact_from_symbols(run, list(current_symbols))
 
     # Find previous run for same repo/branch
-    previous_run = (
-        db.execute(
-            select(Run)
-            .where(Run.repo == repo, Run.branch == branch, Run.id < run_id)
-            .order_by(desc(Run.id))
-            .limit(1)
-        )
-        .scalar_one_or_none()
-    )
+    previous_run = db.execute(
+        select(Run)
+        .where(Run.repo == repo, Run.branch == branch, Run.id < run_id)
+        .order_by(desc(Run.id))
+        .limit(1)
+    ).scalar_one_or_none()
 
     previous_artifact = None
     if previous_run:
@@ -244,7 +239,7 @@ def detect_and_persist_changes(
         db.commit()
 
 
-def create_run_from_cli(
+def create_run_from_cli(  # noqa: PLR0915
     commit_sha: str,
     repo: str,
     branch: str = "main",
@@ -274,8 +269,8 @@ def create_run_from_cli(
             repo=repo,
             branch=branch,
             commit_sha=commit_sha,
-            started_at=datetime.now(timezone.utc),
-            status="Processing",
+            started_at=datetime.now(UTC),
+            status="Awaiting Review",
             correlation_id=correlation_id,
             is_dry_run=is_dry_run,
         )
@@ -293,8 +288,8 @@ def create_run_from_cli(
 
         if not changed_files:
             print("No files changed, generating empty report")
-            diffs = {}
-            findings = {}
+            diffs: dict[str, Any] = {}
+            findings: dict[str, Any] = {}
         else:
             # Step 3: Analyze files
             print("Analyzing files...")
@@ -319,7 +314,7 @@ def create_run_from_cli(
 
         # Copy to blessed location: ./artifacts/change_report.json
         blessed_report_path = artifacts_dir / "change_report.json"
-        with open(report_path) as f:
+        with Path(report_path).open() as f:
             report_data = json.load(f)
         # Add metadata from run
         report_data["metadata"] = {
@@ -329,9 +324,9 @@ def create_run_from_cli(
             "branch": branch,
             "pr_id": pr_id,
             "is_dry_run": is_dry_run,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
-        with open(blessed_report_path, "w") as f:
+        with blessed_report_path.open("w") as f:
             json.dump(report_data, f, indent=2, ensure_ascii=False)
         print(f"Change report written to {blessed_report_path}")
 
@@ -354,9 +349,9 @@ def create_run_from_cli(
                 blessed_patches_dir.mkdir(exist_ok=True)
                 blessed_patches_path = artifacts_dir / "patches.json"
 
-                with open(patches_path) as f:
+                with Path(patches_path).open() as f:
                     patches_data = json.load(f)
-                with open(blessed_patches_path, "w") as f:
+                with blessed_patches_path.open("w") as f:
                     json.dump(patches_data, f, indent=2, ensure_ascii=False)
                 print(f"Patches written to {blessed_patches_path}")
         except Exception as e:
@@ -368,7 +363,7 @@ def create_run_from_cli(
         db.commit()
 
         print(f"\nRun {run_id} completed successfully")
-        print(f"Artifacts:")
+        print("Artifacts:")
         print(f"  - {blessed_report_path}")
         if blessed_patches_path:
             print(f"  - {blessed_patches_path}")

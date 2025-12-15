@@ -199,9 +199,20 @@ class TestDryRunMode:
     ):
         """Test that Confluence REST calls are made when is_dry_run=False."""
         from api.routers.patches import apply_patch
+        from db.models import Connection
+        from core.encryption import encrypt_token
 
         # Ensure run is NOT in dry-run mode
         sample_run.is_dry_run = False
+        test_session.commit()
+
+        # Create a Connection object (required for apply_patch)
+        connection = Connection(
+            confluence_base_url="https://test.atlassian.net",
+            space_key="TEST",
+            encrypted_token=encrypt_token("test-token"),
+        )
+        test_session.add(connection)
         test_session.commit()
 
         # Create a patch
@@ -222,6 +233,10 @@ class TestDryRunMode:
             "id": sample_rule.page_id,
             "version": {"number": 1},
         }
+        mock_client.update_page.return_value = {
+            "id": sample_rule.page_id,
+            "version": 2,
+        }
         mock_client.close = Mock()
         mock_client_class.return_value = mock_client
 
@@ -239,8 +254,8 @@ class TestDryRunMode:
         mock_client_class.assert_called_once()
         mock_publisher_class.assert_called_once_with(mock_client)
 
-        # Verify update_page was called
-        mock_publisher.update_page.assert_called_once()
+        # Verify update_page was called on the client (not publisher, as the code calls client.update_page directly)
+        mock_client.update_page.assert_called_once()
 
         # Verify patch status was updated
         assert result.status == "Applied"
@@ -335,12 +350,33 @@ class TestDryRunMode:
         assert run_out.run_type_label == "Normal Run"
 
     @patch("autodoc.cli.main.SessionLocal")
-    def test_cli_creates_run_with_dry_run_flag(self, mock_session_local, test_session):
+    @patch("autodoc.cli.main.subprocess.run")
+    def test_cli_creates_run_with_dry_run_flag(
+        self, mock_subprocess, mock_session_local, test_session
+    ):
         """Test that CLI creates run with is_dry_run flag set."""
         from autodoc.cli.main import create_run_from_cli
+        from unittest.mock import MagicMock
 
         # Mock SessionLocal to return our test session
         mock_session_local.return_value = test_session
+
+        # Mock git subprocess calls
+        def mock_subprocess_side_effect(*args, **kwargs):
+            if "rev-parse" in args[0]:
+                # First commit, return non-zero (empty tree)
+                result = MagicMock()
+                result.returncode = 1
+                return result
+            if "diff" in args[0]:
+                # Return empty list of changed files
+                result = MagicMock()
+                result.returncode = 0
+                result.stdout = ""
+                return result
+            return MagicMock()
+
+        mock_subprocess.side_effect = mock_subprocess_side_effect
 
         # Create run via CLI with --dry-run
         run_id = create_run_from_cli(
@@ -358,14 +394,33 @@ class TestDryRunMode:
         assert run.commit_sha == "abc123"
 
     @patch("autodoc.cli.main.SessionLocal")
+    @patch("autodoc.cli.main.subprocess.run")
     def test_cli_creates_run_without_dry_run_flag(
-        self, mock_session_local, test_session
+        self, mock_subprocess, mock_session_local, test_session
     ):
         """Test that CLI creates run with is_dry_run=False by default."""
         from autodoc.cli.main import create_run_from_cli
+        from unittest.mock import MagicMock
 
         # Mock SessionLocal to return our test session
         mock_session_local.return_value = test_session
+
+        # Mock git subprocess calls
+        def mock_subprocess_side_effect(*args, **kwargs):
+            if "rev-parse" in args[0]:
+                # First commit, return non-zero (empty tree)
+                result = MagicMock()
+                result.returncode = 1
+                return result
+            if "diff" in args[0]:
+                # Return empty list of changed files
+                result = MagicMock()
+                result.returncode = 0
+                result.stdout = ""
+                return result
+            return MagicMock()
+
+        mock_subprocess.side_effect = mock_subprocess_side_effect
 
         # Create run via CLI without --dry-run
         run_id = create_run_from_cli(

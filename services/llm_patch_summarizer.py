@@ -116,14 +116,19 @@ def summarize_patches_with_llm(
         error_detail = e.response.json() if hasattr(e.response, "json") else str(e)
         error_msg = f"Claude API returned error: {e.status_code} - {error_detail}"
         if e.status_code == 429:
-            if "quota" in str(error_detail).lower() or "billing" in str(error_detail).lower():
+            if (
+                "quota" in str(error_detail).lower()
+                or "billing" in str(error_detail).lower()
+            ):
                 raise LLMAPIQuotaExceededError(error_msg) from e
         raise LLMAPIError(error_msg) from e
     except Exception as e:
         raise LLMAPIError(f"Unexpected error calling Claude API: {e}") from e
 
 
-def _build_llm_prompt(patches_data: dict[str, Any], prompt_template: str | None = None) -> str:
+def _build_llm_prompt(
+    patches_data: dict[str, Any], prompt_template: str | None = None
+) -> str:
     """Build prompt for LLM summarization.
 
     Args:
@@ -136,11 +141,11 @@ def _build_llm_prompt(patches_data: dict[str, Any], prompt_template: str | None 
     patches = patches_data.get("patches", [])
     patches_text = "\n\n".join(
         [
-            f"""Patch {i+1}:
-- Page ID: {p.get('page_id')}
-- Status: {p.get('status')}
-- Before: {p.get('diff_before', '')[:500]}
-- After: {p.get('diff_after', '')[:500]}
+            f"""Patch {i + 1}:
+- Page ID: {p.get("page_id")}
+- Status: {p.get("status")}
+- Before: {p.get("diff_before", "")[:500]}
+- After: {p.get("diff_after", "")[:500]}
 """
             for i, p in enumerate(patches)
         ]
@@ -151,19 +156,21 @@ def _build_llm_prompt(patches_data: dict[str, Any], prompt_template: str | None 
         # Format the custom prompt template with patches data
         try:
             prompt = prompt_template.format(
-                repo=patches_data.get('repo', ''),
-                branch=patches_data.get('branch', ''),
-                commit_sha=patches_data.get('commit_sha', ''),
-                patches_count=patches_data.get('patches_count', 0),
+                repo=patches_data.get("repo", ""),
+                branch=patches_data.get("branch", ""),
+                commit_sha=patches_data.get("commit_sha", ""),
+                patches_count=patches_data.get("patches_count", 0),
                 patches_text=patches_text,
             )
         except KeyError as e:
-            logger.warning(f"Missing placeholder in custom prompt template: {e}. Using default prompt.")
+            logger.warning(
+                f"Missing placeholder in custom prompt template: {e}. Using default prompt."
+            )
             prompt = _build_default_prompt(patches_data, patches_text)
     else:
         # Use default prompt
         prompt = _build_default_prompt(patches_data, patches_text)
-    
+
     return prompt
 
 
@@ -177,12 +184,12 @@ def _build_default_prompt(patches_data: dict[str, Any], patches_text: str) -> st
     Returns:
         Default formatted prompt string
     """
-    prompt = f"""Please analyze the following code changes and provide a comprehensive summary.
+    return f"""Please analyze the following code changes and provide a comprehensive summary.
 
-Repository: {patches_data.get('repo')}
-Branch: {patches_data.get('branch')}
-Commit: {patches_data.get('commit_sha')}
-Number of patches: {patches_data.get('patches_count', 0)}
+Repository: {patches_data.get("repo")}
+Branch: {patches_data.get("branch")}
+Commit: {patches_data.get("commit_sha")}
+Number of patches: {patches_data.get("patches_count", 0)}
 
 Patches:
 {patches_text}
@@ -195,7 +202,6 @@ Please provide:
 
 Format your response with clear sections for easy parsing.
 """
-    return prompt
 
 
 def _extract_summary_section(content: str) -> str:
@@ -217,7 +223,13 @@ def _extract_summary_section(content: str) -> str:
 
 def _extract_changes_section(content: str) -> str:
     """Extract changes description section from LLM response."""
-    markers = ["## Changes", "**Changes**", "# Changes", "Changes:", "## Change Description"]
+    markers = [
+        "## Changes",
+        "**Changes**",
+        "# Changes",
+        "Changes:",
+        "## Change Description",
+    ]
     for marker in markers:
         if marker in content:
             parts = content.split(marker, 1)
@@ -246,4 +258,3 @@ def _extract_demo_api_section(content: str) -> str:
                 if demo_text:
                     return demo_text
     return ""
-

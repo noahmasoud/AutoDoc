@@ -295,9 +295,15 @@ class Prompt(Base):
         nullable=False,
         index=True,
     )  # UNIQUE and indexed
-    content: Mapped[str] = mapped_column(Text, nullable=False)  # The prompt template text
-    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # True for 3 baseline prompts
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)  # Whether prompt is available for use
+    content: Mapped[str] = mapped_column(
+        Text, nullable=False
+    )  # The prompt template text
+    is_default: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )  # True for 3 baseline prompts
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )  # Whether prompt is available for use
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow
     )

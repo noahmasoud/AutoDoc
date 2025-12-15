@@ -11,12 +11,13 @@ from typing import Any
 logger = None
 try:
     import logging
+
     logger = logging.getLogger(__name__)
 except Exception:
     pass
 
 
-def markdown_to_storage_format(markdown: str) -> str:
+def markdown_to_storage_format(markdown: str) -> str:  # noqa: PLR0915
     """Convert Markdown text to Confluence Storage Format XML.
 
     This is a simplified converter that handles common Markdown elements:
@@ -55,8 +56,8 @@ def markdown_to_storage_format(markdown: str) -> str:
                 result_lines.append(
                     f'<ac:structured-macro ac:name="code">'
                     f'<ac:parameter ac:name="language">{code_block_lang}</ac:parameter>'
-                    f'<ac:plain-text-body><![CDATA[{code_content}]]></ac:plain-text-body>'
-                    f'</ac:structured-macro>'
+                    f"<ac:plain-text-body><![CDATA[{code_content}]]></ac:plain-text-body>"
+                    f"</ac:structured-macro>"
                 )
                 code_block_lines = []
                 code_block_lang = ""
@@ -76,7 +77,11 @@ def markdown_to_storage_format(markdown: str) -> str:
             continue
 
         # Close lists if needed before headers or horizontal rules
-        if in_list and (line.strip().startswith("#") or line.strip().startswith("---") or line.strip().startswith("***")):
+        if in_list and (
+            line.strip().startswith("#")
+            or line.strip().startswith("---")
+            or line.strip().startswith("***")
+        ):
             result_lines.append(f"</{list_type}>")
             in_list = False
             list_type = None
@@ -96,7 +101,7 @@ def markdown_to_storage_format(markdown: str) -> str:
                 result_lines.append(f"</{list_type}>")
                 in_list = False
                 list_type = None
-            
+
             # Count # to determine header level
             header_match = re.match(r"^(#{1,6})\s+(.+)$", line.strip())
             if header_match:
@@ -155,9 +160,7 @@ def markdown_to_storage_format(markdown: str) -> str:
         result_lines.append(f"</{list_type}>")
 
     # Join all lines
-    xml = "\n".join(result_lines)
-
-    return xml
+    return "\n".join(result_lines)
 
 
 def _process_inline_formatting(text: str) -> str:
@@ -171,28 +174,29 @@ def _process_inline_formatting(text: str) -> str:
     """
     # First, protect code blocks by replacing them with placeholders
     code_blocks = []
+
     def replace_code(match):
         code_blocks.append(match.group(0))
-        return f"__CODE_BLOCK_{len(code_blocks)-1}__"
-    
+        return f"__CODE_BLOCK_{len(code_blocks) - 1}__"
+
     # Protect inline code (single backticks) first
     text = re.sub(r"`([^`]+)`", replace_code, text)
-    
+
     # Escape HTML (but not in code blocks which we'll restore)
     text = html.escape(text)
-    
+
     # Restore code blocks (they're already escaped, so convert to <code> tags)
     for i, code_block in enumerate(code_blocks):
         # Extract the code content (remove backticks)
         code_content = code_block.strip("`")
-        text = text.replace(f"__CODE_BLOCK_{i}__", f'<code>{code_content}</code>')
+        text = text.replace(f"__CODE_BLOCK_{i}__", f"<code>{code_content}</code>")
 
     # Convert links [text](url) - but not inside code tags
     # Split by code tags, process non-code parts
-    parts = re.split(r'(<code>.*?</code>)', text)
+    parts = re.split(r"(<code>.*?</code>)", text)
     processed_parts = []
     for part in parts:
-        if part.startswith('<code>') and part.endswith('</code>'):
+        if part.startswith("<code>") and part.endswith("</code>"):
             processed_parts.append(part)  # Keep code blocks as-is
         else:
             # Process links in non-code parts
@@ -202,34 +206,32 @@ def _process_inline_formatting(text: str) -> str:
                 part,
             )
             processed_parts.append(part)
-    text = ''.join(processed_parts)
+    text = "".join(processed_parts)
 
     # Convert bold (**text** or __text__) - but not inside code tags
-    parts = re.split(r'(<code>.*?</code>)', text)
+    parts = re.split(r"(<code>.*?</code>)", text)
     processed_parts = []
     for part in parts:
-        if part.startswith('<code>') and part.endswith('</code>'):
+        if part.startswith("<code>") and part.endswith("</code>"):
             processed_parts.append(part)
         else:
             part = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", part)
             part = re.sub(r"__(.+?)__", r"<strong>\1</strong>", part)
             processed_parts.append(part)
-    text = ''.join(processed_parts)
+    text = "".join(processed_parts)
 
     # Convert italic (*text* or _text_) - but not inside code tags or bold
-    parts = re.split(r'(<code>.*?</code>|<strong>.*?</strong>)', text)
+    parts = re.split(r"(<code>.*?</code>|<strong>.*?</strong>)", text)
     processed_parts = []
     for part in parts:
-        if part.startswith('<code>') or part.startswith('<strong>'):
+        if part.startswith(("<code>", "<strong>")):
             processed_parts.append(part)
         else:
             # Only match single * or _ that aren't part of **
             part = re.sub(r"(?<!\*)\*([^*]+?)\*(?!\*)", r"<em>\1</em>", part)
             part = re.sub(r"(?<!_)_([^_]+?)_(?!_)", r"<em>\1</em>", part)
             processed_parts.append(part)
-    text = ''.join(processed_parts)
-
-    return text
+    return "".join(processed_parts)
 
 
 def simple_text_to_storage_format(text: str) -> str:
@@ -253,15 +255,17 @@ def simple_text_to_storage_format(text: str) -> str:
     paragraphs = escaped.split("\n\n")
 
     # Wrap each paragraph in <p> tags
-    para_elements = [f"<p>{p.replace(chr(10), '<br/>')}</p>" for p in paragraphs if p.strip()]
+    para_elements = [
+        f"<p>{p.replace(chr(10), '<br/>')}</p>" for p in paragraphs if p.strip()
+    ]
 
     # Join paragraphs
-    xml_content = "\n".join(para_elements)
-
-    return xml_content
+    return "\n".join(para_elements)
 
 
-def format_llm_summary_for_confluence(summary_data: dict[str, Any]) -> str:
+def format_llm_summary_for_confluence(
+    summary_data: dict[str, Any],
+) -> str:
     """Format LLM summary data as Confluence Storage Format XML.
 
     Args:

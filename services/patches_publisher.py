@@ -18,7 +18,7 @@ from services.confluence_publisher import ConfluencePublisher
 logger = logging.getLogger(__name__)
 
 
-def publish_patches_to_confluence(
+def publish_patches_to_confluence(  # noqa: PLR0915
     db: Session,
     run_id: int,
 ) -> dict[str, Any]:
@@ -122,10 +122,9 @@ def publish_patches_to_confluence(
         client = ConfluenceClient(settings=confluence_settings)
         publisher = ConfluencePublisher(client)
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Failed to initialize Confluence client for run {run_id}: {e}",
             extra={"run_id": run_id},
-            exc_info=True,
         )
         return {
             "success": False,
@@ -151,9 +150,7 @@ def publish_patches_to_confluence(
             try:
                 # Get the rule to find page title
                 rule = (
-                    db.execute(
-                        select(Rule).where(Rule.page_id == patch.page_id)
-                    )
+                    db.execute(select(Rule).where(Rule.page_id == patch.page_id))
                     .scalars()
                     .first()
                 )
@@ -191,12 +188,17 @@ def publish_patches_to_confluence(
                 )
 
             except Exception as e:
-                error_msg = f"Failed to publish patch {patch.id} to page {patch.page_id}: {e}"
+                error_msg = (
+                    f"Failed to publish patch {patch.id} to page {patch.page_id}: {e}"
+                )
                 errors.append(error_msg)
-                logger.error(
+                logger.exception(
                     error_msg,
-                    extra={"run_id": run_id, "patch_id": patch.id, "page_id": patch.page_id},
-                    exc_info=True,
+                    extra={
+                        "run_id": run_id,
+                        "patch_id": patch.id,
+                        "page_id": patch.page_id,
+                    },
                 )
                 # Mark patch as ERROR
                 patch.status = "ERROR"
@@ -212,4 +214,3 @@ def publish_patches_to_confluence(
         "pages_updated": pages_updated,
         "errors": errors,
     }
-

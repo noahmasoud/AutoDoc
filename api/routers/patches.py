@@ -24,23 +24,27 @@ def list_patches(run_id: int | None = Query(None), db: Session = Depends(get_db)
     if run_id is not None:
         stmt = stmt.where(Patch.run_id == run_id)
     patches = db.execute(stmt).scalars().all()
-    
+
     # Parse diff_structured from JSON string to dict for all patches
     import json
+
     for patch in patches:
         if patch.diff_structured and isinstance(patch.diff_structured, str):
             try:
                 patch.diff_structured = json.loads(patch.diff_structured)
             except (json.JSONDecodeError, TypeError):
                 patch.diff_structured = None
-    
+
     return patches
 
 
 @router.get("/summarize", response_model=LLMPatchSummaryResponse)
 def summarize_patches_with_llm(
     run_id: int = Query(..., description="Run ID to summarize patches for"),
-    prompt_id: int | None = Query(None, description="Optional prompt ID to use for summarization. If not provided, uses default prompt."),
+    prompt_id: int | None = Query(
+        None,
+        description="Optional prompt ID to use for summarization. If not provided, uses default prompt.",
+    ),
     db: Session = Depends(get_db),
 ):
     """Generate LLM summary for patches in a run.
@@ -110,7 +114,9 @@ def summarize_patches_with_llm(
                 "diff_before": patch.diff_before,
                 "diff_after": patch.diff_after,
                 "approved_by": patch.approved_by,
-                "applied_at": patch.applied_at.isoformat() if patch.applied_at else None,
+                "applied_at": patch.applied_at.isoformat()
+                if patch.applied_at
+                else None,
                 "error_message": patch.error_message,
             }
             patches_data.append(patch_data)
@@ -157,17 +163,18 @@ def get_patch(patch_id: int, db: Session = Depends(get_db)):
         patch = db.get(Patch, patch_id)
         if not patch:
             raise HTTPException(status_code=404, detail="Patch not found")
-        
+
         # Ensure diff_structured is a dict, not a string
         # SQLite JSON columns sometimes return strings instead of dicts
         import json
+
         if patch.diff_structured and isinstance(patch.diff_structured, str):
             try:
                 patch.diff_structured = json.loads(patch.diff_structured)
             except (json.JSONDecodeError, TypeError):
                 # If parsing fails, set to None
                 patch.diff_structured = None
-        
+
         return patch
     except HTTPException:
         raise
@@ -253,7 +260,7 @@ def apply_patch(
 
         # Get app settings for timeout and max_retries
         app_settings = get_settings()
-        
+
         # Create ConfluenceSettings from database connection
         # Use token as username if CONFLUENCE_USERNAME is not set (token:token format)
         username = app_settings.confluence.username or decrypted_token
@@ -445,11 +452,10 @@ def publish_llm_summary(
                 "message": f"Successfully published LLM summary to {len(result.get('pages_updated', []))} page(s)",
                 **result,
             }
-        else:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to publish summary: {result.get('errors', ['Unknown error'])}",
-            )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to publish summary: {result.get('errors', ['Unknown error'])}",
+        )
 
     except FileNotFoundError as e:
         raise HTTPException(
