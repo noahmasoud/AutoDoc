@@ -1,37 +1,103 @@
 ###########################################
 # GitLab CI Configuration for AutoDoc
+# Uses containerized AutoDoc runner with semver versioning
 ###########################################
+
+variables:
+  # Container registry and image configuration
+  # Update these to match your registry setup
+  AUTODOC_REGISTRY: "${CI_REGISTRY:-ghcr.io}"
+  AUTODOC_IMAGE_NAME: "${CI_PROJECT_NAME:-autodoc-ci}"
+  AUTODOC_VERSION: "${AUTODOC_VERSION:-0.1.0}"  # Use semver tag (e.g., 0.1.0, 0.2.0)
+  AUTODOC_IMAGE: "${AUTODOC_REGISTRY}/${AUTODOC_IMAGE_NAME}:${AUTODOC_VERSION}"
+
 stages:
   - test
+  - build
 
+# Build and publish container image (optional - run on version tags)
+build-container:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - |
+      echo "Building AutoDoc CI container..."
+      echo "Version: ${AUTODOC_VERSION}"
+      echo "Registry: ${AUTODOC_REGISTRY}"
+      echo "Image: ${AUTODOC_IMAGE}"
+      
+      # Build with version tags
+      docker build \
+        --build-arg VERSION="${AUTODOC_VERSION}" \
+        --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+        --build-arg VCS_REF="${CI_COMMIT_SHA}" \
+        --tag "${AUTODOC_IMAGE}" \
+        --tag "${AUTODOC_REGISTRY}/${AUTODOC_IMAGE_NAME}:latest" \
+        .
+      
+      # Push versioned tag
+      docker push "${AUTODOC_IMAGE}"
+      
+      # Push latest tag
+      docker push "${AUTODOC_REGISTRY}/${AUTODOC_IMAGE_NAME}:latest"
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+$/  # Match semver tags (v1.2.3 or 1.2.3)
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
+
+# Run AutoDoc analysis
 autodoc-test:
   stage: test
-  image: ghcr.io/noahmasoud/autodoc-ci:dev
+  image: ${AUTODOC_IMAGE}
+  
+  variables:
+    GIT_DEPTH: 2  # Need history for git diff
 
   script:
     - echo "=================================="
     - echo "AutoDoc CI Environment (GitLab)"
     - echo "=================================="
+    - echo "Container: ${AUTODOC_IMAGE}"
     - echo "Commit SHA: $CI_COMMIT_SHA"
     - echo "Repository: $CI_PROJECT_PATH"
     - echo "Branch: $CI_COMMIT_BRANCH"
     - echo "Pipeline ID: $CI_PIPELINE_ID"
     - echo "=================================="
     
-    - ./autodoc.sh 
-        --commit "$CI_COMMIT_SHA" 
-        --repo "$CI_PROJECT_PATH" 
-        --branch "$CI_COMMIT_BRANCH" 
+    - |
+      ./autodoc.sh \
+        --commit "$CI_COMMIT_SHA" \
+        --repo "$CI_PROJECT_PATH" \
+        --branch "$CI_COMMIT_BRANCH" \
+        ${CI_MERGE_REQUEST_IID:+--pr-id "$CI_MERGE_REQUEST_IID"} \
         --verbose
     
     - echo "✓ AutoDoc analysis completed"
-    - cat change_report.json
+    - |
+      if [ -f change_report.json ]; then
+        echo "Change report generated:"
+        cat change_report.json | head -50
+      else
+        echo "⚠️  Warning: change_report.json not found"
+        exit 1
+      fi
 
   artifacts:
     paths:
       - change_report.json
+      - artifacts/
     expire_in: 30 days
+    reports:
+      # Optional: JUnit test report if available
+      junit: change_report.json
 
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
     - if: $CI_COMMIT_BRANCH == "dev"
+    - if: $CI_MERGE_REQUEST_IID

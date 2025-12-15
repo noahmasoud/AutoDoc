@@ -1,0 +1,178 @@
+name: 'AutoDoc CI/CD Runner'
+description: 'Run AutoDoc analysis in CI/CD pipeline with containerized execution'
+author: 'AutoDoc Team'
+
+inputs:
+  version:
+    description: 'Container image version/tag (semver format, e.g., 0.1.0)'
+    required: false
+    default: 'latest'
+  registry:
+    description: 'Container registry (e.g., ghcr.io, docker.io)'
+    required: false
+    default: 'ghcr.io'
+  image-name:
+    description: 'Container image name (without registry)'
+    required: false
+    default: 'autodoc-ci'
+  commit:
+    description: 'Git commit SHA to analyze'
+    required: true
+  repo:
+    description: 'Repository name (e.g., owner/repo)'
+    required: true
+  branch:
+    description: 'Branch name'
+    required: false
+    default: 'main'
+  pr-id:
+    description: 'Pull request ID (optional)'
+    required: false
+  dry-run:
+    description: 'Generate patches without updating Confluence'
+    required: false
+    default: 'false'
+  verbose:
+    description: 'Enable verbose logging'
+    required: false
+    default: 'false'
+  workspace-path:
+    description: 'Path to workspace directory (default: ${{ github.workspace }})'
+    required: false
+    default: '${{ github.workspace }}'
+  artifacts-path:
+    description: 'Path to artifacts directory'
+    required: false
+    default: 'artifacts'
+
+outputs:
+  change-report-path:
+    description: 'Path to generated change_report.json'
+    value: '${{ steps.run-autodoc.outputs.change-report-path }}'
+  run-id:
+    description: 'AutoDoc run ID (if backend available)'
+    value: '${{ steps.run-autodoc.outputs.run-id }}'
+  status:
+    description: 'Execution status (success/failure)'
+    value: '${{ steps.run-autodoc.outputs.status }}'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 2  # Need history for git diff
+
+    - name: Set up container image
+      id: container
+      shell: bash
+      run: |
+        REGISTRY="${{ inputs.registry }}"
+        IMAGE_NAME="${{ inputs.image-name }}"
+        VERSION="${{ inputs.version }}"
+        
+        # Default to GitHub Container Registry if using default registry
+        if [ "$REGISTRY" = "ghcr.io" ]; then
+          OWNER="${GITHUB_REPOSITORY_OWNER:-autodoc-team}"
+          FULL_IMAGE="${REGISTRY}/${OWNER}/${IMAGE_NAME}"
+        else
+          FULL_IMAGE="${REGISTRY}/${IMAGE_NAME}"
+        fi
+        
+        # Construct image tag
+        IMAGE_TAG="${FULL_IMAGE}:${VERSION}"
+        
+        # Also set latest tag for convenience
+        IMAGE_TAG_LATEST="${FULL_IMAGE}:latest"
+        
+        echo "image=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+        echo "image-latest=${IMAGE_TAG_LATEST}" >> $GITHUB_OUTPUT
+        echo "full-image=${FULL_IMAGE}" >> $GITHUB_OUTPUT
+        
+        echo "Using container image: ${IMAGE_TAG}"
+
+    - name: Run AutoDoc container
+      id: run-autodoc
+      shell: bash
+      run: |
+        set -e
+        
+        WORKSPACE_PATH="${{ inputs.workspace-path }}"
+        ARTIFACTS_PATH="${{ inputs.artifacts-path }}"
+        COMMIT_SHA="${{ inputs.commit }}"
+        REPO_NAME="${{ inputs.repo }}"
+        BRANCH_NAME="${{ inputs.branch }}"
+        PR_ID="${{ inputs.pr-id }}"
+        DRY_RUN="${{ inputs.dry-run }}"
+        VERBOSE="${{ inputs.verbose }}"
+        
+        # Build autodoc.sh command arguments
+        CMD_ARGS=(
+          --commit "${COMMIT_SHA}"
+          --repo "${REPO_NAME}"
+          --branch "${BRANCH_NAME}"
+        )
+        
+        if [ -n "${PR_ID}" ] && [ "${PR_ID}" != "" ]; then
+          CMD_ARGS+=(--pr-id "${PR_ID}")
+        fi
+        
+        if [ "${DRY_RUN}" = "true" ]; then
+          CMD_ARGS+=(--dry-run)
+        fi
+        
+        if [ "${VERBOSE}" = "true" ]; then
+          CMD_ARGS+=(--verbose)
+        fi
+        
+        # Create artifacts directory
+        mkdir -p "${ARTIFACTS_PATH}"
+        
+        # Run container with workspace mounted
+        echo "Running AutoDoc container..."
+        echo "Container: ${{ steps.container.outputs.image }}"
+        echo "Command: ${CMD_ARGS[*]}"
+        
+        docker run --rm \
+          -v "${WORKSPACE_PATH}:/workspace" \
+          -v "${WORKSPACE_PATH}/${ARTIFACTS_PATH}:/workspace/${ARTIFACTS_PATH}" \
+          -w /workspace \
+          -e GITHUB_ACTIONS=true \
+          -e CI=true \
+          "${{ steps.container.outputs.image }}" \
+          "${CMD_ARGS[@]}" || EXIT_CODE=$?
+        
+        # Check for change_report.json
+        CHANGE_REPORT="${WORKSPACE_PATH}/change_report.json"
+        if [ -f "${CHANGE_REPORT}" ]; then
+          echo "change-report-path=${CHANGE_REPORT}" >> $GITHUB_OUTPUT
+          echo "status=success" >> $GITHUB_OUTPUT
+        else
+          echo "status=failure" >> $GITHUB_OUTPUT
+        fi
+        
+        # Try to extract run ID from change report if available
+        if [ -f "${CHANGE_REPORT}" ] && command -v jq &> /dev/null; then
+          RUN_ID=$(jq -r '.metadata.run_id // empty' "${CHANGE_REPORT}" 2>/dev/null || echo "")
+          if [ -n "${RUN_ID}" ]; then
+            echo "run-id=${RUN_ID}" >> $GITHUB_OUTPUT
+          fi
+        fi
+        
+        # Exit with error if container failed
+        if [ -n "${EXIT_CODE:-}" ]; then
+          exit ${EXIT_CODE}
+        fi
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: autodoc-artifacts
+        path: |
+          ${{ inputs.artifacts-path }}/**
+          change_report.json
+        retention-days: 30
+        if-no-files-found: warn
+

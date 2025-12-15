@@ -1,0 +1,46 @@
+name: AutoDoc CI Example
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode'
+        required: false
+        default: 'true'
+        type: boolean
+
+jobs:
+  autodoc-analysis:
+    name: Run AutoDoc Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Run AutoDoc
+        id: autodoc
+        uses: ./.github/actions/autodoc
+        with:
+          version: '0.1.0'  # Use semver version tag
+          registry: 'ghcr.io'
+          image-name: 'autodoc-ci'
+          commit: ${{ github.sha }}
+          repo: ${{ github.repository }}
+          branch: ${{ github.ref_name }}
+          pr-id: ${{ github.event.pull_request.number }}
+          dry-run: ${{ github.event.inputs.dry_run || 'false' }}
+          verbose: 'true'
+      
+      - name: Display results
+        run: |
+          echo "Change report: ${{ steps.autodoc.outputs.change-report-path }}"
+          echo "Run ID: ${{ steps.autodoc.outputs.run-id }}"
+          echo "Status: ${{ steps.autodoc.outputs.status }}"
+          
+          if [ -f change_report.json ]; then
+            echo "=== Change Report Summary ==="
+            cat change_report.json | jq -r '.analysis // {}'
+          fi
+
