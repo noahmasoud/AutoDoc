@@ -54,6 +54,7 @@ def save_connection(
         # Update existing connection
         existing.confluence_base_url = str(payload.confluence_base_url)
         existing.space_key = payload.space_key
+        existing.username = payload.username
         existing.encrypted_token = encrypt_token(payload.api_token)
         db.commit()
         db.refresh(existing)
@@ -62,6 +63,7 @@ def save_connection(
     new_connection = Connection(
         confluence_base_url=str(payload.confluence_base_url),
         space_key=payload.space_key,
+        username=payload.username,
         encrypted_token=encrypt_token(payload.api_token),
     )
     db.add(new_connection)
@@ -105,6 +107,7 @@ async def test_connection(  # noqa: PLR0911
     """
     base_url = _normalize_base_url(str(payload.confluence_base_url))
     space_key = payload.space_key
+    username = payload.username
     token = payload.api_token
 
     # Mask token for logging (FR-28)
@@ -112,6 +115,7 @@ async def test_connection(  # noqa: PLR0911
     safe_payload = {
         "confluence_base_url": base_url,
         "space_key": space_key,
+        "username": username,
         "api_token": masked_token,
     }
     logger.info("Testing connection", extra={"payload": safe_payload})
@@ -125,18 +129,15 @@ async def test_connection(  # noqa: PLR0911
         )
 
     # Make test API call to Confluence
-    # Confluence Cloud API uses Basic auth with email:token format
-    # However, API tokens can be used directly with Basic auth as token:token
-    # or we need the user's email. For now, we'll try token:token format
-    # which works for most Confluence Cloud instances
+    # Confluence Cloud API requires Basic auth with email:token format
     import base64
 
-    # Confluence API token authentication: Basic base64(token:token)
-    # Some instances may require email:token, but token:token is common
-    auth_credentials = f"{token}:{token}"
+    # Confluence API token authentication: Basic base64(email:token)
+    auth_credentials = f"{username}:{token}"
     auth_string = base64.b64encode(auth_credentials.encode()).decode()
 
-    test_url = f"{base_url}/rest/api/space/{space_key}"
+    # Confluence Cloud API path includes /wiki/rest/api
+    test_url = f"{base_url}/wiki/rest/api/space/{space_key}"
     headers = {
         "Authorization": f"Basic {auth_string}",
         "Accept": "application/json",

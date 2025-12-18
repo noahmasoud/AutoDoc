@@ -266,6 +266,8 @@ class Connection(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     confluence_base_url: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     space_key: Mapped[str] = mapped_column(Text, nullable=False)
+    # Username (email) for Confluence Cloud authentication
+    username: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Encrypted token - never store plaintext (NFR-9)
     encrypted_token: Mapped[str] = mapped_column(Text, nullable=False)
     # Metadata

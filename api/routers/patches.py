@@ -249,35 +249,31 @@ def apply_patch(
                 detail="No Confluence connection found. Please configure a connection first.",
             )
 
-        # Get app settings
+        # Get app settings for timeout and retry configuration
         app_settings = get_settings()
 
-        # Try to decrypt the token from database, fallback to settings token
+        # Decrypt the token from database
         try:
             decrypted_token = decrypt_token(connection.encrypted_token)
         except Exception as e:
-            logger.warning(f"Failed to decrypt database token, falling back to settings: {e}")
-            # Fallback to settings token if database token can't be decrypted
-            decrypted_token = app_settings.confluence.token
-            if not decrypted_token:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to decrypt connection token and no fallback token in settings: {e}",
-                ) from e
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to decrypt connection token: {e}",
+            ) from e
 
-        # For Confluence Cloud, username MUST be the email address, not the token
-        # Use CONFLUENCE_USERNAME from settings, or raise error if not set
-        username = app_settings.confluence.username
+        # For Confluence Cloud, username MUST be the email address
+        # Use the username stored in the database connection
+        username = connection.username
         if not username:
             raise HTTPException(
                 status_code=500,
-                detail="CONFLUENCE_USERNAME is required for Confluence API authentication. "
-                "Please set CONFLUENCE_USERNAME in your .env file with your Confluence email address.",
+                detail="Confluence username (email) is required. "
+                "Please update your connection settings in the Connections page.",
             )
 
         confluence_settings = ConfluenceSettings(
             url=connection.confluence_base_url,
-            username=username,  # Must be email address for Confluence Cloud
+            username=username,  # Email address from database
             token=decrypted_token,
             space_key=connection.space_key,
             timeout=app_settings.confluence.timeout,

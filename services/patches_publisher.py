@@ -101,17 +101,17 @@ def publish_patches_to_confluence(  # noqa: PLR0915
         app_settings = get_settings()
 
         # Create ConfluenceSettings from database connection
-        # For Confluence API tokens, username must be an email address, not the token
-        username = app_settings.confluence.username
+        # For Confluence API tokens, username (email) is stored in the connection
+        username = connection.username
         if not username:
             raise ValueError(
-                "CONFLUENCE_USERNAME is required for Confluence API authentication. "
-                "Please set CONFLUENCE_USERNAME in your .env file with your Confluence email address."
+                "Confluence username (email) is required. "
+                "Please update your connection settings in the Connections page."
             )
 
         confluence_settings = ConfluenceSettings(
             url=connection.confluence_base_url,
-            username=username,
+            username=username,  # Email from database
             token=decrypted_token,
             space_key=connection.space_key,
             timeout=app_settings.confluence.timeout,

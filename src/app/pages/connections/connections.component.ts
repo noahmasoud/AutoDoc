@@ -28,6 +28,7 @@ export class ConnectionsComponent implements OnInit {
     this.connectionForm = this.fb.group({
       confluence_base_url: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/i)]],
       space_key: ['', [Validators.required]],
+      username: ['', [Validators.required, Validators.email]],
       api_token: ['', [Validators.required]]
     });
   }
@@ -45,6 +46,7 @@ export class ConnectionsComponent implements OnInit {
           this.connectionForm.patchValue({
             confluence_base_url: connection.confluence_base_url,
             space_key: connection.space_key,
+            username: connection.username || '',
             api_token: '••••••••••'
           });
           this.isTokenSaved = true;
@@ -77,6 +79,7 @@ export class ConnectionsComponent implements OnInit {
     const connectionData: ConnectionCreate = {
       confluence_base_url: formValue.confluence_base_url,
       space_key: formValue.space_key,
+      username: formValue.username,
       api_token: tokenValue
     };
 
@@ -128,10 +131,19 @@ export class ConnectionsComponent implements OnInit {
     const control = this.getControl(controlName);
     if (control && control.errors) {
       if (control.errors['required']) {
-        return `${controlName} is required`;
+        const fieldNames: { [key: string]: string } = {
+          confluence_base_url: 'Confluence Base URL',
+          space_key: 'Space Key',
+          username: 'Email Address',
+          api_token: 'API Token'
+        };
+        return `${fieldNames[controlName] || controlName} is required`;
       }
       if (control.errors['pattern']) {
         return 'Please enter a valid URL (http:// or https://)';
+      }
+      if (control.errors['email']) {
+        return 'Please enter a valid email address';
       }
     }
     return '';

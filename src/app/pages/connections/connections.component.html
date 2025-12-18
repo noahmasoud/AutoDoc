@@ -65,6 +65,35 @@
       </div>
 
       <div class="form-group">
+        <label for="username" class="required">
+          Email Address
+        </label>
+        <input
+          id="username"
+          type="email"
+          formControlName="username"
+          placeholder="your-email@example.com"
+          [class.error]="hasError('username')"
+          [attr.aria-invalid]="hasError('username') ? 'true' : 'false'"
+          [attr.aria-describedby]="hasError('username') ? 'username-error' : 'username-help'"
+          autocomplete="email"
+          aria-required="true"
+        />
+        <small
+          class="error"
+          *ngIf="hasError('username')"
+          id="username-error"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ getErrorMessage('username') }}
+        </small>
+        <small class="help-text" id="username-help">
+          Your Atlassian account email for Confluence Cloud authentication.
+        </small>
+      </div>
+
+      <div class="form-group">
         <label for="api_token" class="required">
           API Token
         </label>

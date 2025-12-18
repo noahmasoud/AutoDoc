@@ -8,6 +8,7 @@ export interface Connection {
   id?: number;
   confluence_base_url: string;
   space_key: string;
+  username?: string;
   last_used_at?: string;
   created_at?: string;
   updated_at?: string;
@@ -16,6 +17,7 @@ export interface Connection {
 export interface ConnectionCreate {
   confluence_base_url: string;
   space_key: string;
+  username: string;
   api_token: string;
 }
 

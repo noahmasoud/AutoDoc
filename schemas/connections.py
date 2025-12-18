@@ -9,6 +9,7 @@ class ConnectionCreate(BaseModel):
 
     confluence_base_url: AnyHttpUrl = Field(..., description="Confluence base URL")
     space_key: str = Field(..., min_length=1, description="Confluence space key")
+    username: str = Field(..., min_length=1, description="Confluence username (email address)")
     api_token: str = Field(..., min_length=1, description="Confluence API token")
 
 
@@ -17,6 +18,7 @@ class ConnectionTestRequest(BaseModel):
 
     confluence_base_url: AnyHttpUrl = Field(..., description="Confluence base URL")
     space_key: str = Field(..., min_length=1, description="Confluence space key")
+    username: str = Field(..., min_length=1, description="Confluence username (email address)")
     api_token: str = Field(..., min_length=1, description="Confluence API token")
 
 
@@ -36,6 +38,7 @@ class ConnectionOut(BaseModel):
     id: int
     confluence_base_url: str
     space_key: str
+    username: str | None = None
     last_used_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
