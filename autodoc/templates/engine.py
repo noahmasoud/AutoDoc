@@ -114,6 +114,44 @@ class TemplateEngine:
     PLACEHOLDER_PATTERN = re.compile(r"\{\{([^}]+)\}\}")
 
     @classmethod
+    def extract_variables(cls, template_body: str) -> dict[str, dict[str, Any]]:
+        """Extract variable names from template body and create metadata structure.
+
+        Finds all {{variable_name}} or {{object.property}} placeholders in the template
+        and returns a dictionary structure suitable for the Template.variables field.
+
+        Args:
+            template_body: Template content to analyze
+
+        Returns:
+            Dictionary mapping variable names to metadata dictionaries with
+            'description' field. Example:
+            {
+                "variable_name": {"description": "Variable: variable_name"},
+                "object.property": {"description": "Variable: object.property"}
+            }
+        """
+        variables: dict[str, dict[str, Any]] = {}
+
+        # Find all placeholders
+        matches = cls.PLACEHOLDER_PATTERN.findall(template_body)
+
+        for placeholder in matches:
+            var_name = placeholder.strip()
+
+            # Skip empty placeholders (shouldn't happen, but be safe)
+            if not var_name:
+                continue
+
+            # Only add if not already seen (deduplicate)
+            if var_name not in variables:
+                variables[var_name] = {
+                    "description": f"Variable: {var_name}",
+                }
+
+        return variables
+
+    @classmethod
     def render(
         cls,
         template_body: str,

@@ -8,12 +8,15 @@ encapsulating authentication, error handling, and payload normalization.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Literal
 
 import httpx
 
 from autodoc.config.settings import ConfluenceSettings, get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class ConfluenceError(Exception):
@@ -62,9 +65,29 @@ class ConfluenceClient:
             )
 
         base_url = _normalize_base_url(self._settings.url or "")
+        
+        # Ensure username is set (must be email for Confluence Cloud)
+        username = self._settings.username or ""
+        if not username:
+            raise ConfluenceConfigurationError(
+                "CONFLUENCE_USERNAME is required. Please set it to your Confluence email address."
+            )
+        
+        token = self._settings.token or ""
+        if not token:
+            raise ConfluenceConfigurationError(
+                "CONFLUENCE_TOKEN is required. Please set it in your environment."
+            )
+        
+        # Log authentication details (without exposing token)
+        logger.info(
+            f"ConfluenceClient: Using username={username}, "
+            f"base_url={base_url}, token_present={bool(token)}"
+        )
+        
         auth = httpx.BasicAuth(
-            self._settings.username or "",
-            self._settings.token or "",
+            username,  # Email address for Confluence Cloud (rymitchell9416@gmail.com)
+            token,
         )
 
         self._client = client or httpx.Client(

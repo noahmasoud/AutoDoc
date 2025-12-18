@@ -18,6 +18,34 @@ from autodoc.templates.engine import (
     UnsupportedFormatError,
 )
 
+
+def _prepare_template_variables(
+    template_body: str,
+    provided_variables: dict | None,
+) -> dict | None:
+    """Prepare template variables, auto-extracting if not provided.
+
+    If variables are explicitly provided, use them. Otherwise, extract
+    variable names from the template body.
+
+    Args:
+        template_body: Template body content
+        provided_variables: Variables provided by user (can be None)
+
+    Returns:
+        Variables dictionary or None
+    """
+    if provided_variables is not None:
+        # User provided variables explicitly - use them
+        return provided_variables
+
+    # Auto-extract variables from template body
+    extracted = TemplateEngine.extract_variables(template_body)
+
+    # Return None if no variables found, otherwise return extracted
+    return extracted if extracted else None
+
+
 router = APIRouter(prefix="/templates", tags=["templates"])
 
 
@@ -28,7 +56,20 @@ def list_templates(db: Session = Depends(get_db)):
 
 @router.post("", response_model=TemplateOut, status_code=201)
 def create_template(payload: TemplateCreate, db: Session = Depends(get_db)):
-    row = Template(**payload.model_dump())
+    """Create a new template.
+
+    If variables are not provided, they will be automatically extracted
+    from the template body.
+    """
+    template_data = payload.model_dump()
+
+    # Auto-extract variables if not provided
+    template_data["variables"] = _prepare_template_variables(
+        template_data["body"],
+        template_data.get("variables"),
+    )
+
+    row = Template(**template_data)
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -49,13 +90,33 @@ def update_template(
     payload: TemplateUpdate,
     db: Session = Depends(get_db),
 ):
+    """Update an existing template.
+
+    If body is updated and variables are not explicitly provided, variables
+    will be auto-extracted from the new template body.
+    """
     row = db.get(Template, template_id)
     if not row:
         raise HTTPException(404, "Template not found")
-    for k, v in payload.model_dump(exclude_unset=True).items():
+
+    update_data = payload.model_dump(exclude_unset=True)
+
+    # If body is being updated and variables not explicitly provided, extract them
+    if "body" in update_data and "variables" not in update_data:
+        update_data["variables"] = _prepare_template_variables(
+            update_data["body"],
+            None,  # No variables provided, extract from body
+        )
+    elif "variables" in update_data:
+        # Variables explicitly provided - use them as-is
+        pass
+
+    for k, v in update_data.items():
         setattr(row, k, v)
+
     db.add(row)
-    db.flush()
+    db.commit()
+    db.refresh(row)
     return row
 
 

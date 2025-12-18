@@ -249,25 +249,35 @@ def apply_patch(
                 detail="No Confluence connection found. Please configure a connection first.",
             )
 
-        # Decrypt the token
+        # Get app settings
+        app_settings = get_settings()
+
+        # Try to decrypt the token from database, fallback to settings token
         try:
             decrypted_token = decrypt_token(connection.encrypted_token)
         except Exception as e:
+            logger.warning(f"Failed to decrypt database token, falling back to settings: {e}")
+            # Fallback to settings token if database token can't be decrypted
+            decrypted_token = app_settings.confluence.token
+            if not decrypted_token:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to decrypt connection token and no fallback token in settings: {e}",
+                ) from e
+
+        # For Confluence Cloud, username MUST be the email address, not the token
+        # Use CONFLUENCE_USERNAME from settings, or raise error if not set
+        username = app_settings.confluence.username
+        if not username:
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to decrypt connection token: {e}",
-            ) from e
-
-        # Get app settings for timeout and max_retries
-        app_settings = get_settings()
-
-        # Create ConfluenceSettings from database connection
-        # Use token as username if CONFLUENCE_USERNAME is not set (token:token format)
-        username = app_settings.confluence.username or decrypted_token
+                detail="CONFLUENCE_USERNAME is required for Confluence API authentication. "
+                "Please set CONFLUENCE_USERNAME in your .env file with your Confluence email address.",
+            )
 
         confluence_settings = ConfluenceSettings(
             url=connection.confluence_base_url,
-            username=username,
+            username=username,  # Must be email address for Confluence Cloud
             token=decrypted_token,
             space_key=connection.space_key,
             timeout=app_settings.confluence.timeout,

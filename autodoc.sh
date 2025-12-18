@@ -193,298 +193,94 @@ fi
 FILE_COUNT=$(echo "$CHANGED_FILES" | wc -l | tr -d ' ')
 echo "  Found ${FILE_COUNT} changed Python file(s)"
 
-# Step 2: Run analysis engine for each file
+# Step 2: Use Python CLI for proper analysis
 echo ""
-echo "Step 2: Analyzing code changes..."
+echo "Step 2: Analyzing code changes using Python CLI..."
 
-# Create temp directory for analysis results
-TEMP_DIR=$(mktemp -d)
-trap "rm -rf $TEMP_DIR" EXIT
+# Determine AutoDoc project root (where this script lives)
+AUTODOC_ROOT="$(cd "$(dirname "$0")" && pwd)"
+export PYTHONPATH="${AUTODOC_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 
-TOTAL_ADDED=0
-TOTAL_MODIFIED=0
-TOTAL_REMOVED=0
-TOTAL_BREAKING=0
-
-for FILE in $CHANGED_FILES; do
-    echo "  Analyzing: $FILE"
-    
-    # Get old and new versions of the file
-    git show HEAD^:"$FILE" > "$TEMP_DIR/old.py" 2>/dev/null || echo "" > "$TEMP_DIR/old.py"
-    git show HEAD:"$FILE" > "$TEMP_DIR/new.py" 2>/dev/null || echo "" > "$TEMP_DIR/new.py"
-    
-    # Run your Python analysis engine
-    python3 << PYTHON_SCRIPT
-import sys
-import json
-from pathlib import Path
-
-sys.path.insert(0, str(Path.cwd()))
-
-from src.analyzer.parser import parse_python_code
-from src.analyzer.extractor import extract_symbols
-from src.analyzer.change_detector import detect_changes
-
-with open("$TEMP_DIR/old.py", "r") as f:
-    old_code = f.read()
-
-with open("$TEMP_DIR/new.py", "r") as f:
-    new_code = f.read()
-
-try:
-    old_tree = parse_python_code(old_code) if old_code.strip() else None
-    new_tree = parse_python_code(new_code) if new_code.strip() else None
-    
-    if old_tree and new_tree:
-        old_module = extract_symbols(old_tree, "$FILE")
-        new_module = extract_symbols(new_tree, "$FILE")
-        report = detect_changes(old_module, new_module, "HEAD^", "HEAD")
-        
-        # Extract detailed changes for database persistence
-        detailed_changes = []
-        for change in report.added:
-            detailed_changes.append({
-                "file_path": "$FILE",
-                "symbol": change.symbol_name,
-                "change_type": "added",
-                "signature_before": None,
-                "signature_after": None  # SymbolChange doesn't have signature fields
-            })
-        for change in report.modified:
-            detailed_changes.append({
-                "file_path": "$FILE",
-                "symbol": change.symbol_name,
-                "change_type": "modified",
-                "signature_before": None,
-                "signature_after": None
-            })
-        for change in report.removed:
-            detailed_changes.append({
-                "file_path": "$FILE",
-                "symbol": change.symbol_name,
-                "change_type": "removed",
-                "signature_before": None,
-                "signature_after": None
-            })
-        
-        result = report.to_dict()
-        result["detailed_changes"] = detailed_changes
-    else:
-        result = {
-            "file_path": "$FILE",
-            "summary": {
-                "added_count": 0,
-                "modified_count": 0,
-                "removed_count": 0,
-                "breaking_count": 0
-            },
-            "detailed_changes": []
-        }
-    
-    with open("$TEMP_DIR/result.json", "w") as f:
-        json.dump(result, f)
-    
-except Exception as e:
-    result = {
-        "file_path": "$FILE",
-        "error": str(e),
-        "summary": {
-            "added_count": 0,
-            "modified_count": 0,
-            "removed_count": 0,
-            "breaking_count": 0
-        },
-        "detailed_changes": []
-    }
-    with open("$TEMP_DIR/result.json", "w") as f:
-        json.dump(result, f)
-
-PYTHON_SCRIPT
-    
-    # Read results and accumulate counts
-    if [[ -f "$TEMP_DIR/result.json" ]]; then
-        if command -v jq &> /dev/null; then
-            ADDED=$(jq '.summary.added_count // 0' "$TEMP_DIR/result.json")
-            MODIFIED=$(jq '.summary.modified_count // 0' "$TEMP_DIR/result.json")
-            REMOVED=$(jq '.summary.removed_count // 0' "$TEMP_DIR/result.json")
-            BREAKING=$(jq '.summary.breaking_count // 0' "$TEMP_DIR/result.json")
+# Set database path to use AutoDoc's database
+# The CLI needs to access the same database as the backend
+if [ -f "${AUTODOC_ROOT}/.env" ]; then
+    # Read DATABASE_URL from .env file
+    ENV_DB_URL=$(grep "^DATABASE_URL=" "${AUTODOC_ROOT}/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
+    if [ -n "$ENV_DB_URL" ]; then
+        # If it's a relative path (sqlite:///./), convert to absolute
+        if [[ "$ENV_DB_URL" == sqlite:///./* ]]; then
+            DB_FILE="${ENV_DB_URL#sqlite:///./}"
+            export DATABASE_URL="sqlite:///${AUTODOC_ROOT}/${DB_FILE}"
         else
-            ADDED=0
-            MODIFIED=0
-            REMOVED=0
-            BREAKING=0
+            export DATABASE_URL="$ENV_DB_URL"
         fi
-        
-        TOTAL_ADDED=$((TOTAL_ADDED + ADDED))
-        TOTAL_MODIFIED=$((TOTAL_MODIFIED + MODIFIED))
-        TOTAL_REMOVED=$((TOTAL_REMOVED + REMOVED))
-        TOTAL_BREAKING=$((TOTAL_BREAKING + BREAKING))
-        
-        echo "      Added: $ADDED, Modified: $MODIFIED, Removed: $REMOVED, Breaking: $BREAKING"
-        
-        # Save this file's result for later
-        cp "$TEMP_DIR/result.json" "$TEMP_DIR/result_${FILE//\//_}.json"
+    else
+        export DATABASE_URL="sqlite:///${AUTODOC_ROOT}/autodoc.db"
     fi
-done
+else
+    export DATABASE_URL="sqlite:///${AUTODOC_ROOT}/autodoc.db"
+fi
+
+# Check if we're in a virtual environment or need to activate one
+if [ -f "${AUTODOC_ROOT}/venv/bin/activate" ]; then
+    source "${AUTODOC_ROOT}/venv/bin/activate"
+fi
+
+# Store current directory (the git repo being analyzed)
+# The CLI needs to run git commands from here
+CURRENT_DIR="$(pwd)"
+
+# Use Python CLI module which handles all analysis properly
+# Note: We stay in CURRENT_DIR so git commands work correctly
+python3 -m autodoc.cli.main \
+    --commit "$COMMIT_SHA" \
+    --repo "$REPO_NAME" \
+    --branch "$BRANCH_NAME" \
+    $([ -n "$PR_ID" ] && echo "--pr-id $PR_ID" || echo "") \
+    $([ "$DRY_RUN" = "true" ] && echo "--dry-run" || echo "") \
+    2>&1 | tee /tmp/autodoc_cli_output.log
+
+CLI_EXIT_CODE=${PIPESTATUS[0]}
+
+if [ $CLI_EXIT_CODE -ne 0 ]; then
+    echo "Error: Python CLI analysis failed with exit code $CLI_EXIT_CODE"
+    echo "Check /tmp/autodoc_cli_output.log for details"
+    exit 2
+fi
+
+# Extract run ID from CLI output (look for patterns like "Created run 63" or "Run ID: 63")
+RUN_ID=$(grep -E "Created run [0-9]+|Run ID: [0-9]+" /tmp/autodoc_cli_output.log 2>/dev/null | grep -oE "[0-9]+" | head -1 || echo "")
 
 echo "  Analysis complete"
 
-# ============================================
-# Sprint 3 Integration: Save to Database
-# ============================================
+# Step 3: The Python CLI already handles all database operations
+# (creating runs, analyzing files, detecting changes, generating patches)
 echo ""
-echo "Step 3: Saving results to AutoDoc database..."
+echo "Step 3: Results saved by Python CLI (Run ID: ${RUN_ID:-N/A})"
 
-API_BASE="${API_BASE:-http://localhost:8000/api/v1}"
+# Step 4: Verify artifacts were created
+echo ""
+echo "Step 4: Verifying artifacts..."
 
-# Check if backend is available
-if curl -s -f "${API_BASE}/templates" > /dev/null 2>&1; then
-  echo "  Backend available, saving to database..."
-  
-  # Create Run in database
-  RUN_RESPONSE=$(curl -s -X POST "${API_BASE}/runs" \
-    -H "Content-Type: application/json" \
-    -d "{
-      \"repo\": \"${REPO_NAME}\",
-      \"branch\": \"${BRANCH_NAME}\",
-      \"commit_sha\": \"${COMMIT_SHA}\",
-      \"started_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
-      \"correlation_id\": \"autodoc-${COMMIT_SHA:0:8}\",
-      \"status\": \"Awaiting Review\",
-      \"mode\": \"PRODUCTION\"
-    }")
-
-  RUN_ID=$(echo "$RUN_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])" 2>/dev/null || echo "")
-
-  if [ -z "$RUN_ID" ]; then
-    echo "  WARNING: Failed to create run in database"
-  else
-    echo "  ✓ Created run #${RUN_ID}"
-    
-    # Collect all changes from temp files
-    echo "  Collecting changes from analysis..."
-    ALL_CHANGES_JSON="[]"
-    
-    for RESULT_FILE in "$TEMP_DIR"/result_*.json; do
-      if [ -f "$RESULT_FILE" ]; then
-        CHANGES=$(python3 -c "
-import json
-try:
-    with open('$RESULT_FILE') as f:
-        data = json.load(f)
-        print(json.dumps(data.get('detailed_changes', [])))
-except:
-    print('[]')
-")
-        # Merge changes
-        ALL_CHANGES_JSON=$(python3 -c "
-import json
-try:
-    existing = json.loads('''$ALL_CHANGES_JSON''')
-    new = json.loads('''$CHANGES''')
-    existing.extend(new)
-    print(json.dumps(existing))
-except:
-    print('[]')
-")
-      fi
-    done
-    
-    # Save changes to database
-    CHANGE_COUNT=$(echo "$ALL_CHANGES_JSON" | python3 -c "import json, sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
-    if [ "$CHANGE_COUNT" -gt 0 ]; then
-      echo "  Saving $CHANGE_COUNT change(s) to database..."
-      SAVE_RESPONSE=$(curl -s -X POST "${API_BASE}/runs/${RUN_ID}/changes" \
-        -H "Content-Type: application/json" \
-        -d "$ALL_CHANGES_JSON")
-      echo "  ✓ Saved changes"
-    else
-      echo "  No changes to save"
-    fi
-    
-    # Generate patches using your Sprint 3 infrastructure
-    echo "  Generating documentation patches..."
-    PATCH_RESPONSE=$(curl -s -X POST "${API_BASE}/runs/${RUN_ID}/generate-patches")
-    PATCHES_GENERATED=$(echo "$PATCH_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('patches_generated', 0))" 2>/dev/null || echo "0")
-    echo "  ✓ Generated ${PATCHES_GENERATED} patch(es)"
-    
-    # Check for LLM summary generation (happens automatically during patch generation)
-    if [ "$PATCHES_GENERATED" -gt 0 ]; then
-      echo ""
-      echo "  Checking LLM summary status..."
-      
-      # Try to retrieve LLM summary artifact (this will generate it if missing)
-      LLM_SUMMARY_RESPONSE=$(curl -s -X GET "${API_BASE}/patches/llm-summary-artifact/${RUN_ID}" 2>/dev/null || echo "")
-      
-      if [ -n "$LLM_SUMMARY_RESPONSE" ] && echo "$LLM_SUMMARY_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); exit(0 if data.get('summary') else 1)" 2>/dev/null; then
-        echo "  ✓ LLM summary generated successfully"
-        
-        # Auto-publish to Confluence if not dry-run
-        if [ "$DRY_RUN" = "false" ]; then
-          echo "  Publishing LLM summary to Confluence..."
-          PUBLISH_RESPONSE=$(curl -s -X POST "${API_BASE}/patches/publish-summary/${RUN_ID}" \
-            -H "Content-Type: application/json" \
-            -d '{"strategy": "append_to_patches"}' 2>/dev/null || echo "")
-          
-          if [ -n "$PUBLISH_RESPONSE" ] && echo "$PUBLISH_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); exit(0 if data.get('success') else 1)" 2>/dev/null; then
-            PAGES_UPDATED=$(echo "$PUBLISH_RESPONSE" | python3 -c "import sys, json; print(len(json.load(sys.stdin).get('pages_updated', [])))" 2>/dev/null || echo "0")
-            echo "  ✓ Published LLM summary to ${PAGES_UPDATED} Confluence page(s)"
-          else
-            echo "  ⚠ LLM summary publishing failed or skipped (check logs for details)"
-          fi
-        else
-          echo "  ⏭ Skipping Confluence publish (dry-run mode)"
-        fi
-      else
-        echo "  ⚠ LLM summary not available (API key missing, quota exceeded, or error)"
-      fi
-    fi
-    
-    echo ""
-    echo "  View results at: http://localhost:4200/runs/${RUN_ID}"
-  fi
+# Artifacts are created in the AutoDoc root directory, not current directory
+if [ -f "${AUTODOC_ROOT}/artifacts/change_report.json" ]; then
+  echo "  ✓ Change report: ${AUTODOC_ROOT}/artifacts/change_report.json"
+  # Copy to current directory for CI/CD compatibility
+  mkdir -p ./artifacts
+  cp "${AUTODOC_ROOT}/artifacts/change_report.json" ./artifacts/change_report.json 2>/dev/null || true
+elif [ -f "./artifacts/change_report.json" ]; then
+  echo "  ✓ Change report: ./artifacts/change_report.json"
 else
-  echo "  Backend not available (this is normal in CI/CD)"
-  echo "  Skipping database operations..."
+  echo "  ⚠ Change report not found"
 fi
 
-# Step 4: Creating change report (JSON file)
-echo ""
-echo "Step 4: Creating change report JSON..."
-
-# Generate final change_report.json with real data
-cat > change_report.json << EOF
-{
-  "metadata": {
-    "script_version": "${SCRIPT_VERSION}",
-    "commit_sha": "${COMMIT_SHA}",
-    "repository": "${REPO_NAME}",
-    "branch": "${BRANCH_NAME}",
-    "pr_id": "${PR_ID:-null}",
-    "dry_run": ${DRY_RUN},
-    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-    "hostname": "$(hostname)"
-  },
-  "analysis": {
-    "files_changed": ${FILE_COUNT},
-    "functions_added": ${TOTAL_ADDED},
-    "functions_modified": ${TOTAL_MODIFIED},
-    "functions_removed": ${TOTAL_REMOVED},
-    "breaking_changes": ${TOTAL_BREAKING}
-  },
-  "patches": [
-    {
-      "page_id": "placeholder",
-      "page_title": "API Reference",
-      "status": "pending_approval"
-    }
-  ],
-  "status": "success",
-  "message": "Analysis completed successfully using Sprint 3 infrastructure"
-}
-EOF
-
-echo "  Change report created: change_report.json"
+if [ -f "${AUTODOC_ROOT}/artifacts/patches.json" ]; then
+  echo "  ✓ Patches: ${AUTODOC_ROOT}/artifacts/patches.json"
+  mkdir -p ./artifacts
+  cp "${AUTODOC_ROOT}/artifacts/patches.json" ./artifacts/patches.json 2>/dev/null || true
+elif [ -f "./artifacts/patches.json" ]; then
+  echo "  ✓ Patches: ./artifacts/patches.json"
+fi
 
 # Display summary
 echo ""
@@ -492,32 +288,53 @@ echo "========================================"
 echo "  AutoDoc analysis completed!"
 echo "========================================"
 echo ""
-echo "Summary:"
-echo "  Files analyzed:      ${FILE_COUNT}"
-echo "  Functions added:     ${TOTAL_ADDED}"
-echo "  Functions modified:  ${TOTAL_MODIFIED}"
-echo "  Functions removed:   ${TOTAL_REMOVED}"
-echo "  Breaking changes:    ${TOTAL_BREAKING}"
-if [ -n "${RUN_ID:-}" ]; then
-  echo "  Run ID:              ${RUN_ID}"
-  echo "  Patches generated:   ${PATCHES_GENERATED:-0}"
-  if [ "$DRY_RUN" = "false" ] && [ "${PATCHES_GENERATED:-0}" -gt 0 ]; then
-    echo "  LLM summary:         Generated and published to Confluence"
-  elif [ "$DRY_RUN" = "true" ] && [ "${PATCHES_GENERATED:-0}" -gt 0 ]; then
-    echo "  LLM summary:         Generated (not published - dry-run mode)"
-  fi
+
+# Summarize results from change_report.json if available
+REPORT_FILE="./artifacts/change_report.json"
+if [ ! -f "$REPORT_FILE" ] && [ -f "${AUTODOC_ROOT}/artifacts/change_report.json" ]; then
+  REPORT_FILE="${AUTODOC_ROOT}/artifacts/change_report.json"
 fi
-echo ""
-echo "Output:"
-echo "  change_report.json"
-if [ -n "${RUN_ID:-}" ]; then
-  echo "  Artifacts:            artifacts/${RUN_ID}/"
+
+if [ -f "$REPORT_FILE" ] && command -v jq &> /dev/null; then
+  ADDED=$(jq '.analysis.functions_added // 0' "$REPORT_FILE" 2>/dev/null || echo "0")
+  MODIFIED=$(jq '.analysis.functions_modified // 0' "$REPORT_FILE" 2>/dev/null || echo "0")
+  REMOVED=$(jq '.analysis.functions_removed // 0' "$REPORT_FILE" 2>/dev/null || echo "0")
+  BREAKING=$(jq '.analysis.breaking_changes // 0' "$REPORT_FILE" 2>/dev/null || echo "0")
+  FILES=$(jq '.analysis.files_changed // 0' "$REPORT_FILE" 2>/dev/null || echo "0")
+  
+  echo "Summary:"
+  echo "  Files analyzed:      ${FILES}"
+  echo "  Functions added:     ${ADDED}"
+  echo "  Functions modified:  ${MODIFIED}"
+  echo "  Functions removed:   ${REMOVED}"
+  echo "  Breaking changes:    ${BREAKING}"
+  echo "  Run ID:              ${RUN_ID:-N/A}"
+  echo ""
+  echo "Output:"
+  echo "  change_report.json"
+  if [ -f "./artifacts/patches.json" ]; then
+    echo "  patches.json"
+  fi
+  if [ -n "$RUN_ID" ]; then
+    echo "  Artifacts:            artifacts/${RUN_ID}/"
+    echo ""
+    echo "  View results at: http://localhost:4200/runs/${RUN_ID}"
+  fi
+else
+  echo "Summary:"
+  echo "  Run ID:              ${RUN_ID:-N/A}"
+  echo "  Check artifacts/ directory for output files"
+  if [ -n "$RUN_ID" ]; then
+    echo "  View results at: http://localhost:4200/runs/${RUN_ID}"
+  fi
 fi
 echo ""
 
 if [[ "$VERBOSE" == "true" ]] && command -v jq &> /dev/null; then
-    echo "Full report:"
-    cat change_report.json | jq '.'
+    if [ -f "./artifacts/change_report.json" ]; then
+        echo "Full report:"
+        cat ./artifacts/change_report.json | jq '.'
+    fi
 fi
 
 exit 0
