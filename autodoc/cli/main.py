@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from db.models import Run, PythonSymbol
-from db.session import SessionLocal
+from db.session import SessionLocal, engine, Base
 from autodoc.logging.correlation import generate_correlation_id
 from services.change_report_generator import generate_change_report
 from services.patches_artifact_exporter import export_patches_artifact
@@ -261,6 +261,15 @@ def create_run_from_cli(  # noqa: PLR0915
     Raises:
         SystemExit: If run creation or analysis fails
     """
+    # Ensure database tables exist (for CI/CD environments)
+    db_url = str(engine.url)
+    if ":memory:" not in db_url:
+        try:
+            # Try to create tables if they don't exist (fallback if migrations haven't run)
+            Base.metadata.create_all(bind=engine)
+        except Exception as e:
+            logger.warning(f"Could not auto-create tables: {e}. Ensure migrations are run.")
+
     db = SessionLocal()
     try:
         # Step 1: Create run

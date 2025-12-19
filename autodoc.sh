@@ -226,6 +226,17 @@ if [ -f "${AUTODOC_ROOT}/venv/bin/activate" ]; then
     source "${AUTODOC_ROOT}/venv/bin/activate"
 fi
 
+# Initialize database with migrations (required for CI/CD)
+echo "  Initializing database..."
+cd "${AUTODOC_ROOT}"
+if python3 -c "import alembic" 2>/dev/null; then
+    python3 -m alembic upgrade head
+    echo "  ✓ Database migrations applied"
+else
+    echo "  ⚠ Alembic not available, skipping migrations"
+fi
+cd - > /dev/null
+
 # Store current directory (the git repo being analyzed)
 # The CLI needs to run git commands from here
 CURRENT_DIR="$(pwd)"
