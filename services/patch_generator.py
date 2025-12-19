@@ -294,7 +294,7 @@ def generate_patches_for_run(  # noqa: PLR0915
                 )
 
             # Export LLM summary as JSON artifact
-            # This generates a summary of the patches using Claude API
+            # This generates a summary of the patches using OpenAI API
             summary_path = None
             try:
                 from services.llm_summary_artifact_exporter import (

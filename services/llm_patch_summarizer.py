@@ -1,6 +1,6 @@
 """Service for generating LLM summaries of patches.
 
-This module provides functionality to summarize patch data using Claude API,
+This module provides functionality to summarize patch data using OpenAI API,
 returning structured summaries that explain code changes and how demo_api.py runs.
 """
 
@@ -9,7 +9,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-import anthropic
+import openai
 
 logger = logging.getLogger(__name__)
 
@@ -73,32 +73,34 @@ def summarize_patches_with_llm(
         LLMAPIError: If API call fails
         LLMAPIQuotaExceededError: If API quota is exceeded
     """
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key or api_key == "your-llm-api-token-placeholder":
         raise LLMAPIKeyMissingError(
-            "Claude API token is not configured. "
-            "Please set ANTHROPIC_API_KEY in your environment variables."
+            "OpenAI API key is not configured. "
+            "Please set OPENAI_API_KEY in your environment variables."
         )
 
-    model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
-    max_tokens = int(os.getenv("ANTHROPIC_MAX_TOKENS", "2000"))
-    temperature = float(os.getenv("ANTHROPIC_TEMPERATURE", "0.7"))
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    max_tokens = int(os.getenv("OPENAI_MAX_TOKENS", "2000"))
+    temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.7"))
 
     try:
-        client = anthropic.Anthropic(api_key=api_key)
-        logger.debug(f"Calling Claude API with model {model}")
+        client = openai.OpenAI(api_key=api_key)
+        logger.debug(f"Calling OpenAI API with model {model}")
 
         # Build prompt for LLM
         prompt = _build_llm_prompt(patches_data, prompt_template=prompt_template)
 
-        message = client.messages.create(
+        response = client.chat.completions.create(
             model=model,
             max_tokens=max_tokens,
             temperature=temperature,
             messages=[{"role": "user", "content": prompt}],
         )
 
-        content = message.content[0].text
+        content = response.choices[0].message.content
+        if not content:
+            raise LLMAPIError("OpenAI API returned empty response")
 
         # Parse the response into structured fields
         summary_text = _extract_summary_section(content)
@@ -112,18 +114,18 @@ def summarize_patches_with_llm(
             formatted_output=content,
         )
 
-    except anthropic.APIError as e:
-        error_detail = e.response.json() if hasattr(e.response, "json") else str(e)
-        error_msg = f"Claude API returned error: {e.status_code} - {error_detail}"
-        if e.status_code == 429:
-            if (
-                "quota" in str(error_detail).lower()
-                or "billing" in str(error_detail).lower()
-            ):
-                raise LLMAPIQuotaExceededError(error_msg) from e
+    except openai.RateLimitError as e:
+        error_msg = f"OpenAI API rate limit exceeded: {e}"
+        raise LLMAPIQuotaExceededError(error_msg) from e
+    except openai.APIError as e:
+        error_msg = f"OpenAI API returned error: {e}"
+        # Check if it's a quota/billing error
+        error_str = str(e).lower()
+        if "quota" in error_str or "billing" in error_str or "insufficient" in error_str:
+            raise LLMAPIQuotaExceededError(error_msg) from e
         raise LLMAPIError(error_msg) from e
     except Exception as e:
-        raise LLMAPIError(f"Unexpected error calling Claude API: {e}") from e
+        raise LLMAPIError(f"Unexpected error calling OpenAI API: {e}") from e
 
 
 def _build_llm_prompt(

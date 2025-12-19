@@ -59,6 +59,9 @@ dependencies = [
     
     # JWT token handling for authentication
     "python-jose[cryptography]>=3.3.0,<4.0.0",
+    
+    # OpenAI client for LLM summarization
+    "openai>=1.0.0,<2.0.0",
 ]
 
 [project.optional-dependencies]

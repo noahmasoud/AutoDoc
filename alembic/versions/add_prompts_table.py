@@ -11,6 +11,7 @@ from typing import Sequence
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import text
+import json
 from datetime import datetime
 
 
@@ -37,11 +38,11 @@ def upgrade() -> None:
         sa.UniqueConstraint("name"),
     )
     op.create_index(op.f("ix_prompts_name"), "prompts", ["name"], unique=True)
-
+    
     # Seed 3 default prompts
     connection = op.get_bind()
     now = datetime.utcnow()
-
+    
     # Default Prompt 1: Development Team / Sprint Focus
     default_prompt_1_content = """As a senior developer reviewing code changes during a sprint, analyze these changes and provide a technical summary for the development team.
 
@@ -62,7 +63,7 @@ Please provide:
 6. **Next Steps**: What follow-up work is needed? Any dependencies or blockers?
 
 Focus on actionable technical information that helps the team understand the changes and plan their work."""
-
+    
     connection.execute(
         text("""
         INSERT INTO prompts (name, content, is_default, is_active, created_at, updated_at)
@@ -77,7 +78,7 @@ Focus on actionable technical information that helps the team understand the cha
             "updated_at": now,
         },
     )
-
+    
     # Default Prompt 2: Product Manager Focus
     default_prompt_2_content = """As a product manager reviewing code changes, analyze these updates and provide a business-focused summary.
 
@@ -98,7 +99,7 @@ Please provide:
 6. **Metrics & Success Criteria**: What should we measure to determine if this change is successful?
 
 Focus on business outcomes, user experience, and product strategy rather than technical implementation details."""
-
+    
     connection.execute(
         text("""
         INSERT INTO prompts (name, content, is_default, is_active, created_at, updated_at)
@@ -113,7 +114,7 @@ Focus on business outcomes, user experience, and product strategy rather than te
             "updated_at": now,
         },
     )
-
+    
     # Default Prompt 3: Tech Support Team Focus
     default_prompt_3_content = """As a technical support specialist reviewing code changes, analyze these updates and provide a support-focused summary.
 
@@ -134,7 +135,7 @@ Please provide:
 6. **Escalation Points**: When should support escalate to engineering? What technical details should support be aware of?
 
 Focus on practical information that helps support teams assist users and resolve issues effectively."""
-
+    
     connection.execute(
         text("""
         INSERT INTO prompts (name, content, is_default, is_active, created_at, updated_at)
@@ -155,3 +156,4 @@ def downgrade() -> None:
     """Remove prompts table and all data."""
     op.drop_index(op.f("ix_prompts_name"), table_name="prompts")
     op.drop_table("prompts")
+

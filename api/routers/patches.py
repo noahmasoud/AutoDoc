@@ -49,7 +49,7 @@ def summarize_patches_with_llm(
 ):
     """Generate LLM summary for patches in a run.
 
-    This endpoint generates a summary of all patches for a run using Claude API.
+    This endpoint generates a summary of all patches for a run using OpenAI API.
     The summary is not automatically saved as an artifact unless explicitly requested.
 
     Args:
