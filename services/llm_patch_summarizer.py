@@ -199,8 +199,7 @@ Patches:
 Please provide:
 1. A brief summary of what was changed
 2. A detailed description of the changes
-3. An explanation of how demo_api.py runs and what it does
-4. Any important notes or considerations
+3. Any important notes or considerations
 
 Format your response with clear sections for easy parsing.
 """
