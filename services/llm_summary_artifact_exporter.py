@@ -107,7 +107,7 @@ def export_llm_summary_artifact(
     # Generate LLM summary
     try:
         structured_request = structure_patch_data_for_llm(patches_json)
-        summary = summarize_patches_with_llm(structured_request)
+        summary = summarize_patches_with_llm(structured_request, db=db)
 
         logger.info(
             f"Successfully generated LLM summary for run {run_id}",

@@ -15,6 +15,7 @@ from api.routers import (
     connections,
     auth,
     prompts,
+    llm_config,
 )
 
 
@@ -61,6 +62,8 @@ def create_app() -> FastAPI:
     app.include_router(diff_parser.router, prefix="/api")
     # Register connections at /api/connections (without v1 prefix as per requirements)
     app.include_router(connections.router, prefix="/api")
+    # Register LLM config at /api/llm-config (without v1 prefix for consistency)
+    app.include_router(llm_config.router, prefix="/api")
     # Register auth at /api/login (without v1 prefix for consistency with frontend)
     app.include_router(auth.router, prefix="/api")
 

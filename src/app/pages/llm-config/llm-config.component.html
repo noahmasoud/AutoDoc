@@ -1,0 +1,112 @@
+<div class="llm-config-page">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <div class="page-header">
+    <h1>LLM Configuration</h1>
+    <p class="subtitle">Configure your LLM API key and model selection</p>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-state" role="status" aria-label="Loading LLM configuration" aria-live="polite">
+    <mat-spinner diameter="50" aria-hidden="true"></mat-spinner>
+    <p>Loading LLM configuration...</p>
+  </div>
+
+  <div *ngIf="!isLoading" id="main-content">
+    <div class="llm-config-form-card">
+    <form [formGroup]="llmConfigForm" (ngSubmit)="saveLLMConfig()" class="llm-config-form" role="form" aria-label="LLM configuration form">
+      <div class="form-group">
+        <label for="model" class="required">
+          LLM Model
+        </label>
+        <select
+          id="model"
+          formControlName="model"
+          [class.error]="hasError('model')"
+          [attr.aria-invalid]="hasError('model') ? 'true' : 'false'"
+          [attr.aria-describedby]="hasError('model') ? 'model-error' : null"
+          aria-required="true"
+        >
+          <option value="" disabled>Select a model</option>
+          <option *ngFor="let model of availableModels" [value]="model.value">
+            {{ model.label }}
+          </option>
+        </select>
+        <small
+          class="error"
+          *ngIf="hasError('model')"
+          id="model-error"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ getErrorMessage('model') }}
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label for="api_key" class="required">
+          API Key
+        </label>
+        <input
+          id="api_key"
+          type="password"
+          formControlName="api_key"
+          [placeholder]="isApiKeySaved ? '•••••••••• (saved)' : 'Enter your API key'"
+          [class.error]="hasError('api_key')"
+          [attr.aria-invalid]="hasError('api_key') ? 'true' : 'false'"
+          [attr.aria-describedby]="hasError('api_key') ? 'api-key-error api-key-help' : (isApiKeySaved ? 'api-key-help' : null)"
+          autocomplete="off"
+          aria-required="true"
+        />
+        <small
+          class="error"
+          *ngIf="hasError('api_key')"
+          id="api-key-error"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ getErrorMessage('api_key') }}
+        </small>
+        <small
+          class="help-text"
+          *ngIf="isApiKeySaved"
+          id="api-key-help"
+        >
+          Enter a new API key to update it.
+        </small>
+      </div>
+
+      <div class="form-actions">
+        <button
+          type="submit" 
+          class="btn btn-primary" 
+          [disabled]="llmConfigForm.invalid || isSaving"
+          [attr.aria-busy]="isSaving"
+          aria-label="Save LLM configuration"
+        >
+          <span *ngIf="!isSaving" aria-hidden="false">Save Configuration</span>
+          <span *ngIf="isSaving" class="button-loading" aria-hidden="true">
+            <mat-spinner diameter="16" class="inline-spinner" aria-hidden="true"></mat-spinner>
+            <span class="sr-only">Saving configuration, please wait</span>
+            Saving...
+          </span>
+        </button>
+        <button 
+          type="button" 
+          class="btn btn-secondary" 
+          (click)="testLLMConfig()" 
+          [disabled]="llmConfigForm.invalid || isTesting"
+          [attr.aria-busy]="isTesting"
+          aria-label="Test LLM configuration"
+        >
+          <span *ngIf="!isTesting" aria-hidden="false">Test Configuration</span>
+          <span *ngIf="isTesting" class="button-loading" aria-hidden="true">
+            <mat-spinner diameter="16" class="inline-spinner" aria-hidden="true"></mat-spinner>
+            <span class="sr-only">Testing configuration, please wait</span>
+            Testing...
+          </span>
+        </button>
+      </div>
+    </form>
+  </div>
+  </div>
+</div>
+

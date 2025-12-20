@@ -1,6 +1,6 @@
 """Service for generating LLM summaries of patches.
 
-This module provides functionality to summarize patch data using Claude API,
+This module provides functionality to summarize patch data using LLM APIs (OpenAI or Anthropic),
 returning structured summaries that explain code changes and how demo_api.py runs.
 """
 
@@ -10,8 +10,26 @@ from dataclasses import dataclass
 from typing import Any
 
 import anthropic
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+
+from db.models import LLMConfig
+from core.encryption import decrypt_token
 
 logger = logging.getLogger(__name__)
+
+# Try to import OpenAI, but make it optional
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    logger.warning("OpenAI package not installed. OpenAI models will not be available.")
+
+
+def _is_openai_model(model: str) -> bool:
+    """Check if the model is an OpenAI model."""
+    return model.startswith(("gpt-", "o1-", "o3-"))
 
 
 @dataclass
@@ -58,12 +76,15 @@ def structure_patch_data_for_llm(patches_data: dict[str, Any]) -> dict[str, Any]
 def summarize_patches_with_llm(
     patches_data: dict[str, Any],
     prompt_template: str | None = None,
+    db: Session | None = None,
 ) -> LLMPatchSummary:
     """Generate LLM summary for patch data.
 
     Args:
         patches_data: Structured patch data dictionary
         prompt_template: Optional custom prompt template. If None, uses default prompt.
+        db: Optional database session. If provided, uses saved LLM configuration from database.
+            Otherwise, falls back to environment variables.
 
     Returns:
         LLMPatchSummary with summary fields
@@ -73,23 +94,117 @@ def summarize_patches_with_llm(
         LLMAPIError: If API call fails
         LLMAPIQuotaExceededError: If API quota is exceeded
     """
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key or api_key == "your-llm-api-token-placeholder":
-        raise LLMAPIKeyMissingError(
-            "Claude API token is not configured. "
-            "Please set ANTHROPIC_API_KEY in your environment variables."
-        )
-
-    model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+    # Try to get configuration from database first
+    api_key: str | None = None
+    model: str | None = None
+    
+    if db:
+        try:
+            llm_config = db.execute(select(LLMConfig).limit(1)).scalar_one_or_none()
+            if llm_config:
+                api_key = decrypt_token(llm_config.encrypted_api_key)
+                model = llm_config.model
+                # Update last_used_at
+                from datetime import datetime
+                llm_config.last_used_at = datetime.utcnow()
+                db.commit()
+                logger.debug("Using LLM configuration from database", extra={"model": model})
+        except Exception as e:
+            logger.warning(f"Failed to load LLM config from database, falling back to environment: {e}")
+    
+    # Fall back to environment variables if not found in database
+    if not api_key or not model:
+        # Determine model from environment or default
+        if not model:
+            model = os.getenv("ANTHROPIC_MODEL") or os.getenv("OPENAI_MODEL") or "claude-sonnet-4-20250514"
+        
+        # Check for OpenAI first, then Anthropic
+        if _is_openai_model(model):
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key or api_key == "your-llm-api-token-placeholder":
+                raise LLMAPIKeyMissingError(
+                    "OpenAI API key is not configured. "
+                    "Please set OPENAI_API_KEY in your environment variables or configure it in the LLM settings."
+                )
+        else:
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not api_key or api_key == "your-llm-api-token-placeholder":
+                raise LLMAPIKeyMissingError(
+                    "Claude API token is not configured. "
+                    "Please set ANTHROPIC_API_KEY in your environment variables or configure it in the LLM settings."
+                )
+        logger.debug("Using LLM configuration from environment variables", extra={"model": model})
+    
     max_tokens = int(os.getenv("ANTHROPIC_MAX_TOKENS", "2000"))
     temperature = float(os.getenv("ANTHROPIC_TEMPERATURE", "0.7"))
 
+    # Build prompt for LLM
+    prompt = _build_llm_prompt(patches_data, prompt_template=prompt_template)
+
+    # Route to appropriate API based on model
+    if _is_openai_model(model):
+        if not OPENAI_AVAILABLE:
+            raise LLMAPIError(
+                "OpenAI package is not installed. Please install it with: pip install openai"
+            )
+        return _call_openai_api(api_key, model, prompt, max_tokens, temperature)
+    else:
+        return _call_anthropic_api(api_key, model, prompt, max_tokens, temperature)
+
+
+def _call_openai_api(
+    api_key: str,
+    model: str,
+    prompt: str,
+    max_tokens: int,
+    temperature: float,
+) -> LLMPatchSummary:
+    """Call OpenAI API to generate summary."""
+    try:
+        client = openai.OpenAI(api_key=api_key)
+        logger.debug(f"Calling OpenAI API with model {model}")
+
+        response = client.chat.completions.create(
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        content = response.choices[0].message.content or ""
+
+        # Parse the response into structured fields
+        summary_text = _extract_summary_section(content)
+        changes_desc = _extract_changes_section(content)
+        demo_api_desc = _extract_demo_api_section(content)
+
+        return LLMPatchSummary(
+            summary=summary_text or content[:500],
+            changes_description=changes_desc or "See formatted output for details",
+            demo_api_explanation=demo_api_desc or "See formatted output for details",
+            formatted_output=content,
+        )
+
+    except openai.APIError as e:
+        error_msg = f"OpenAI API returned error: {e.status_code if hasattr(e, 'status_code') else 'unknown'} - {str(e)}"
+        if hasattr(e, "status_code") and e.status_code == 429:
+            raise LLMAPIQuotaExceededError(error_msg) from e
+        raise LLMAPIError(error_msg) from e
+    except Exception as e:
+        raise LLMAPIError(f"Unexpected error calling OpenAI API: {e}") from e
+
+
+def _call_anthropic_api(
+    api_key: str,
+    model: str,
+    prompt: str,
+    max_tokens: int,
+    temperature: float,
+) -> LLMPatchSummary:
+    """Call Anthropic API to generate summary."""
     try:
         client = anthropic.Anthropic(api_key=api_key)
         logger.debug(f"Calling Claude API with model {model}")
-
-        # Build prompt for LLM
-        prompt = _build_llm_prompt(patches_data, prompt_template=prompt_template)
 
         message = client.messages.create(
             model=model,
@@ -177,7 +292,7 @@ def _build_default_prompt(patches_data: dict[str, Any], patches_text: str) -> st
     Returns:
         Default formatted prompt string
     """
-    prompt = f"""Please analyze the following code changes and provide a comprehensive summary.
+    return f"""Please analyze the following code changes and provide a comprehensive summary.
 
 Repository: {patches_data.get('repo')}
 Branch: {patches_data.get('branch')}
@@ -195,7 +310,6 @@ Please provide:
 
 Format your response with clear sections for easy parsing.
 """
-    return prompt
 
 
 def _extract_summary_section(content: str) -> str:

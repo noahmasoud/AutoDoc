@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { DashboardComponent } from './pages/dashboard/dashboard.component';
 import { ConnectionsComponent } from './pages/connections/connections.component';
+import { LLMConfigComponent } from './pages/llm-config/llm-config.component';
 import { RulesComponent } from './pages/rules/rules.component';
 import { TemplatesComponent } from './pages/templates/templates.component';
 import { PromptsComponent } from './pages/prompts/prompts.component';
@@ -17,6 +18,11 @@ export const routes: Routes = [
   { 
     path: 'connections', 
     component: ConnectionsComponent, 
+    canActivate: [authGuard] 
+  },
+  { 
+    path: 'llm-config', 
+    component: LLMConfigComponent, 
     canActivate: [authGuard] 
   },
   { 

@@ -87,6 +87,23 @@ router-outlet + * {
   overflow: hidden;
 }
 
+/* Login button - primary blue style when enabled */
+.login-button:not(:disabled) {
+  background-color: #667eea;
+  color: white;
+}
+
+.login-button:hover:not(:disabled) {
+  background-color: #5568d3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.login-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
 /* Button ripple effect */
 .btn::before,
 .btn-primary::before,

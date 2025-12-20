@@ -58,7 +58,10 @@ export class LoginComponent implements OnInit {
         console.error('Login error details:', error);
         let errorMessage = 'Login failed. Please try again.';
         
-        if (error.status === 401) {
+        // Check for timeout error
+        if (error.error?.detail?.includes('timed out') || error.name === 'TimeoutError') {
+          errorMessage = 'Request timed out. The backend server may not be running or is taking too long to respond. Please check http://localhost:8000';
+        } else if (error.status === 401) {
           errorMessage = 'Invalid username or password. Please try again.';
         } else if (error.status === 400) {
           const detail = error.error?.detail || error.error?.message || JSON.stringify(error.error);

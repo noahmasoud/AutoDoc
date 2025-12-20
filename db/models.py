@@ -278,6 +278,30 @@ class Connection(Base):
     )
 
 
+class LLMConfig(Base):
+    """
+    LLM configuration entity: stores LLM API key and model selection.
+
+    Per FR-28 and NFR-9: API key is encrypted at rest and never logged.
+    Only one LLM configuration is allowed per system.
+    """
+
+    __tablename__ = "llm_configs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    model: Mapped[str] = mapped_column(Text, nullable=False)  # e.g., "claude-sonnet-4-20250514"
+    # Encrypted API key - never store plaintext (NFR-9)
+    encrypted_api_key: Mapped[str] = mapped_column(Text, nullable=False)
+    # Metadata
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
 class Prompt(Base):
     """
     Prompt entity: stores LLM prompts for patch summarization.
