@@ -41,7 +41,8 @@ export class RulesComponent implements OnInit {
       page_id: ['', [Validators.required]],
       template_id: [null],
       prompt_id: [null],
-      auto_approve: [false]
+      auto_approve: [false],
+      update_strategy: ['replace', [Validators.required]]
     });
   }
 
@@ -96,7 +97,12 @@ export class RulesComponent implements OnInit {
   startCreate(): void {
     this.editingRule = null;
     this.isCreating = true;
-    this.ruleForm.reset({ auto_approve: false, template_id: null, prompt_id: null });
+    this.ruleForm.reset({ 
+      auto_approve: false, 
+      template_id: null, 
+      prompt_id: null,
+      update_strategy: 'replace'
+    });
   }
 
   startEdit(rule: Rule): void {
@@ -109,14 +115,20 @@ export class RulesComponent implements OnInit {
       page_id: rule.page_id,
       template_id: rule.template_id,
       prompt_id: rule.prompt_id,
-      auto_approve: rule.auto_approve
+      auto_approve: rule.auto_approve,
+      update_strategy: rule.update_strategy || 'replace'
     });
   }
 
   cancelEdit(): void {
     this.editingRule = null;
     this.isCreating = false;
-    this.ruleForm.reset({ auto_approve: false, template_id: null, prompt_id: null });
+    this.ruleForm.reset({ 
+      auto_approve: false, 
+      template_id: null, 
+      prompt_id: null,
+      update_strategy: 'replace'
+    });
   }
 
   saveRule(): void {
@@ -135,7 +147,8 @@ export class RulesComponent implements OnInit {
       page_id: formValue.page_id,
       template_id: formValue.template_id || null,
       prompt_id: formValue.prompt_id || null,
-      auto_approve: formValue.auto_approve || false
+      auto_approve: formValue.auto_approve || false,
+      update_strategy: formValue.update_strategy || 'replace'
     };
 
     const operation = this.editingRule

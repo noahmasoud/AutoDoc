@@ -258,10 +258,23 @@ class Rule(Base):
         ForeignKey("prompts.id", ondelete="SET NULL"),
         nullable=True,
     )
+    update_strategy: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="replace",
+        server_default="replace",
+    )
 
     # Relationships
     template: Mapped["Template | None"] = relationship(back_populates="rules")
     prompt: Mapped["Prompt | None"] = relationship()
+
+    __table_args__ = (
+        CheckConstraint(
+            "update_strategy IN ('replace', 'append', 'modify_section')",
+            name="check_update_strategy",
+        ),
+    )
 
 
 class Template(Base):

@@ -12,6 +12,7 @@ export interface Rule {
   template_id: number | null;
   prompt_id: number | null;
   auto_approve: boolean;
+  update_strategy: 'replace' | 'append' | 'modify_section';
 }
 
 export type RuleRequest = Omit<Rule, 'id'>;

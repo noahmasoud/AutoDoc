@@ -1,4 +1,5 @@
 from pydantic import BaseModel, field_validator
+from typing import Literal
 
 
 class RuleBase(BaseModel):
@@ -10,6 +11,7 @@ class RuleBase(BaseModel):
     prompt_id: int | None = None
     auto_approve: bool = False
     priority: int = 0
+    update_strategy: Literal["replace", "append", "modify_section"] = "replace"
 
     @field_validator("priority")
     @classmethod
@@ -27,6 +29,14 @@ class RuleBase(BaseModel):
             raise ValueError("Field cannot be empty")
         return v.strip()
 
+    @field_validator("update_strategy")
+    @classmethod
+    def validate_update_strategy(cls, v: str) -> str:
+        """Validate update_strategy is one of the allowed values."""
+        if v not in ("replace", "append", "modify_section"):
+            raise ValueError("update_strategy must be 'replace', 'append', or 'modify_section'")
+        return v
+
 
 class RuleCreate(RuleBase):
     pass
@@ -41,6 +51,7 @@ class RuleUpdate(BaseModel):
     prompt_id: int | None = None
     auto_approve: bool | None = None
     priority: int | None = None
+    update_strategy: Literal["replace", "append", "modify_section"] | None = None
 
     @field_validator("priority")
     @classmethod

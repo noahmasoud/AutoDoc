@@ -132,6 +132,25 @@
       </div>
 
       <div class="form-group">
+        <label for="rule-update-strategy" class="required">Update Strategy</label>
+        <select 
+          id="rule-update-strategy"
+          formControlName="update_strategy"
+          aria-label="Select update strategy"
+          aria-required="true"
+        >
+          <option value="replace">Replace - Replace entire page content</option>
+          <option value="append">Append - Append new content with separator</option>
+          <option value="modify_section">Modify Section - Update specific section by marker</option>
+        </select>
+        <small class="help-text">
+          <strong>Replace:</strong> Completely replaces page content.<br>
+          <strong>Append:</strong> Adds new content at the end with a separator.<br>
+          <strong>Modify Section:</strong> Updates a specific section identified by XML comment markers.
+        </small>
+      </div>
+
+      <div class="form-group">
         <label for="rule-auto-approve">
           <input 
             id="rule-auto-approve"
@@ -218,6 +237,7 @@
         <div><strong>Page ID:</strong> {{ rule.page_id }}</div>
         <div *ngIf="rule.template_id"><strong>Template ID:</strong> {{ rule.template_id }}</div>
         <div><strong>LLM Prompt:</strong> {{ getPromptName(rule.prompt_id) }}</div>
+        <div><strong>Update Strategy:</strong> {{ rule.update_strategy || 'replace' }}</div>
         <div><strong>Auto-approve:</strong> {{ rule.auto_approve ? 'Yes' : 'No' }}</div>
       </div>
     </div>

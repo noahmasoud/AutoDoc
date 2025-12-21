@@ -3,6 +3,8 @@ import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -179,10 +181,21 @@ def get_patch(patch_id: int, db: Session = Depends(get_db)):
         ) from e
 
 
+class ApplyPatchRequest(BaseModel):
+    """Request model for applying a patch with optional strategy override."""
+
+    approved_by: str | None = None
+    strategy: Literal["replace", "append", "modify_section"] | None = None
+    separator: str = "<hr/>"  # For append strategy
+    marker: str | None = None  # For modify_section strategy
+    mode: Literal["replace", "append", "prepend"] = "replace"  # For modify_section strategy
+
+
 @router.post("/{patch_id}/apply", response_model=PatchOut)
 def apply_patch(
     patch_id: int,
-    approved_by: str | None = None,
+    request: ApplyPatchRequest | None = None,
+    approved_by: str | None = None,  # Backward compatibility
     db: Session = Depends(get_db),
 ):
     """Apply a patch to Confluence.
@@ -286,20 +299,46 @@ def apply_patch(
                 detail=f"Rule not found for page_id {patch.page_id}",
             )
 
-        # Update the Confluence page
-        # Note: ConfluenceClient.update_page expects keyword arguments, not a dict
-        # The publisher.update_page accepts a dict but needs to extract the args
-        # For now, call the client directly with the correct signature
+        # Handle backward compatibility: if request is None, use approved_by parameter
+        if request is None:
+            request = ApplyPatchRequest(approved_by=approved_by)
+
+        # Get current page content to apply strategy
+        current_page = client.get_page(patch.page_id)
+        current_content = ""
+        if current_page:
+            current_content = (
+                current_page.get("body", {})
+                .get("storage", {})
+                .get("value", "")
+            )
+
+        # Determine strategy: use request override or fall back to rule's default
+        strategy = request.strategy or getattr(rule, "update_strategy", "replace") or "replace"
+
+        # Apply strategy using ConfluenceContentModifier
+        from services.confluence_content_modifier import ConfluenceContentModifier
+
+        modified_content = ConfluenceContentModifier.apply_strategy(
+            current_content=current_content,
+            new_content=patch.diff_after,
+            strategy=strategy,
+            separator=request.separator,
+            marker=request.marker,
+            mode=request.mode,
+        )
+
+        # Update the Confluence page with modified content
         result = client.update_page(
             page_id=patch.page_id,
             title=f"AutoDoc: {rule.name}",  # Use rule name as title
-            body=patch.diff_after,
+            body=modified_content,
             representation="storage",
         )
 
         # Update patch status
         patch.status = "Applied"
-        patch.approved_by = approved_by
+        patch.approved_by = request.approved_by
         patch.applied_at = datetime.now(UTC)
         db.commit()
         db.refresh(patch)

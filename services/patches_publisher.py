@@ -14,6 +14,7 @@ from sqlalchemy import select
 from db.models import Patch, Rule, Run
 from services.confluence_client import ConfluenceClient
 from services.confluence_publisher import ConfluencePublisher
+from services.confluence_content_modifier import ConfluenceContentModifier
 
 logger = logging.getLogger(__name__)
 
@@ -164,11 +165,32 @@ def publish_patches_to_confluence(
                     )
                     continue
 
-                # Update the Confluence page with patch content
+                # Get current page content to apply strategy
+                current_page = client.get_page(patch.page_id)
+                current_content = ""
+                if current_page:
+                    current_content = (
+                        current_page.get("body", {})
+                        .get("storage", {})
+                        .get("value", "")
+                    )
+
+                # Get strategy from rule (default to "replace" for backward compatibility)
+                strategy = getattr(rule, "update_strategy", "replace") or "replace"
+
+                # Apply strategy to modify content
+                modified_content = ConfluenceContentModifier.apply_strategy(
+                    current_content=current_content,
+                    new_content=patch.diff_after,
+                    strategy=strategy,
+                    separator="<hr/>",  # Default separator for append
+                )
+
+                # Update the Confluence page with modified content
                 result = client.update_page(
                     page_id=patch.page_id,
                     title=f"AutoDoc: {rule.name}",
-                    body=patch.diff_after,
+                    body=modified_content,
                     representation="storage",
                 )
 
