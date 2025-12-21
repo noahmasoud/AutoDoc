@@ -1,0 +1,22 @@
+{
+  "run_id": 77,
+  "repo": "noahmasoud/AutoDoc",
+  "branch": "feature/New_Language",
+  "commit_sha": "696f40399dd2e95259fae3c487c764e3184f2138",
+  "is_dry_run": false,
+  "timestamp": "2025-12-21T00:02:21.019401+00:00",
+  "patches_count": 1,
+  "patches": [
+    {
+      "id": 13,
+      "run_id": 77,
+      "page_id": "6881281",
+      "status": "Proposed",
+      "diff_before": "# Before Changes\n",
+      "diff_after": "# Code Changes Detected\n\n**File**: `demo_java.js`\n\n**Changes**: 4 total\n- Added: 4\n- Modified: 0\n- Removed: 0\n\n**Symbols Changed**:\n- Added: generateUserId, createUser, User, saveUserToDatabase\n- Modified: \n- Removed: \n\n**Commit**: 696f40399dd2e95259fae3c487c764e3184f2138\n\n- **generateUserId** (added) in `demo_java.js`\n- **createUser** (added) in `demo_java.js`\n- **User** (added) in `demo_java.js`\n- **saveUserToDatabase** (added) in `demo_java.js`\n\n---\n*AutoDoc - noahmasoud/AutoDoc*",
+      "approved_by": null,
+      "applied_at": null,
+      "error_message": null
+    }
+  ]
+}

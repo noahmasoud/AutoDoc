@@ -39,10 +39,19 @@ from services.rule_engine import (
     validate_rule_target,
     validate_selector,
 )
-from services.typescript_analyzer import TypeScriptAnalyzer
-from services.typescript_parser import (
+from services.go_analyzer import GoAnalyzer
+from services.go_parser import GoParser, GoParserError, GoNotFoundError
+from services.go_symbol_ingestor import GoSymbolIngestor
+from services.javascript_analyzer import JavaScriptAnalyzer
+from services.javascript_parser import (
+    JavaScriptParser,
+    JavaScriptParserError,
     NodeJSNotFoundError,
     ParseError,
+)
+from services.javascript_symbol_ingestor import JavaScriptSymbolIngestor
+from services.typescript_analyzer import TypeScriptAnalyzer
+from services.typescript_parser import (
     TypeScriptParser,
     TypeScriptParserError,
 )
@@ -65,8 +74,17 @@ __all__ = [
     "ConfluenceConflictError",
     "ConfluenceError",
     "ConfluenceHTTPError",
+    "GoAnalyzer",
+    "GoNotFoundError",
+    "GoParser",
+    "GoParserError",
+    "GoSymbolIngestor",
     "InvalidSelectorError",
     "InvalidTargetError",
+    "JavaScriptAnalyzer",
+    "JavaScriptParser",
+    "JavaScriptParserError",
+    "JavaScriptSymbolIngestor",
     "NodeJSNotFoundError",
     "ParseError",
     "PatchGenerationError",

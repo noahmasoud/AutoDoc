@@ -1,15 +1,16 @@
 #!/bin/bash
 
 ############################################################
-# AutoDoc CI/CD Entrypoint Script - Sprint 3 Integration
-# Updated to call actual Python analysis engine and persist changes
+# AutoDoc CI/CD Entrypoint Script - Multi-Language Support
+# Supports Python, JavaScript, and Go file analysis
+# Updated to call multi-language analysis engine and persist changes
 ############################################################
 
 set -e
 set -u
 set -o pipefail
 
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="2.0.0"
 SCRIPT_NAME="autodoc.sh"
 
 # Error handling
@@ -152,12 +153,17 @@ echo "Running AutoDoc Analysis"
 echo "========================================"
 echo ""
 
-# Step 1: Get list of changed Python files
-echo "Step 1: Finding changed Python files..."
-CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | grep '\.py$' || echo "")
+# Step 1: Get list of changed files (Python, JavaScript, Go)
+echo "Step 1: Finding changed files..."
+CHANGED_PYTHON=$(git diff --name-only HEAD^ HEAD | grep '\.py$' || echo "")
+CHANGED_JS=$(git diff --name-only HEAD^ HEAD | grep -E '\.(js|jsx)$' || echo "")
+CHANGED_GO=$(git diff --name-only HEAD^ HEAD | grep '\.go$' || echo "")
+
+# Combine all changed files
+CHANGED_FILES=$(echo -e "$CHANGED_PYTHON\n$CHANGED_JS\n$CHANGED_GO" | grep -v '^$' | sort -u)
 
 if [[ -z "$CHANGED_FILES" ]]; then
-    echo "No Python files changed"
+    echo "No supported files changed (Python, JavaScript, or Go)"
     
     # Generate empty report
     cat > change_report.json << EOF
@@ -182,7 +188,7 @@ if [[ -z "$CHANGED_FILES" ]]; then
   "detailed_changes": [],
   "patches": [],
   "status": "success",
-  "message": "No Python files changed"
+  "message": "No supported files changed (Python, JavaScript, or Go)"
 }
 EOF
     
@@ -191,7 +197,14 @@ EOF
 fi
 
 FILE_COUNT=$(echo "$CHANGED_FILES" | wc -l | tr -d ' ')
-echo "  Found ${FILE_COUNT} changed Python file(s)"
+PYTHON_COUNT=$(if [[ -n "$CHANGED_PYTHON" ]]; then echo "$CHANGED_PYTHON" | grep -v '^$' | wc -l | tr -d ' '; else echo "0"; fi)
+JS_COUNT=$(if [[ -n "$CHANGED_JS" ]]; then echo "$CHANGED_JS" | grep -v '^$' | wc -l | tr -d ' '; else echo "0"; fi)
+GO_COUNT=$(if [[ -n "$CHANGED_GO" ]]; then echo "$CHANGED_GO" | grep -v '^$' | wc -l | tr -d ' '; else echo "0"; fi)
+
+echo "  Found ${FILE_COUNT} changed file(s):"
+echo "    - Python: ${PYTHON_COUNT}"
+echo "    - JavaScript: ${JS_COUNT}"
+echo "    - Go: ${GO_COUNT}"
 
 # Step 2: Run analysis engine for each file
 echo ""
@@ -210,109 +223,46 @@ for FILE in $CHANGED_FILES; do
     echo "  Analyzing: $FILE"
     
     # Get old and new versions of the file
-    git show HEAD^:"$FILE" > "$TEMP_DIR/old.py" 2>/dev/null || echo "" > "$TEMP_DIR/old.py"
-    git show HEAD:"$FILE" > "$TEMP_DIR/new.py" 2>/dev/null || echo "" > "$TEMP_DIR/new.py"
+    OLD_FILE="$TEMP_DIR/old_$(basename "$FILE" | tr '/' '_')"
+    NEW_FILE="$TEMP_DIR/new_$(basename "$FILE" | tr '/' '_')"
     
-    # Run your Python analysis engine
-    python3 << PYTHON_SCRIPT
-import sys
-import json
-from pathlib import Path
-
-sys.path.insert(0, str(Path.cwd()))
-
-from src.analyzer.parser import parse_python_code
-from src.analyzer.extractor import extract_symbols
-from src.analyzer.change_detector import detect_changes
-
-with open("$TEMP_DIR/old.py", "r") as f:
-    old_code = f.read()
-
-with open("$TEMP_DIR/new.py", "r") as f:
-    new_code = f.read()
-
-try:
-    old_tree = parse_python_code(old_code) if old_code.strip() else None
-    new_tree = parse_python_code(new_code) if new_code.strip() else None
+    git show HEAD^:"$FILE" > "$OLD_FILE" 2>/dev/null || echo "" > "$OLD_FILE"
+    git show HEAD:"$FILE" > "$NEW_FILE" 2>/dev/null || echo "" > "$NEW_FILE"
     
-    if old_tree and new_tree:
-        old_module = extract_symbols(old_tree, "$FILE")
-        new_module = extract_symbols(new_tree, "$FILE")
-        report = detect_changes(old_module, new_module, "HEAD^", "HEAD")
-        
-        # Extract detailed changes for database persistence
-        detailed_changes = []
-        for change in report.added:
-            detailed_changes.append({
-                "file_path": "$FILE",
-                "symbol": change.symbol_name,
-                "change_type": "added",
-                "signature_before": None,
-                "signature_after": None  # SymbolChange doesn't have signature fields
-            })
-        for change in report.modified:
-            detailed_changes.append({
-                "file_path": "$FILE",
-                "symbol": change.symbol_name,
-                "change_type": "modified",
-                "signature_before": None,
-                "signature_after": None
-            })
-        for change in report.removed:
-            detailed_changes.append({
-                "file_path": "$FILE",
-                "symbol": change.symbol_name,
-                "change_type": "removed",
-                "signature_before": None,
-                "signature_after": None
-            })
-        
-        result = report.to_dict()
-        result["detailed_changes"] = detailed_changes
-    else:
-        result = {
-            "file_path": "$FILE",
-            "summary": {
-                "added_count": 0,
-                "modified_count": 0,
-                "removed_count": 0,
-                "breaking_count": 0
-            },
-            "detailed_changes": []
-        }
+    # Use the multi-language analyzer script
+    RESULT_FILE="$TEMP_DIR/result_$(basename "$FILE" | tr '/' '_').json"
     
-    with open("$TEMP_DIR/result.json", "w") as f:
-        json.dump(result, f)
-    
-except Exception as e:
-    result = {
-        "file_path": "$FILE",
-        "error": str(e),
-        "summary": {
-            "added_count": 0,
-            "modified_count": 0,
-            "removed_count": 0,
-            "breaking_count": 0
-        },
-        "detailed_changes": []
+    python3 "$(dirname "$0")/scripts/analyze_changed_files.py" "$FILE" "$OLD_FILE" "$NEW_FILE" > "$RESULT_FILE" 2>/dev/null || {
+        # Fallback if script fails
+        echo "    ⚠ Analysis failed for $FILE, creating empty result"
+        cat > "$RESULT_FILE" << EOF
+{
+  "file_path": "$FILE",
+  "error": "Analysis failed",
+  "summary": {
+    "added_count": 0,
+    "modified_count": 0,
+    "removed_count": 0,
+    "breaking_count": 0
+  },
+  "detailed_changes": []
+}
+EOF
     }
-    with open("$TEMP_DIR/result.json", "w") as f:
-        json.dump(result, f)
-
-PYTHON_SCRIPT
     
     # Read results and accumulate counts
-    if [[ -f "$TEMP_DIR/result.json" ]]; then
+    if [[ -f "$RESULT_FILE" ]]; then
         if command -v jq &> /dev/null; then
-            ADDED=$(jq '.summary.added_count // 0' "$TEMP_DIR/result.json")
-            MODIFIED=$(jq '.summary.modified_count // 0' "$TEMP_DIR/result.json")
-            REMOVED=$(jq '.summary.removed_count // 0' "$TEMP_DIR/result.json")
-            BREAKING=$(jq '.summary.breaking_count // 0' "$TEMP_DIR/result.json")
+            ADDED=$(jq '.summary.added_count // 0' "$RESULT_FILE")
+            MODIFIED=$(jq '.summary.modified_count // 0' "$RESULT_FILE")
+            REMOVED=$(jq '.summary.removed_count // 0' "$RESULT_FILE")
+            BREAKING=$(jq '.summary.breaking_count // 0' "$RESULT_FILE")
         else
-            ADDED=0
-            MODIFIED=0
-            REMOVED=0
-            BREAKING=0
+            # Fallback without jq
+            ADDED=$(python3 -c "import json, sys; data=json.load(open('$RESULT_FILE')); print(data.get('summary', {}).get('added_count', 0))" 2>/dev/null || echo "0")
+            MODIFIED=$(python3 -c "import json, sys; data=json.load(open('$RESULT_FILE')); print(data.get('summary', {}).get('modified_count', 0))" 2>/dev/null || echo "0")
+            REMOVED=$(python3 -c "import json, sys; data=json.load(open('$RESULT_FILE')); print(data.get('summary', {}).get('removed_count', 0))" 2>/dev/null || echo "0")
+            BREAKING=$(python3 -c "import json, sys; data=json.load(open('$RESULT_FILE')); print(data.get('summary', {}).get('breaking_count', 0))" 2>/dev/null || echo "0")
         fi
         
         TOTAL_ADDED=$((TOTAL_ADDED + ADDED))
@@ -321,9 +271,6 @@ PYTHON_SCRIPT
         TOTAL_BREAKING=$((TOTAL_BREAKING + BREAKING))
         
         echo "      Added: $ADDED, Modified: $MODIFIED, Removed: $REMOVED, Breaking: $BREAKING"
-        
-        # Save this file's result for later
-        cp "$TEMP_DIR/result.json" "$TEMP_DIR/result_${FILE//\//_}.json"
     fi
 done
 
@@ -400,6 +347,20 @@ except:
       echo "  ✓ Saved changes"
     else
       echo "  No changes to save"
+    fi
+    
+    # Save symbols to database using ingestors
+    echo "  Saving symbols to database..."
+    SYMBOL_COUNTS=$(python3 "$(dirname "$0")/scripts/save_symbols_to_db.py" "$RUN_ID" $CHANGED_FILES 2>/dev/null || echo '{"python": 0, "javascript": 0, "go": 0}')
+    PYTHON_SYMBOLS=$(echo "$SYMBOL_COUNTS" | python3 -c "import json, sys; print(json.load(sys.stdin).get('python', 0))" 2>/dev/null || echo "0")
+    JS_SYMBOLS=$(echo "$SYMBOL_COUNTS" | python3 -c "import json, sys; print(json.load(sys.stdin).get('javascript', 0))" 2>/dev/null || echo "0")
+    GO_SYMBOLS=$(echo "$SYMBOL_COUNTS" | python3 -c "import json, sys; print(json.load(sys.stdin).get('go', 0))" 2>/dev/null || echo "0")
+    
+    TOTAL_SYMBOLS=$((PYTHON_SYMBOLS + JS_SYMBOLS + GO_SYMBOLS))
+    if [ "$TOTAL_SYMBOLS" -gt 0 ]; then
+      echo "  ✓ Saved $TOTAL_SYMBOLS symbol(s) (Python: $PYTHON_SYMBOLS, JavaScript: $JS_SYMBOLS, Go: $GO_SYMBOLS)"
+    else
+      echo "  ⚠ No symbols saved (files may not have parseable symbols or analyzers unavailable)"
     fi
     
     # Generate patches using your Sprint 3 infrastructure
@@ -480,7 +441,7 @@ cat > change_report.json << EOF
     }
   ],
   "status": "success",
-  "message": "Analysis completed successfully using Sprint 3 infrastructure"
+  "message": "Analysis completed"
 }
 EOF
 

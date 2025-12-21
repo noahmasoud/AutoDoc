@@ -11,7 +11,16 @@ from typing import Any
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 
-from db.models import Change, Patch, PythonSymbol, Rule, Run, Template
+from db.models import (
+    Change,
+    GoSymbol,
+    JavaScriptSymbol,
+    Patch,
+    PythonSymbol,
+    Rule,
+    Run,
+    Template,
+)
 from services.change_persister import get_changes_for_run
 from services.rule_engine import resolve_target_page
 from autodoc.templates.engine import (
@@ -75,6 +84,16 @@ def generate_patches_for_run(  # noqa: PLR0915
             .scalars()
             .all()
         )
+        javascript_symbols = (
+            db.execute(select(JavaScriptSymbol).where(JavaScriptSymbol.run_id == run_id))
+            .scalars()
+            .all()
+        )
+        go_symbols = (
+            db.execute(select(GoSymbol).where(GoSymbol.run_id == run_id))
+            .scalars()
+            .all()
+        )
 
         if not changes:
             logger.info(
@@ -98,11 +117,15 @@ def generate_patches_for_run(  # noqa: PLR0915
             return []
 
         logger.info(
-            f"Found {len(changes)} changes, {len(python_symbols)} Python symbols, and {len(rules)} rules",
+            f"Found {len(changes)} changes, {len(python_symbols)} Python symbols, "
+            f"{len(javascript_symbols)} JavaScript symbols, {len(go_symbols)} Go symbols, "
+            f"and {len(rules)} rules",
             extra={
                 "run_id": run_id,
                 "change_count": len(changes),
-                "symbol_count": len(python_symbols),
+                "python_symbol_count": len(python_symbols),
+                "javascript_symbol_count": len(javascript_symbols),
+                "go_symbol_count": len(go_symbols),
                 "rule_count": len(rules),
             },
         )
@@ -410,6 +433,8 @@ def _build_patch_context(
     rule: Rule,
     changes: list[Change],
     python_symbols: list[PythonSymbol],
+    javascript_symbols: list[JavaScriptSymbol],
+    go_symbols: list[GoSymbol],
 ) -> dict[str, Any]:
     """Build context object for template rendering from analyzer findings.
 
@@ -418,6 +443,8 @@ def _build_patch_context(
         rule: The matching Rule
         changes: List of Change records for this patch
         python_symbols: List of PythonSymbol records for the run
+        javascript_symbols: List of JavaScriptSymbol records for the run
+        go_symbols: List of GoSymbol records for the run
 
     Returns:
         Dictionary with context variables for template rendering
@@ -427,9 +454,11 @@ def _build_patch_context(
     removed_changes = [c for c in changes if c.change_type == "removed"]
     modified_changes = [c for c in changes if c.change_type == "modified"]
 
-    # Get Python symbols for changed files
+    # Get symbols for changed files
     changed_files = {c.file_path for c in changes}
-    relevant_symbols = [s for s in python_symbols if s.file_path in changed_files]
+    relevant_python_symbols = [s for s in python_symbols if s.file_path in changed_files]
+    relevant_javascript_symbols = [s for s in javascript_symbols if s.file_path in changed_files]
+    relevant_go_symbols = [s for s in go_symbols if s.file_path in changed_files]
 
     # Build context
     context: dict[str, Any] = {
@@ -494,7 +523,7 @@ def _build_patch_context(
                 "lineno": s.lineno,
                 "metadata": s.symbol_metadata,
             }
-            for s in relevant_symbols
+            for s in relevant_python_symbols + relevant_javascript_symbols + relevant_go_symbols
         ],
         "files": list(changed_files),
     }

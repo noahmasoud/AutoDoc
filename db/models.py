@@ -65,6 +65,14 @@ class Run(Base):
         back_populates="run",
         cascade="all, delete-orphan",
     )
+    javascript_symbols: Mapped[list["JavaScriptSymbol"]] = relationship(
+        back_populates="run",
+        cascade="all, delete-orphan",
+    )
+    go_symbols: Mapped[list["GoSymbol"]] = relationship(
+        back_populates="run",
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         CheckConstraint(
@@ -141,6 +149,82 @@ class PythonSymbol(Base):
             "run_id",
             "qualified_name",
             name="uq_python_symbols_run_path_name",
+        ),
+    )
+
+
+class JavaScriptSymbol(Base):
+    """
+    JavaScriptSymbol entity: stores extracted JavaScript symbol metadata and JSDoc comments.
+
+    Supports documentation pipelines that require persisted symbol data.
+    """
+
+    __tablename__ = "javascript_symbols"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[int] = mapped_column(
+        ForeignKey("runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    file_path: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    symbol_name: Mapped[str] = mapped_column(Text, nullable=False)
+    qualified_name: Mapped[str] = mapped_column(Text, nullable=False)
+    symbol_type: Mapped[str] = mapped_column(Text, nullable=False)
+    docstring: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lineno: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    symbol_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    run: Mapped["Run"] = relationship(back_populates="javascript_symbols")
+
+    __table_args__ = (
+        CheckConstraint(
+            "symbol_type IN ('module', 'class', 'function', 'method', 'interface', 'type', 'enum')",
+            name="check_javascript_symbol_type",
+        ),
+        UniqueConstraint(
+            "run_id",
+            "qualified_name",
+            name="uq_javascript_symbols_run_path_name",
+        ),
+    )
+
+
+class GoSymbol(Base):
+    """
+    GoSymbol entity: stores extracted Go symbol metadata and godoc comments.
+
+    Supports documentation pipelines that require persisted symbol data.
+    """
+
+    __tablename__ = "go_symbols"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[int] = mapped_column(
+        ForeignKey("runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    file_path: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    symbol_name: Mapped[str] = mapped_column(Text, nullable=False)
+    qualified_name: Mapped[str] = mapped_column(Text, nullable=False)
+    symbol_type: Mapped[str] = mapped_column(Text, nullable=False)
+    docstring: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lineno: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    symbol_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    run: Mapped["Run"] = relationship(back_populates="go_symbols")
+
+    __table_args__ = (
+        CheckConstraint(
+            "symbol_type IN ('package', 'function', 'method', 'type', 'interface', 'struct', 'const', 'var')",
+            name="check_go_symbol_type",
+        ),
+        UniqueConstraint(
+            "run_id",
+            "qualified_name",
+            name="uq_go_symbols_run_path_name",
         ),
     )
 

@@ -165,10 +165,17 @@ def match_file_to_rules(file_path: str, rules: list["Rule"]) -> list["Rule"]:
 
     for rule in rules:
         try:
-            if is_glob_pattern(rule.selector):
-                matches = match_glob(file_path, rule.selector)
+            selector = rule.selector.strip()
+            
+            # Handle regex: prefix
+            if selector.lower().startswith("regex:"):
+                pattern = selector[6:].strip()  # Remove "regex:" prefix
+                matches = match_regex(file_path, pattern)
+            elif is_glob_pattern(selector):
+                matches = match_glob(file_path, selector)
             else:
-                matches = match_regex(file_path, rule.selector)
+                # Try as regex if it looks like regex
+                matches = match_regex(file_path, selector)
 
             if matches:
                 matching_rules.append(rule)

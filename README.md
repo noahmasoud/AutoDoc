@@ -19,6 +19,8 @@ That's it! The `make setup` command will:
 ## 📋 Prerequisites
 
 - **Python 3.11+** (required)
+- **Node.js 18+** (required for TypeScript/JavaScript analysis)
+- **Go 1.18+** (required for Go analysis)
 - **Docker** (optional, for containerized development)
 - **Git** (for version control)
 
@@ -231,12 +233,12 @@ Once running, visit:
 - **Interactive API docs**: http://localhost:8000/docs
 - **ReDoc documentation**: http://localhost:8000/redoc
 - **OpenAPI schema**: http://localhost:8000/openapi.json
-- **Python symbol metadata**: `GET /api/v1/runs/{run_id}/python-symbols` returns persisted module/class/function docstrings and signatures for a run.
+- **Symbol metadata**: `GET /api/v1/runs/{run_id}/python-symbols` returns persisted Python module/class/function docstrings and signatures for a run. Similar endpoints available for JavaScript and Go symbols.
 
 ## 🏗️ Architecture
 
 ### Core Components
-- **Analyzers**: Static code analysis for Python/TypeScript
+- **Analyzers**: Static code analysis for Python, TypeScript, JavaScript, and Go
 - **Connectors**: External service integration (Confluence, Git)
 - **Templates**: Configurable documentation generation
 - **API**: RESTful interface for configuration and monitoring
@@ -248,7 +250,7 @@ Once running, visit:
 - **Approval Workflow**: Review and approve changes before applying
 - **Version Control**: Track and rollback documentation changes
 - **Observability**: Comprehensive logging and monitoring
-- **Docstring Persistence**: Stores Python module/class/function/method docstrings during analysis and exposes them through the API for downstream documentation patches
+- **Docstring Persistence**: Stores symbol metadata (functions, classes, types, etc.) for Python, JavaScript, and Go during analysis and exposes them through the API for downstream documentation patches
 
 ## 🔧 Troubleshooting
 
