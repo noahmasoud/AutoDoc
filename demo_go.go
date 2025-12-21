@@ -10,22 +10,6 @@ type UserService struct {
 	users map[string]*User
 }
 
-// User represents a user in the system
-type User struct {
-	ID        string
-	Name      string
-	Email     string
-	CreatedAt time.Time
-	IsActive  bool
-}
-
-// NewUserService creates a new UserService instance
-func NewUserService() *UserService {
-	return &UserService{
-		users: make(map[string]*User),
-	}
-}
-
 // CreateUser creates a new user in the system
 // Parameters:
 //   - username: The unique username

@@ -85,11 +85,6 @@ function generateUserId() {
  * @param {User} user - The user object to save
  * @returns {Promise<void>}
  */
-async function saveUserToDatabase(user) {
-    // Simulated database save
-    console.log(`Saving user ${user.id} to database`);
-    return Promise.resolve();
-}
 
 // Export functions and classes
 export { createUser, User, generateUserId };
